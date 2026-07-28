@@ -235,7 +235,7 @@ export const Navbar = ({ activeTab, setActiveTab, onOpenAdminForm, onOpenAdminMa
                       <div 
                         key={ann.id} 
                         onClick={() => {
-                          setActiveTab('announcements');
+                          setActiveTab('announcements', ann.id);
                           setAnnouncementsOpen(false);
                         }}
                         className={`p-2.5 rounded-xl border space-y-1 cursor-pointer transition-all hover:border-slate-700 ${

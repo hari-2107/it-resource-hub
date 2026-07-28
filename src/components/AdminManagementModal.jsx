@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Lightbulb, Flag, History, Check, ShieldAlert, Trash2, Edit2, ExternalLink, CheckCircle2, XCircle, ArrowRight, Calendar, Plus, Archive, CheckCircle, FileText, GraduationCap, BookOpen, Users, Search, BarChart3 } from 'lucide-react';
+import { X, Lightbulb, Flag, History, Check, ShieldAlert, Trash2, Edit2, ExternalLink, CheckCircle2, XCircle, ArrowRight, Calendar, Plus, Archive, CheckCircle, FileText, GraduationCap, BookOpen, Users, Search, BarChart3, Sparkles, Megaphone, Image as ImageIcon } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import { BroadcastOverlay } from './BroadcastOverlay';
 
 export const AdminManagementModal = ({ initialTab = 'suggestions', onClose, onOpenAdminForm, onOpenVersionHistory }) => {
   const { 
@@ -11,6 +12,10 @@ export const AdminManagementModal = ({ initialTab = 'suggestions', onClose, onOp
     timetables,
     subjects,
     registeredUsers,
+    broadcasts,
+    addBroadcast,
+    updateBroadcast,
+    deleteBroadcast,
     removeRegisteredUser,
     addOrUpdateSubject,
     removeSubject,
@@ -38,6 +43,51 @@ export const AdminManagementModal = ({ initialTab = 'suggestions', onClose, onOp
   const [editingSubjectForm, setEditingSubjectForm] = useState({ id: '', name: '', code: '', year: '3rd Year', semester: 5, type: 'Theory' });
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState('All');
+
+  // Broadcast state
+  const [isCreatingBroadcast, setIsCreatingBroadcast] = useState(false);
+  const [editingBroadcast, setEditingBroadcast] = useState(null);
+  const [previewBroadcast, setPreviewBroadcast] = useState(null);
+  const [broadcastForm, setBroadcastForm] = useState({
+    id: '',
+    title: '',
+    message: '',
+    bannerImageUrl: '',
+    linkUrl: '',
+    linkLabel: 'Register Now 🚀',
+    isSkippable: true,
+    autoCloseSeconds: 5,
+    isFestivalMode: true,
+    animationType: 'confetti',
+    isActive: true
+  });
+
+  const handleBroadcastImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setBroadcastForm(prev => ({
+        ...prev,
+        bannerImageUrl: reader.result
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveBroadcast = (e) => {
+    e.preventDefault();
+    if (!broadcastForm.title.trim() || !broadcastForm.message.trim()) return;
+
+    if (editingBroadcast) {
+      updateBroadcast(editingBroadcast.id, broadcastForm);
+    } else {
+      addBroadcast(broadcastForm);
+    }
+    setIsCreatingBroadcast(false);
+    setEditingBroadcast(null);
+  };
 
   const pendingSuggestionsCount = (suggestions || []).filter(s => s.status === 'pending').length;
   const openReportsCount = (reports || []).filter(r => r.status === 'open').length;
@@ -221,6 +271,23 @@ export const AdminManagementModal = ({ initialTab = 'suggestions', onClose, onOp
             <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
               {(registeredUsers || []).length}
             </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('broadcasts')}
+            className={`flex items-center space-x-2 px-4 py-2.5 rounded-t-2xl font-bold text-xs border-b-2 transition-all whitespace-nowrap ${
+              activeTab === 'broadcasts'
+                ? 'border-rose-400 text-rose-300 bg-slate-900'
+                : 'border-transparent text-slate-400 hover:text-white'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-rose-400" />
+            <span>Broadcasts</span>
+            {(broadcasts || []).length > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-500 text-white shadow">
+                {broadcasts.length}
+              </span>
+            )}
           </button>
         </div>
 
@@ -1204,7 +1271,401 @@ export const AdminManagementModal = ({ initialTab = 'suggestions', onClose, onOp
             </div>
           )}
 
+          {/* TAB: BROADCAST ANNOUNCEMENTS */}
+          {activeTab === 'broadcasts' && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-gradient-to-r from-purple-950/60 via-slate-900 to-amber-950/60 border border-purple-500/30">
+                <div>
+                  <h4 className="text-base font-extrabold text-white flex items-center space-x-2">
+                    <Sparkles className="w-5 h-5 text-amber-400 animate-spin" />
+                    <span>Broadcast Announcements & Festival Overlays</span>
+                  </h4>
+                  <p className="text-xs text-slate-300">
+                    Create full-screen overlay notices with rich celebratory typography & particle animations for department events.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setEditingBroadcast(null);
+                    setBroadcastForm({
+                      id: '',
+                      title: '',
+                      message: '',
+                      bannerImageUrl: '',
+                      linkUrl: '',
+                      linkLabel: 'Register Now 🚀',
+                      isSkippable: true,
+                      autoCloseSeconds: 5,
+                      isFestivalMode: true,
+                      animationType: 'confetti',
+                      isActive: true
+                    });
+                    setIsCreatingBroadcast(true);
+                  }}
+                  className="flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-500 to-purple-600 hover:from-amber-400 hover:to-purple-500 text-white shadow-lg shadow-amber-500/20 whitespace-nowrap self-start sm:self-auto"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Create New Broadcast</span>
+                </button>
+              </div>
+
+              {/* Broadcast Creation / Editing Form */}
+              {isCreatingBroadcast && (
+                <form onSubmit={handleSaveBroadcast} className="p-5 rounded-2xl bg-slate-950 border border-purple-500/40 space-y-4 animate-in fade-in">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h5 className="font-bold text-white text-sm flex items-center space-x-2">
+                      <Sparkles className="w-4 h-4 text-amber-400" />
+                      <span>{editingBroadcast ? 'Edit Broadcast Announcement' : 'Create New Broadcast Announcement'}</span>
+                    </h5>
+                    <button
+                      type="button"
+                      onClick={() => setIsCreatingBroadcast(false)}
+                      className="text-xs text-slate-400 hover:text-white"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+
+                  {/* Title */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">Broadcast Title *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. ✨ Diwali Special Grand Hackathon 2026"
+                      value={broadcastForm.title}
+                      onChange={(e) => setBroadcastForm({ ...broadcastForm, title: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-900 text-slate-100 text-xs rounded-xl border border-slate-800 focus:outline-none focus:border-purple-500"
+                    />
+                  </div>
+
+                  {/* Message Text with Live Typography Preview */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">Message Content (Bright Festive Typography) *</label>
+                    <textarea
+                      rows={3}
+                      required
+                      placeholder="Enter announcement message text..."
+                      value={broadcastForm.message}
+                      onChange={(e) => setBroadcastForm({ ...broadcastForm, message: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-900 text-slate-100 text-xs rounded-xl border border-slate-800 focus:outline-none focus:border-purple-500"
+                    />
+                    {broadcastForm.message && (
+                      <div className="mt-2 p-3 rounded-xl bg-slate-900/90 border border-amber-500/30">
+                        <span className="text-[10px] font-bold uppercase text-amber-400 block mb-1">Live Typography Preview:</span>
+                        <p className="text-xs font-bold text-amber-100 leading-relaxed">
+                          {broadcastForm.message}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Banner Image URL & Action Link */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-bold text-slate-300">Banner Image (JPG / PNG Upload or URL)</label>
+                      <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+                        <label className="px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white cursor-pointer inline-flex items-center space-x-1.5 shadow">
+                          <ImageIcon className="w-3.5 h-3.5" />
+                          <span>Choose Image (JPG / PNG)</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleBroadcastImageUpload}
+                            className="hidden"
+                          />
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="https://... or choose local file above"
+                          value={broadcastForm.bannerImageUrl}
+                          onChange={(e) => setBroadcastForm({ ...broadcastForm, bannerImageUrl: e.target.value })}
+                          className="w-full px-3 py-1.5 bg-slate-950 text-slate-100 text-xs rounded-lg border border-slate-800 focus:outline-none focus:border-purple-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">Action Link URL (Optional)</label>
+                      <input
+                        type="url"
+                        placeholder="https://forms.gle/..."
+                        value={broadcastForm.linkUrl}
+                        onChange={(e) => setBroadcastForm({ ...broadcastForm, linkUrl: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-slate-900 text-slate-100 text-xs rounded-xl border border-slate-800 focus:outline-none focus:border-purple-500"
+                      />
+                    </div>
+                  </div>
+
+                  {broadcastForm.linkUrl && (
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">Button Label Text</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Register Now 🚀"
+                        value={broadcastForm.linkLabel}
+                        onChange={(e) => setBroadcastForm({ ...broadcastForm, linkLabel: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-slate-900 text-slate-100 text-xs rounded-xl border border-slate-800 focus:outline-none focus:border-purple-500"
+                      />
+                    </div>
+                  )}
+
+                  {/* Controls Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+                    
+                    {/* Skippable Toggle */}
+                    <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1.5">
+                      <label className="block text-[11px] font-bold text-slate-300">Allow Student Skip? *</label>
+                      <select
+                        value={broadcastForm.isSkippable ? 'yes' : 'no'}
+                        onChange={(e) => setBroadcastForm({ ...broadcastForm, isSkippable: e.target.value === 'yes' })}
+                        className="w-full px-2.5 py-1.5 bg-slate-800 text-xs text-white rounded-lg border border-slate-700 focus:outline-none"
+                      >
+                        <option value="yes">Yes (Close '✕' button visible)</option>
+                        <option value="no">No (Mandatory Countdown Timer)</option>
+                      </select>
+                    </div>
+
+                    {/* Auto Close Seconds */}
+                    {!broadcastForm.isSkippable && (
+                      <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1.5">
+                        <label className="block text-[11px] font-bold text-slate-300">Auto Close Seconds *</label>
+                        <input
+                          type="number"
+                          min="3"
+                          max="60"
+                          value={broadcastForm.autoCloseSeconds}
+                          onChange={(e) => setBroadcastForm({ ...broadcastForm, autoCloseSeconds: parseInt(e.target.value) || 5 })}
+                          className="w-full px-2.5 py-1.5 bg-slate-800 text-xs text-white rounded-lg border border-slate-700 focus:outline-none"
+                        />
+                      </div>
+                    )}
+
+                    {/* Festival Mode Toggle */}
+                    <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1.5">
+                      <label className="block text-[11px] font-bold text-slate-300">Festival Mode *</label>
+                      <select
+                        value={broadcastForm.isFestivalMode ? 'yes' : 'no'}
+                        onChange={(e) => setBroadcastForm({ ...broadcastForm, isFestivalMode: e.target.value === 'yes' })}
+                        className="w-full px-2.5 py-1.5 bg-slate-800 text-xs text-white rounded-lg border border-slate-700 focus:outline-none"
+                      >
+                        <option value="yes">Yes (Full-screen Particle Overlay)</option>
+                        <option value="no">No (Standard Bright Banner)</option>
+                      </select>
+                    </div>
+
+                    {/* Active Toggle */}
+                    <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1.5">
+                      <label className="block text-[11px] font-bold text-slate-300">Broadcast Status *</label>
+                      <select
+                        value={broadcastForm.isActive ? 'active' : 'inactive'}
+                        onChange={(e) => setBroadcastForm({ ...broadcastForm, isActive: e.target.value === 'active' })}
+                        className="w-full px-2.5 py-1.5 bg-slate-800 text-xs text-white rounded-lg border border-slate-700 focus:outline-none"
+                      >
+                        <option value="active">Active (Pop up for students)</option>
+                        <option value="inactive">Inactive (Paused)</option>
+                      </select>
+                    </div>
+
+                  </div>
+
+                  {/* Animation Picker */}
+                  {broadcastForm.isFestivalMode && (
+                    <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+                      <label className="block text-xs font-bold text-slate-300">Choose Festival Particle Animation style *</label>
+                      <div className="grid grid-cols-3 gap-3">
+                        
+                        <button
+                          type="button"
+                          onClick={() => setBroadcastForm({ ...broadcastForm, animationType: 'confetti' })}
+                          className={`p-3 rounded-xl border text-center font-bold text-xs space-y-1 transition-all ${
+                            broadcastForm.animationType === 'confetti'
+                              ? 'border-amber-400 bg-amber-500/20 text-amber-300 shadow-md'
+                              : 'border-slate-800 bg-slate-950 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <span className="text-lg block">🎉</span>
+                          <span>Confetti</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setBroadcastForm({ ...broadcastForm, animationType: 'petals' })}
+                          className={`p-3 rounded-xl border text-center font-bold text-xs space-y-1 transition-all ${
+                            broadcastForm.animationType === 'petals'
+                              ? 'border-rose-400 bg-rose-500/20 text-rose-300 shadow-md'
+                              : 'border-slate-800 bg-slate-950 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <span className="text-lg block">🌸</span>
+                          <span>Flower Petals</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setBroadcastForm({ ...broadcastForm, animationType: 'sparkles' })}
+                          className={`p-3 rounded-xl border text-center font-bold text-xs space-y-1 transition-all ${
+                            broadcastForm.animationType === 'sparkles'
+                              ? 'border-purple-400 bg-purple-500/20 text-purple-300 shadow-md'
+                              : 'border-slate-800 bg-slate-950 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <span className="text-lg block">✨</span>
+                          <span>Sparkles</span>
+                        </button>
+
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Submit & Test Live Preview Buttons */}
+                  <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewBroadcast(broadcastForm)}
+                      className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-amber-300 flex items-center space-x-1.5 border border-slate-700"
+                    >
+                      <Sparkles className="w-4 h-4 text-amber-400" />
+                      <span>Test Live Overlay Preview</span>
+                    </button>
+
+                    <div className="flex space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsCreatingBroadcast(false)}
+                        className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-5 py-2.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-600/30"
+                      >
+                        {editingBroadcast ? 'Save Changes' : 'Publish Broadcast'}
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              )}
+
+              {/* Broadcasts List */}
+              <div className="space-y-3">
+                {(broadcasts || []).length === 0 ? (
+                  <div className="p-8 text-center glass-panel rounded-2xl text-slate-400 space-y-2">
+                    <Sparkles className="w-8 h-8 text-slate-600 mx-auto" />
+                    <p className="text-sm font-semibold">No broadcast announcements published yet.</p>
+                  </div>
+                ) : (
+                  broadcasts.map((bcast) => (
+                    <div
+                      key={bcast.id}
+                      className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all ${
+                        bcast.isActive
+                          ? 'bg-slate-950 border-purple-500/40 shadow-md'
+                          : 'bg-slate-950/60 border-slate-800 opacity-60'
+                      }`}
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                          <span className="font-extrabold text-sm text-white">{bcast.title}</span>
+                          {bcast.isFestivalMode && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                              ✨ {bcast.animationType || 'Festival'}
+                            </span>
+                          )}
+                          {bcast.isSkippable ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-300">
+                              Skippable
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                              Timer: {bcast.autoCloseSeconds}s
+                            </span>
+                          )}
+                          {bcast.isActive ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                              ● Active
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400">
+                              ○ Inactive
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-xs text-slate-300 line-clamp-2">{bcast.message}</p>
+
+                        {bcast.linkUrl && (
+                          <div className="flex items-center space-x-1 text-[11px] text-purple-400 font-semibold">
+                            <ExternalLink className="w-3 h-3" />
+                            <span>Link: {bcast.linkLabel || 'CTA Button'} ({bcast.linkUrl})</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center space-x-2 self-end sm:self-center flex-shrink-0">
+                        <button
+                          onClick={() => setPreviewBroadcast(bcast)}
+                          className="p-2 rounded-xl text-xs font-bold text-amber-400 hover:text-amber-300 bg-slate-900 border border-slate-800 hover:border-amber-500/40 flex items-center space-x-1"
+                          title="Preview full-screen overlay"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>Preview</span>
+                        </button>
+
+                        <button
+                          onClick={() => updateBroadcast(bcast.id, { isActive: !bcast.isActive })}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+                            bcast.isActive
+                              ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-600/50'
+                              : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-white'
+                          }`}
+                        >
+                          {bcast.isActive ? 'Active' : 'Enable'}
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setEditingBroadcast(bcast);
+                            setBroadcastForm({ ...bcast });
+                            setIsCreatingBroadcast(true);
+                          }}
+                          className="p-2 rounded-xl text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-800"
+                          title="Edit broadcast"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Delete broadcast "${bcast.title}"?`)) {
+                              deleteBroadcast(bcast.id);
+                            }
+                          }}
+                          className="p-2 rounded-xl text-rose-400 hover:text-white bg-slate-900 hover:bg-rose-500/20 border border-slate-800 hover:border-rose-500/40"
+                          title="Delete broadcast"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
         </div>
+
+        {/* Live Admin Preview Overlay */}
+        {previewBroadcast && (
+          <BroadcastOverlay
+            broadcast={previewBroadcast}
+            onDismiss={() => setPreviewBroadcast(null)}
+            isPreview={true}
+          />
+        )}
 
       </div>
     </div>

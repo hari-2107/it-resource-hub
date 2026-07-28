@@ -141,6 +141,7 @@ export const AuthProvider = ({ children }) => {
         year,
         semester: Number(semester),
         classSection,
+        hasSeenWelcome: false,
         createdAt: new Date().toISOString()
       };
       await setDoc(doc(db, 'users', res.user.uid), newUser);
@@ -163,6 +164,7 @@ export const AuthProvider = ({ children }) => {
         year,
         semester: Number(semester),
         classSection,
+        hasSeenWelcome: false,
         createdAt: new Date().toISOString()
       };
       setCurrentUser(newUser);
@@ -211,6 +213,21 @@ export const AuthProvider = ({ children }) => {
     updateUserProfile({ mutedCategories: updatedMuted });
   };
 
+  // Complete Welcome Screen (sets hasSeenWelcome: true)
+  const completeWelcomeScreen = async () => {
+    if (!currentUser) return;
+    const updated = { ...currentUser, hasSeenWelcome: true };
+    setCurrentUser(updated);
+    StorageService.setCurrentUser(updated);
+    if (isFirebaseConfigured && db && currentUser.uid) {
+      try {
+        await setDoc(doc(db, 'users', currentUser.uid), { hasSeenWelcome: true }, { merge: true });
+      } catch (err) {
+        console.error('Error updating hasSeenWelcome in Firestore:', err);
+      }
+    }
+  };
+
   const isAdmin = currentUser?.role === 'admin';
 
   return (
@@ -224,7 +241,8 @@ export const AuthProvider = ({ children }) => {
       register,
       logout,
       updateUserProfile,
-      toggleMuteCategory
+      toggleMuteCategory,
+      completeWelcomeScreen
     }}>
       {children}
     </AuthContext.Provider>

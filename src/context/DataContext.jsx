@@ -28,6 +28,8 @@ export const DataProvider = ({ children }) => {
   const [ratings, setRatings] = useState([]);
   const [userResumes, setUserResumes] = useState([]);
   const [registeredUsers, setRegisteredUsers] = useState([]);
+  const [broadcasts, setBroadcasts] = useState([]);
+  const [dismissedBroadcastIds, setDismissedBroadcastIds] = useState([]);
 
   // Load initial data
   useEffect(() => {
@@ -45,6 +47,10 @@ export const DataProvider = ({ children }) => {
     setEvents(StorageService.getEvents());
     setRatings(StorageService.getRatings());
     setRegisteredUsers(StorageService.getCustomUsers());
+    setBroadcasts(StorageService.getBroadcasts());
+    
+    const uid = currentUser?.id || 'guest';
+    setDismissedBroadcastIds(StorageService.getDismissedBroadcastIds(uid));
     setLoading(false);
 
     // Setup Firestore real-time listeners if configured
@@ -374,6 +380,35 @@ export const DataProvider = ({ children }) => {
     setUserResumes(updated);
   };
 
+  // Broadcast Actions
+  const activeBroadcast = (broadcasts || []).find(
+    b => b.isActive && !dismissedBroadcastIds.includes(b.id)
+  ) || null;
+
+  const addBroadcast = (bcastData) => {
+    const updated = StorageService.saveBroadcast({
+      ...bcastData,
+      createdBy: currentUser?.name || 'Department Admin'
+    });
+    setBroadcasts(updated);
+  };
+
+  const updateBroadcast = (id, updatedFields) => {
+    const updated = StorageService.updateBroadcast(id, updatedFields);
+    setBroadcasts(updated);
+  };
+
+  const deleteBroadcast = (id) => {
+    const updated = StorageService.deleteBroadcast(id);
+    setBroadcasts(updated);
+  };
+
+  const dismissBroadcast = (broadcastId) => {
+    const uid = currentUser?.id || currentUser?.uid || 'guest';
+    const updated = StorageService.dismissBroadcast(uid, broadcastId);
+    setDismissedBroadcastIds(updated);
+  };
+
   return (
     <DataContext.Provider value={{
       loading,
@@ -395,6 +430,13 @@ export const DataProvider = ({ children }) => {
       events,
       ratings,
       userResumes,
+      broadcasts,
+      dismissedBroadcastIds,
+      activeBroadcast,
+      addBroadcast,
+      updateBroadcast,
+      deleteBroadcast,
+      dismissBroadcast,
       globalSearchTerm,
       setGlobalSearchTerm,
       addOrUpdateMaterial,

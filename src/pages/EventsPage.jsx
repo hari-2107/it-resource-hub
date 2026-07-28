@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -16,13 +16,35 @@ import {
   Flame
 } from 'lucide-react';
 
-export const EventsPage = ({ onOpenAdminForm, onOpenEventDetail }) => {
+export const EventsPage = ({ onOpenAdminForm, onOpenEventDetail, targetEventId }) => {
   const { events, removeEvent } = useData();
   const { isAdmin } = useAuth();
 
   const [activeTab, setActiveTab] = useState('upcoming'); // 'ongoing' | 'upcoming' | 'past'
 
   const currentDateStr = new Date().toISOString().split('T')[0];
+
+  useEffect(() => {
+    if (targetEventId && events && events.length > 0) {
+      const targetEvt = events.find(e => e.id === targetEventId);
+      if (targetEvt) {
+        if (targetEvt.startDate <= currentDateStr && targetEvt.endDate >= currentDateStr) {
+          setActiveTab('ongoing');
+        } else if (targetEvt.startDate > currentDateStr) {
+          setActiveTab('upcoming');
+        } else {
+          setActiveTab('past');
+        }
+
+        setTimeout(() => {
+          const el = document.getElementById(`event-${targetEventId}`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 150);
+      }
+    }
+  }, [targetEventId, events]);
 
   // Helper to categorize events
   const categorizedEvents = (events || []).reduce(
@@ -118,8 +140,11 @@ export const EventsPage = ({ onOpenAdminForm, onOpenEventDetail }) => {
         ) : (
           displayedEvents.map((evt) => (
             <div
+              id={`event-${evt.id}`}
               key={evt.id}
-              className="glass-card rounded-3xl overflow-hidden border border-slate-800 flex flex-col justify-between space-y-4 group hover:border-slate-700 transition-all relative"
+              className={`glass-card rounded-3xl overflow-hidden border flex flex-col justify-between space-y-4 group transition-all relative ${
+                evt.id === targetEventId ? 'border-purple-500 ring-2 ring-purple-500/60 bg-purple-950/20 shadow-2xl shadow-purple-500/20' : 'border-slate-800 hover:border-slate-700'
+              }`}
             >
               {/* Banner Image */}
               <div
@@ -127,7 +152,7 @@ export const EventsPage = ({ onOpenAdminForm, onOpenEventDetail }) => {
                 className="relative h-44 cursor-pointer overflow-hidden"
               >
                 <img
-                  src={evt.bannerImageUrl}
+                  src={evt.bannerImageUrl || 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1200&q=80'}
                   alt={evt.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />

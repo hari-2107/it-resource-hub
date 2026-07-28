@@ -81,13 +81,14 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
   });
 
   // Announcement Form state
-  const [announcementForm, setAnnouncementForm] = useState(initialData || {
+  const [announcementForm, setAnnouncementForm] = useState({
     id: '',
     title: '',
     category: 'Academic',
     priority: 'Medium',
     description: '',
-    author: currentUser?.name || 'IT Dept Admin'
+    author: currentUser?.name || 'IT Dept Admin',
+    ...(initialData || {})
   });
 
   // Company Form state
@@ -116,6 +117,21 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
     endDate: '2026-08-03',
     registrationDeadline: '2026-07-30'
   });
+
+  const handleEventImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setEventForm(prev => ({
+        ...prev,
+        bannerImageUrl: reader.result,
+        bannerFileName: file.name
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
 
   const categoriesList = ['Notes', 'PPTs', 'PDFs', 'Lab Manuals', 'Assignments', 'Previous Year Papers', 'Question Banks', 'Syllabus'];
   const aiCategoriesList = ['Coding', 'Writing', 'Research', 'Design', 'Productivity', 'Resume/Career'];
@@ -306,25 +322,61 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">File URL (PDF / PPT)</label>
+              {/* Upload File or Provide Link */}
+              <div className="space-y-3 p-4 rounded-2xl bg-slate-950/60 border border-slate-800">
+                <label className="block text-xs font-semibold text-slate-300">
+                  Upload Study Material File (PDF, DOCX, PPT, XLSX, TXT, ZIP, Images, etc.)
+                </label>
+                <div className="p-3.5 rounded-xl bg-slate-900 border border-dashed border-slate-700 text-center relative hover:border-brand-500/50 transition-colors">
                   <input
-                    type="url"
-                    required
-                    value={materialForm.fileUrl}
-                    onChange={(e) => setMaterialForm({ ...materialForm, fileUrl: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-brand-500"
+                    type="file"
+                    accept="*/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,.rar,image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+                        const sizeStr = file.size > 1024 * 1024 ? `${sizeMb} MB` : `${Math.round(file.size / 1024)} KB`;
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setMaterialForm(prev => ({
+                            ...prev,
+                            fileUrl: reader.result,
+                            fileName: file.name,
+                            fileSize: sizeStr
+                          }));
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                   />
+                  <div className="flex items-center justify-center space-x-2 text-xs text-slate-300 font-semibold">
+                    <Upload className="w-4 h-4 text-brand-400" />
+                    <span>{materialForm.fileName ? `Uploaded: ${materialForm.fileName} (${materialForm.fileSize || 'Attached'})` : 'Click or drag any file to upload'}</span>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">File Name</label>
-                  <input
-                    type="text"
-                    value={materialForm.fileName}
-                    onChange={(e) => setMaterialForm({ ...materialForm, fileName: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-brand-500"
-                  />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-400 mb-1">Or Paste Direct File URL</label>
+                    <input
+                      type="url"
+                      required
+                      placeholder="https://..."
+                      value={materialForm.fileUrl}
+                      onChange={(e) => setMaterialForm({ ...materialForm, fileUrl: e.target.value })}
+                      className="w-full px-3 py-2 bg-slate-800 text-xs text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-brand-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-400 mb-1">Display File Name</label>
+                    <input
+                      type="text"
+                      value={materialForm.fileName}
+                      onChange={(e) => setMaterialForm({ ...materialForm, fileName: e.target.value })}
+                      className="w-full px-3 py-2 bg-slate-800 text-xs text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-brand-500"
+                    />
+                  </div>
                 </div>
               </div>
             </>
@@ -433,6 +485,7 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
                     onChange={(e) => setAnnouncementForm({ ...announcementForm, category: e.target.value })}
                     className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-brand-500"
                   >
+                    <option value="Special Announcement">✨ Special Announcement</option>
                     <option value="Exam Alert">Exam Alert</option>
                     <option value="Events">Events</option>
                     <option value="Workshop">Workshop</option>
@@ -448,6 +501,7 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
                     onChange={(e) => setAnnouncementForm({ ...announcementForm, priority: e.target.value })}
                     className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-brand-500"
                   >
+                    <option value="Special">✨ Special (Gold Glowing Badge)</option>
                     <option value="High">High (Red Alert)</option>
                     <option value="Medium">Medium (Amber)</option>
                     <option value="Low">Low (Blue)</option>
@@ -481,10 +535,12 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
                 />
               </div>
 
-              {/* Attach File (Photo or PDF) */}
+              {/* Attach File (Any File Type) */}
               <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs font-semibold text-slate-300">Attach Document or Image (PDF, PNG, JPG)</label>
+                  <label className="block text-xs font-semibold text-slate-300">
+                    Attach Any File (PDF, DOCX, PPT, XLSX, TXT, ZIP, Images, etc.)
+                  </label>
                   {announcementForm.attachmentUrl && (
                     <button
                       type="button"
@@ -498,18 +554,20 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
 
                 <input
                   type="file"
-                  accept="image/*,.pdf"
+                  accept="*/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,.rar,image/*"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
-                      const isPdf = file.type.includes('pdf') || file.name.endsWith('.pdf');
+                      const ext = file.name.split('.').pop().toLowerCase();
+                      const isPdf = ext === 'pdf';
+                      const isImg = ['png', 'jpg', 'jpeg', 'svg', 'webp', 'gif'].includes(ext);
                       const reader = new FileReader();
                       reader.onloadend = () => {
                         setAnnouncementForm(prev => ({
                           ...prev,
                           attachmentUrl: reader.result,
                           attachmentName: file.name,
-                          attachmentType: isPdf ? 'pdf' : 'image'
+                          attachmentType: isPdf ? 'pdf' : isImg ? 'image' : ext || 'doc'
                         }));
                       };
                       reader.readAsDataURL(file);
@@ -521,7 +579,7 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
                 {announcementForm.attachmentName && (
                   <div className="flex items-center space-x-2 text-xs text-emerald-400 font-semibold pt-1">
                     <FileText className="w-4 h-4 text-emerald-400" />
-                    <span>Attached: {announcementForm.attachmentName} ({announcementForm.attachmentType === 'pdf' ? 'PDF Document' : 'Photo Image'})</span>
+                    <span>Attached: {announcementForm.attachmentName} ({announcementForm.attachmentType ? `.${announcementForm.attachmentType}` : 'File'})</span>
                   </div>
                 )}
               </div>
@@ -880,7 +938,7 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
                             <input
                               type="text"
                               placeholder={timetableForm.type === 'semester' ? 'e.g. Wednesday' : 'e.g. Units I & II'}
-                              value={timetableForm.type === 'semester' ? entry.day : (entry.syllabus || '')}
+                              value={timetableForm.type === 'semester' ? (entry.day || '') : (entry.syllabus || '')}
                               onChange={(e) => {
                                 const val = e.target.value;
                                 setTimetableForm(prev => ({
@@ -977,7 +1035,7 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
           {type === 'event' && (
             <>
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Event / Hackathon Title</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Event / Hackathon Title *</label>
                 <input
                   type="text"
                   required
@@ -986,6 +1044,58 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
                   onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-brand-500"
                 />
+              </div>
+
+              {/* Optional Event Banner Image Upload / URL */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-slate-300">
+                    Event Poster / Banner Image <span className="text-slate-400 font-normal">(Optional — Upload file or leave blank)</span>
+                  </label>
+                  {eventForm.bannerImageUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setEventForm({ ...eventForm, bannerImageUrl: '', bannerFileName: '' })}
+                      className="text-[11px] font-bold text-rose-400 hover:text-white"
+                    >
+                      Clear Image
+                    </button>
+                  )}
+                </div>
+
+                <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <label className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer inline-flex items-center space-x-1.5 shadow transition-all whitespace-nowrap">
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      <span>Choose Image (JPG / PNG)</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleEventImageUpload}
+                        className="hidden"
+                      />
+                    </label>
+                    <span className="text-[11px] text-slate-400">OR paste URL</span>
+                  </div>
+
+                  <input
+                    type="text"
+                    placeholder="https://... or upload local file above (Optional)"
+                    value={eventForm.bannerImageUrl || ''}
+                    onChange={(e) => setEventForm({ ...eventForm, bannerImageUrl: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-950 text-slate-100 text-xs rounded-xl border border-slate-800 focus:outline-none focus:border-emerald-500"
+                  />
+
+                  {eventForm.bannerImageUrl && (
+                    <div className="relative rounded-xl overflow-hidden border border-emerald-500/40 max-h-32">
+                      <img
+                        src={eventForm.bannerImageUrl}
+                        alt="Event Banner Preview"
+                        className="w-full h-28 object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

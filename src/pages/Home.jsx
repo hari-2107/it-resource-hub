@@ -224,7 +224,9 @@ export const Home = ({ onNavigate, onPreviewMaterial }) => {
           {latestAnnouncements.map((ann) => (
             <div 
               key={ann.id} 
-              className="glass-card rounded-2xl p-5 space-y-3 border border-slate-800 relative overflow-hidden"
+              onClick={() => onNavigate('announcements', ann.id)}
+              className="glass-card rounded-2xl p-5 space-y-3 border border-slate-800 relative overflow-hidden cursor-pointer hover:border-brand-500/50 hover:bg-slate-900/90 hover:scale-[1.01] transition-all group shadow-md"
+              title="Click to view full notice on Notifications page"
             >
               {ann.priority === 'High' && (
                 <div className="absolute top-0 right-0 w-2 h-full bg-rose-500" />
@@ -240,11 +242,15 @@ export const Home = ({ onNavigate, onPreviewMaterial }) => {
                 <span className="text-[10px] text-slate-400">{ann.date}{ann.time ? ` • ${ann.time}` : ''}</span>
               </div>
 
-              <h3 className="text-sm font-bold text-white leading-snug line-clamp-2">{ann.title}</h3>
+              <h3 className="text-sm font-bold text-white group-hover:text-brand-300 transition-colors leading-snug line-clamp-2">{ann.title}</h3>
               <p className="text-xs text-slate-300 line-clamp-3 leading-relaxed">{ann.description}</p>
               
-              <div className="pt-2 text-[10px] text-slate-500 font-medium">
-                By: {ann.author}
+              <div className="pt-2 text-[10px] text-slate-500 font-medium flex items-center justify-between">
+                <span>By: {ann.author}</span>
+                <span className="text-[10px] font-bold text-brand-400 opacity-0 group-hover:opacity-100 transition-opacity flex items-center space-x-0.5">
+                  <span>View notice</span>
+                  <ArrowRight className="w-3 h-3" />
+                </span>
               </div>
             </div>
           ))}
@@ -330,7 +336,12 @@ export const Home = ({ onNavigate, onPreviewMaterial }) => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {activeEvents.map((evt) => (
-            <div key={evt.id} className="glass-card rounded-3xl overflow-hidden border border-slate-800 flex flex-col justify-between space-y-3 group hover:border-slate-700 transition-all">
+            <div 
+              key={evt.id} 
+              onClick={() => onNavigate('events', evt.id)}
+              className="glass-card rounded-3xl overflow-hidden border border-slate-800 flex flex-col justify-between space-y-3 group hover:border-purple-500/50 hover:bg-slate-900/90 transition-all cursor-pointer shadow-md"
+              title="Click to view event details on Events page"
+            >
               <div className="relative h-36 overflow-hidden">
                 <img src={evt.bannerImageUrl} alt={evt.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
@@ -341,7 +352,7 @@ export const Home = ({ onNavigate, onPreviewMaterial }) => {
               </div>
 
               <div className="p-4 space-y-2 pt-0">
-                <h3 className="text-sm font-bold text-white line-clamp-1">{evt.title}</h3>
+                <h3 className="text-sm font-bold text-white group-hover:text-purple-300 transition-colors line-clamp-1">{evt.title}</h3>
                 <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">{evt.description}</p>
                 <div className="p-2.5 rounded-xl bg-amber-950/20 border border-amber-500/30 text-[11px] text-amber-300 font-semibold flex items-center space-x-1">
                   <Award className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
@@ -349,15 +360,26 @@ export const Home = ({ onNavigate, onPreviewMaterial }) => {
                 </div>
               </div>
 
-              <div className="p-4 pt-0">
+              <div className="p-4 pt-0 flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNavigate('events', evt.id);
+                  }}
+                  className="flex-1 py-2 rounded-xl text-xs font-bold bg-purple-600/30 hover:bg-purple-600 text-purple-200 hover:text-white border border-purple-500/40 transition-colors"
+                >
+                  View Details
+                </button>
                 <a
                   href={evt.registrationLink}
                   target="_blank"
                   rel="noreferrer"
-                  className="w-full py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center space-x-1 shadow-md"
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex-1 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center space-x-1 shadow-md"
                 >
-                  <span>Register Now</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Register</span>
+                  <ExternalLink className="w-3 h-3" />
                 </a>
               </div>
             </div>

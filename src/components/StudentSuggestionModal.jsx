@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Lightbulb, Send, Check } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import { YEAR_SEMESTERS } from '../data/mockData';
 
 export const StudentSuggestionModal = ({ onClose }) => {
   const { addSuggestion } = useData();
@@ -9,9 +10,20 @@ export const StudentSuggestionModal = ({ onClose }) => {
   const [form, setForm] = useState({
     type: 'material',
     title: '',
+    year: '3rd Year',
+    semester: 5,
     description: '',
     link: ''
   });
+
+  const handleYearChange = (yr) => {
+    if (yr === 'All Years') {
+      setForm(prev => ({ ...prev, year: yr, semester: 'All Semesters' }));
+    } else {
+      const sems = YEAR_SEMESTERS[yr] || [1, 2];
+      setForm(prev => ({ ...prev, year: yr, semester: sems[0] }));
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -55,14 +67,15 @@ export const StudentSuggestionModal = ({ onClose }) => {
             </div>
             <h4 className="text-base font-bold text-white">Suggestion Submitted!</h4>
             <p className="text-xs text-slate-400">
-              Thank you for contributing! The IT Department admin will review your recommendation soon.
+              Thank you for contributing! The IT Department admin will review your recommendation for <strong>{form.year}{form.semester !== 'All Semesters' ? `, Semester ${form.semester}` : ''}</strong> soon.
             </p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             
+            {/* Category */}
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Resource Category</label>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Resource Category *</label>
               <select
                 value={form.type}
                 onChange={(e) => setForm({ ...form, type: e.target.value })}
@@ -75,6 +88,42 @@ export const StudentSuggestionModal = ({ onClose }) => {
               </select>
             </div>
 
+            {/* Target Academic Year & Semester Selectors */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Academic Year *</label>
+                <select
+                  value={form.year}
+                  onChange={(e) => handleYearChange(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-brand-500"
+                >
+                  <option value="1st Year">1st Year</option>
+                  <option value="2nd Year">2nd Year</option>
+                  <option value="3rd Year">3rd Year</option>
+                  <option value="4th Year">4th Year</option>
+                  <option value="All Years">All Years (General)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Semester *</label>
+                <select
+                  value={form.semester}
+                  onChange={(e) => setForm({ ...form, semester: e.target.value === 'All Semesters' ? 'All Semesters' : Number(e.target.value) })}
+                  className="w-full px-3.5 py-2.5 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-brand-500"
+                >
+                  {form.year === 'All Years' ? (
+                    <option value="All Semesters">All Semesters</option>
+                  ) : (
+                    (YEAR_SEMESTERS[form.year] || [1, 2]).map(s => (
+                      <option key={s} value={s}>Semester {s}</option>
+                    ))
+                  )}
+                </select>
+              </div>
+            </div>
+
+            {/* Title / Resource Name */}
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">Title / Resource Name *</label>
               <input
@@ -92,7 +141,7 @@ export const StudentSuggestionModal = ({ onClose }) => {
               <textarea
                 rows="3"
                 required
-                placeholder="Briefly explain what this resource contains and which semester/subject it helps..."
+                placeholder="Briefly explain what this resource contains and how it helps students..."
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 className="w-full px-3.5 py-2.5 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-brand-500"

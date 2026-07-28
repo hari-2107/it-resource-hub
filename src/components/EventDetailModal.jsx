@@ -28,7 +28,7 @@ export const EventDetailModal = ({ event, onClose }) => {
 
         {/* Event Banner */}
         <div className="relative h-48 sm:h-56 rounded-2xl overflow-hidden border border-slate-800">
-          <img src={event.bannerImageUrl} alt={event.title} className="w-full h-full object-cover" />
+          <img src={event.bannerImageUrl || 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1200&q=80'} alt={event.title} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
           
           <div className="absolute bottom-4 left-4 right-4 flex flex-wrap items-center justify-between gap-2">

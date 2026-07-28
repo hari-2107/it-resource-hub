@@ -583,54 +583,91 @@ export const StudentProfile = ({ onPreviewMaterial, onOpenAdminForm, onOpenAdmin
                                       <span className="text-[10px] text-slate-500 font-normal">Schedule</span>
                                     </td>
                                     
-                                    {/* Render day schedule cells */}
+                                    {/* Render day schedule cells with 8 period column alignment */}
                                     {(() => {
                                       const cells = [];
-                                      let pIdx = 0;
-                                      
-                                      while (pIdx < dayPeriods.length) {
-                                        const p = dayPeriods[pIdx];
-                                        const span = p.span || 1;
-                                        
-                                        // Color mapping
-                                        let bgStyle = 'bg-slate-900/80 border-slate-800 text-slate-300';
-                                        if (p.type === 'Placement' || p.subject.includes('CE') || p.subject.includes('ADS') || p.subject.includes('APTI')) {
-                                          bgStyle = 'bg-yellow-950/70 border-yellow-500/50 text-yellow-200';
-                                        } else if (p.subject.includes('PROJECT')) {
-                                          bgStyle = 'bg-blue-950/70 border-blue-500/50 text-blue-200';
-                                        } else if (p.type === 'Lab' || p.subject.includes('LAB')) {
-                                          bgStyle = 'bg-cyan-950/70 border-cyan-500/50 text-cyan-200';
-                                        }
+                                      let col = 1;
+                                      const periods = studentTimetable?.schedule?.[day] || [];
 
-                                        cells.push(
-                                          <td 
-                                            key={`${day}-${pIdx}`} 
-                                            colSpan={span}
-                                            className="p-1.5 text-center align-top"
-                                          >
-                                            <div className={`h-full min-h-[72px] p-2 rounded-xl border flex flex-col justify-between transition-all hover:scale-[1.02] shadow-sm ${bgStyle}`}>
-                                              <div>
-                                                <div className="flex items-center justify-between gap-1 mb-1">
-                                                  <span className="font-extrabold text-xs truncate" title={p.fullName || p.subject}>
-                                                    {p.subject}
-                                                  </span>
-                                                  <span className="text-[9px] opacity-75 font-semibold px-1 rounded bg-black/40">
-                                                    {p.period}
-                                                  </span>
+                                      const getPeriodIndex = (item) => {
+                                        if (!item) return null;
+                                        const str = (item.period || '').toUpperCase();
+                                        if (str.includes('I & II') || str === 'I' || str.includes('PERIOD 1') || str.includes('PERIOD I')) return 1;
+                                        if (str === 'II' || str.includes('PERIOD 2') || str.includes('PERIOD II')) return 2;
+                                        if (str.includes('III & IV') || str === 'III' || str.includes('PERIOD 3') || str.includes('PERIOD III')) return 3;
+                                        if (str === 'IV' || str.includes('PERIOD 4') || str.includes('PERIOD IV')) return 4;
+                                        if (str.includes('V & VI') || str === 'V' || str.includes('PERIOD 5') || str.includes('PERIOD V')) return 5;
+                                        if (str === 'VI' || str.includes('PERIOD 6') || str.includes('PERIOD VI')) return 6;
+                                        if (str.includes('VII & VIII') || str === 'VII' || str.includes('PERIOD 7') || str.includes('PERIOD VII')) return 7;
+                                        if (str === 'VIII' || str.includes('PERIOD 8') || str.includes('PERIOD VIII')) return 8;
+                                        return null;
+                                      };
+
+                                      while (col <= 8) {
+                                        const p = periods.find(item => getPeriodIndex(item) === col);
+
+                                        if (p) {
+                                          const span = p.span || (p.period?.includes('&') ? 2 : 1);
+                                          
+                                          // Color mapping: Blue for Project/Mini Project, Yellow/Brown for Placement/Aptitude, Cyan for Labs
+                                          let bgStyle = 'bg-slate-900/80 border-slate-800 text-slate-300';
+                                          if (p.type === 'Project' || (p.subject && (p.subject.toUpperCase().includes('PROJECT') || p.subject.toUpperCase().includes('MINI')))) {
+                                            bgStyle = 'bg-blue-950/80 border-blue-500/60 text-blue-200 shadow-md shadow-blue-500/10';
+                                          } else if (p.type === 'Placement' || (p.subject && (p.subject.includes('CE') || p.subject.includes('ADS') || p.subject.includes('APTI')))) {
+                                            bgStyle = 'bg-yellow-950/70 border-yellow-500/50 text-yellow-200';
+                                          } else if (p.type === 'Lab' || (p.subject && p.subject.includes('LAB'))) {
+                                            bgStyle = 'bg-cyan-950/70 border-cyan-500/50 text-cyan-200';
+                                          }
+
+                                          cells.push(
+                                            <td 
+                                              key={`${day}-col-${col}`} 
+                                              colSpan={span}
+                                              className="p-1.5 text-center align-top"
+                                            >
+                                              <div className={`h-full min-h-[72px] p-2 rounded-xl border flex flex-col justify-between transition-all hover:scale-[1.02] shadow-sm ${bgStyle}`}>
+                                                <div>
+                                                  <div className="flex items-center justify-between gap-1 mb-1">
+                                                    <span className="font-extrabold text-xs truncate" title={p.fullName || p.subject}>
+                                                      {p.subject}
+                                                    </span>
+                                                    <span className="text-[9px] opacity-75 font-semibold px-1 rounded bg-black/40">
+                                                      {p.period}
+                                                    </span>
+                                                  </div>
+                                                  <p className="text-[10px] opacity-85 leading-tight line-clamp-1" title={p.teacher}>
+                                                    {p.teacher}
+                                                  </p>
                                                 </div>
-                                                <p className="text-[10px] opacity-85 leading-tight line-clamp-1" title={p.teacher}>
-                                                  {p.teacher}
-                                                </p>
-                                              </div>
 
-                                              <div className="flex items-center justify-between text-[9px] opacity-75 pt-1 border-t border-white/10 mt-1">
-                                                <span>📍 {p.room}</span>
-                                                <span>⏱️ {p.time}</span>
+                                                <div className="flex items-center justify-between text-[9px] opacity-75 pt-1 border-t border-white/10 mt-1">
+                                                  <span>📍 {p.room}</span>
+                                                  <span>⏱️ {p.time}</span>
+                                                </div>
                                               </div>
-                                            </div>
-                                          </td>
-                                        );
-                                        pIdx += span;
+                                            </td>
+                                          );
+                                          col += span;
+                                        } else {
+                                          const coveredByPrev = periods.some(item => {
+                                            const start = getPeriodIndex(item);
+                                            const span = item.span || (item.period?.includes('&') ? 2 : 1);
+                                            return start !== null && start < col && (start + span) > col;
+                                          });
+
+                                          if (coveredByPrev) {
+                                            col += 1;
+                                          } else {
+                                            cells.push(
+                                              <td key={`${day}-col-${col}`} className="p-1.5 text-center align-top">
+                                                <div className="h-full min-h-[72px] p-2 rounded-xl border border-slate-800/40 bg-slate-950/20 text-slate-600 flex items-center justify-center text-[10px] italic">
+                                                  —
+                                                </div>
+                                              </td>
+                                            );
+                                            col += 1;
+                                          }
+                                        }
                                       }
                                       
                                       return cells;

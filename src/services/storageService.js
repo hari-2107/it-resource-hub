@@ -10,6 +10,7 @@ import {
   INITIAL_INTERVIEW_EXPERIENCES,
   INITIAL_PLACEMENT_RESOURCES,
   INITIAL_EVENTS,
+  INITIAL_BROADCASTS,
   DEMO_USERS 
 } from '../data/mockData';
 
@@ -31,7 +32,9 @@ const LOCAL_STORAGE_KEYS = {
   PLACEMENT_RESOURCES: 'it_hub_placement_resources_v1',
   EVENTS: 'it_hub_events_v1',
   RATINGS: 'it_hub_ratings_v1',
-  USER_RESUMES: 'it_hub_user_resumes_v1'
+  USER_RESUMES: 'it_hub_user_resumes_v1',
+  BROADCASTS: 'it_hub_broadcasts_v1',
+  DISMISSED_BROADCASTS: 'it_hub_dismissed_broadcasts_v1'
 };
 
 // Helper: safe JSON parse
@@ -352,6 +355,21 @@ export const StorageService = {
         Number(t.semester) === Number(timetable.semester) && 
         (t.classSection || '').toLowerCase() === (timetable.classSection || '').toLowerCase()
       );
+    } else if (type === 'internal') {
+      existingIndex = list.findIndex(t => 
+        t.type === 'internal' && 
+        t.year === timetable.year && 
+        Number(t.semester) === Number(timetable.semester) && 
+        (t.classSection || 'IT-A').toLowerCase() === (timetable.classSection || 'IT-A').toLowerCase() &&
+        (t.internalName || t.title || '').toLowerCase().includes((timetable.internalName || 'Internal 1').toLowerCase())
+      );
+    } else if (type === 'semester') {
+      existingIndex = list.findIndex(t => 
+        t.type === 'semester' && 
+        t.year === timetable.year && 
+        Number(t.semester) === Number(timetable.semester) && 
+        (t.classSection || 'IT-A').toLowerCase() === (timetable.classSection || 'IT-A').toLowerCase()
+      );
     }
 
     let updated;
@@ -386,13 +404,26 @@ export const StorageService = {
     if (status === 'active') {
       const activeId = existingIndex >= 0 ? list[existingIndex].id : updated[0].id;
       updated = updated.map(t => {
-        if (
-          t.id !== activeId &&
-          (t.type || 'class') === type &&
-          t.year === timetable.year &&
-          Number(t.semester) === Number(timetable.semester) &&
-          (t.classSection || 'IT-A').toLowerCase() === (timetable.classSection || 'IT-A').toLowerCase()
-        ) {
+        if (t.id === activeId) return t;
+
+        const sameType = (t.type || 'class') === type;
+        const sameYear = t.year === timetable.year;
+        const sameSem = Number(t.semester) === Number(timetable.semester);
+        const sameSection = (t.classSection || 'IT-A').toLowerCase() === (timetable.classSection || 'IT-A').toLowerCase();
+
+        if (sameType && sameYear && sameSem && sameSection) {
+          // For internal timetables, only archive if it's the SAME internal test name (e.g. Internal 1 vs Internal 1)
+          if (type === 'internal') {
+            const tInternalName = (t.internalName || t.title || '').toLowerCase();
+            const newInternalName = (timetable.internalName || 'Internal 1').toLowerCase();
+            const isSameTest = (tInternalName.includes('1') && newInternalName.includes('1')) ||
+                               (tInternalName.includes('2') && newInternalName.includes('2')) ||
+                               tInternalName === newInternalName;
+            if (isSameTest) {
+              return { ...t, status: 'archived' };
+            }
+            return t;
+          }
           return { ...t, status: 'archived' };
         }
         return t;
@@ -796,6 +827,46 @@ export const StorageService = {
     allResumes[userId] = updatedList;
     setItemJson(LOCAL_STORAGE_KEYS.USER_RESUMES, allResumes);
     return updatedList;
+  },
+
+  // Broadcast Announcements
+  getBroadcasts: () => getItemParsed(LOCAL_STORAGE_KEYS.BROADCASTS, INITIAL_BROADCASTS),
+  saveBroadcast: (broadcast) => {
+    const list = StorageService.getBroadcasts();
+    const newBcast = {
+      ...broadcast,
+      id: broadcast.id || `bcast-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      isActive: broadcast.isActive !== undefined ? broadcast.isActive : true
+    };
+    const updated = [newBcast, ...list];
+    setItemJson(LOCAL_STORAGE_KEYS.BROADCASTS, updated);
+    return updated;
+  },
+  updateBroadcast: (id, updatedFields) => {
+    const list = StorageService.getBroadcasts();
+    const updated = list.map(b => b.id === id ? { ...b, ...updatedFields } : b);
+    setItemJson(LOCAL_STORAGE_KEYS.BROADCASTS, updated);
+    return updated;
+  },
+  deleteBroadcast: (id) => {
+    const list = StorageService.getBroadcasts().filter(b => b.id !== id);
+    setItemJson(LOCAL_STORAGE_KEYS.BROADCASTS, list);
+    return list;
+  },
+  getDismissedBroadcastIds: (userId = 'guest') => {
+    const key = `${LOCAL_STORAGE_KEYS.DISMISSED_BROADCASTS}_${userId}`;
+    return getItemParsed(key, []);
+  },
+  dismissBroadcast: (userId = 'guest', broadcastId) => {
+    const key = `${LOCAL_STORAGE_KEYS.DISMISSED_BROADCASTS}_${userId}`;
+    const dismissed = StorageService.getDismissedBroadcastIds(userId);
+    if (!dismissed.includes(broadcastId)) {
+      const updated = [...dismissed, broadcastId];
+      setItemJson(key, updated);
+      return updated;
+    }
+    return dismissed;
   }
 };
 

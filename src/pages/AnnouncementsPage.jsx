@@ -18,7 +18,9 @@ import {
   Eye,
   Users,
   Pin,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Sparkles,
+  Crown
 } from 'lucide-react';
 
 const downloadFileFromUrl = (fileUrl, fileName) => {
@@ -63,13 +65,30 @@ const downloadFileFromUrl = (fileUrl, fileName) => {
   }
 };
 
-export const AnnouncementsPage = ({ onOpenAdminForm, onPreviewMaterial }) => {
+export const AnnouncementsPage = ({ onOpenAdminForm, onOpenSpecialAnnouncementModal, onPreviewMaterial, targetAnnouncementId }) => {
   const { announcements, removeAnnouncement, togglePinAnnouncement, trackAnnouncementView } = useData();
   const { currentUser, isAdmin, toggleMuteCategory } = useAuth();
   const [filterCategory, setFilterCategory] = useState('All');
+  const [highlightedId, setHighlightedId] = useState(targetAnnouncementId);
+
+  useEffect(() => {
+    if (targetAnnouncementId) {
+      setHighlightedId(targetAnnouncementId);
+      const targetAnn = (announcements || []).find(a => a.id === targetAnnouncementId);
+      if (targetAnn && filterCategory !== 'All' && targetAnn.category !== filterCategory) {
+        setFilterCategory('All');
+      }
+      setTimeout(() => {
+        const el = document.getElementById(`announcement-${targetAnnouncementId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 150);
+    }
+  }, [targetAnnouncementId, announcements]);
 
   const mutedCategories = currentUser?.mutedCategories || [];
-  const categories = ['All', 'Exam Alert', 'Events', 'Workshop', 'Academic', 'General'];
+  const categories = ['All', 'Special Announcement', 'Exam Alert', 'Events', 'Workshop', 'Academic', 'General'];
 
   // Automatically track views for announcements when viewed
   useEffect(() => {
@@ -82,8 +101,8 @@ export const AnnouncementsPage = ({ onOpenAdminForm, onPreviewMaterial }) => {
     }
   }, []);
 
-  // Sorting: Pinned first -> High -> Medium -> Low, then by newest Date
-  const priorityWeight = { 'High': 3, 'Medium': 2, 'Low': 1 };
+  // Sorting: Pinned / Special first -> High -> Medium -> Low, then by newest Date
+  const priorityWeight = { 'Special': 4, 'High': 3, 'Medium': 2, 'Low': 1 };
 
   const sortedAnnouncements = [...announcements].sort((a, b) => {
     if (a.isPinned && !b.isPinned) return -1;
@@ -126,15 +145,25 @@ export const AnnouncementsPage = ({ onOpenAdminForm, onPreviewMaterial }) => {
           </p>
         </div>
 
-        {/* Admin Post Button */}
+        {/* Admin Post Buttons */}
         {isAdmin && (
-          <button
-            onClick={() => onOpenAdminForm('announcement')}
-            className="flex items-center space-x-2 px-4 py-2.5 rounded-2xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30 transition-all self-start md:self-auto"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Post Announcement</span>
-          </button>
+          <div className="flex items-center space-x-3 self-start md:self-auto flex-wrap gap-y-2">
+            <button
+              onClick={() => onOpenSpecialAnnouncementModal ? onOpenSpecialAnnouncementModal() : onOpenAdminForm('announcement', { category: 'Special Announcement', priority: 'Special', isPinned: true })}
+              className="flex items-center space-x-2 px-4 py-2.5 rounded-2xl font-extrabold text-xs bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 hover:from-amber-400 hover:to-purple-500 text-white shadow-lg shadow-amber-500/25 transition-all transform hover:scale-[1.02]"
+            >
+              <Sparkles className="w-4 h-4 text-amber-300 animate-spin" />
+              <span>✨ Post Special Announcement</span>
+            </button>
+
+            <button
+              onClick={() => onOpenAdminForm('announcement')}
+              className="flex items-center space-x-2 px-4 py-2.5 rounded-2xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30 transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Post Announcement</span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -195,16 +224,24 @@ export const AnnouncementsPage = ({ onOpenAdminForm, onPreviewMaterial }) => {
           filteredAnnouncements.map((ann) => {
             const viewedList = ann.viewedBy || ['Alex Morgan', 'Rahul Sharma', 'Priya Patel', 'Prof. Sarah'];
             const viewCount = ann.viewCount || viewedList.length;
+            const isTarget = ann.id === highlightedId;
 
             return (
               <div
+                id={`announcement-${ann.id}`}
                 key={ann.id}
                 className={`glass-card rounded-3xl p-6 border space-y-3 relative overflow-hidden transition-all hover:border-slate-700 ${
-                  ann.isPinned ? 'border-amber-500/60 bg-amber-950/10' : 'border-slate-800'
+                  isTarget
+                    ? 'border-brand-500 ring-2 ring-brand-500/60 bg-brand-950/20 shadow-xl shadow-brand-500/15'
+                    : (ann.category === 'Special Announcement' || ann.priority === 'Special')
+                    ? 'border-amber-500/70 ring-1 ring-amber-500/40 bg-gradient-to-r from-amber-950/20 via-slate-950 to-purple-950/20 shadow-xl shadow-amber-500/10'
+                    : ann.isPinned ? 'border-amber-500/60 bg-amber-950/10' : 'border-slate-800'
                 }`}
               >
                 {/* Left Accent Bar */}
                 <div className={`absolute top-0 left-0 w-1.5 h-full ${
+                  isTarget ? 'bg-brand-400' :
+                  (ann.category === 'Special Announcement' || ann.priority === 'Special') ? 'bg-gradient-to-b from-amber-400 via-rose-400 to-purple-500' :
                   ann.isPinned ? 'bg-amber-400' :
                   ann.priority === 'High' ? 'bg-rose-500' :
                   ann.priority === 'Medium' ? 'bg-amber-500' : 'bg-brand-500'
@@ -212,6 +249,19 @@ export const AnnouncementsPage = ({ onOpenAdminForm, onPreviewMaterial }) => {
 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pl-2">
                   <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                    {isTarget && (
+                      <span className="flex items-center space-x-1 px-2.5 py-0.5 rounded text-[10px] font-extrabold bg-brand-500/20 text-brand-300 border border-brand-500/50 shadow-sm">
+                        <span>🎯 SELECTED NOTICE</span>
+                      </span>
+                    )}
+
+                    {(ann.category === 'Special Announcement' || ann.priority === 'Special') && (
+                      <span className="flex items-center space-x-1 px-2.5 py-0.5 rounded text-[10px] font-extrabold bg-gradient-to-r from-amber-500/30 via-rose-500/20 to-purple-500/30 text-amber-300 border border-amber-500/60 shadow-md shadow-amber-500/10">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                        <span>SPECIAL ANNOUNCEMENT</span>
+                      </span>
+                    )}
+
                     {ann.isPinned && (
                       <span className="flex items-center space-x-1 px-2.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/50 shadow-sm">
                         <Pin className="w-3 h-3 fill-amber-300" />
@@ -220,6 +270,7 @@ export const AnnouncementsPage = ({ onOpenAdminForm, onPreviewMaterial }) => {
                     )}
 
                     <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold ${
+                      (ann.category === 'Special Announcement' || ann.priority === 'Special') ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' :
                       ann.priority === 'High' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' :
                       ann.priority === 'Medium' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' :
                       'bg-brand-500/20 text-brand-300 border border-brand-500/40'

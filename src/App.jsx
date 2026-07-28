@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 
@@ -14,6 +14,7 @@ import { UserDirectoryModal } from './components/UserDirectoryModal';
 import { ShareExperienceModal } from './components/ShareExperienceModal';
 import { UploadStudentNoteModal } from './components/UploadStudentNoteModal';
 import { EventDetailModal } from './components/EventDetailModal';
+import { SpecialAnnouncementModal } from './components/SpecialAnnouncementModal';
 
 import { Home } from './pages/Home';
 import { MaterialsLibrary } from './pages/MaterialsLibrary';
@@ -24,12 +25,44 @@ import { LoginRegister } from './pages/LoginRegister';
 import { PlacementPrepHub } from './pages/PlacementPrepHub';
 import { EventsPage } from './pages/EventsPage';
 import { GraduationCap } from 'lucide-react';
+import { BroadcastOverlay } from './components/BroadcastOverlay';
+import { SignupWelcomeToast } from './components/SignupWelcomeToast';
+import { WelcomeBackToast } from './components/WelcomeBackToast';
+import { useData } from './context/DataContext';
 
 const MainAppContent = () => {
-  const { currentUser, loading } = useAuth();
-  
+  const { currentUser, loading, completeWelcomeScreen } = useAuth();
+  const { activeBroadcast, dismissBroadcast } = useData();
   const [activeTab, setActiveTab] = useState('home');
   const [previewMaterial, setPreviewMaterial] = useState(null);
+  const [selectedAnnouncementId, setSelectedAnnouncementId] = useState(null);
+  const [showWelcomeBackToast, setShowWelcomeBackToast] = useState(false);
+
+  useEffect(() => {
+    if (currentUser && currentUser.role === 'student' && currentUser.hasSeenWelcome) {
+      const sessionKey = `wb_toast_${currentUser.uid}`;
+      const hasShownThisSession = sessionStorage.getItem(sessionKey);
+      if (!hasShownThisSession) {
+        setShowWelcomeBackToast(true);
+      }
+    } else {
+      setShowWelcomeBackToast(false);
+    }
+  }, [currentUser]);
+
+  const handleDismissWelcomeBack = () => {
+    if (currentUser?.uid) {
+      sessionStorage.setItem(`wb_toast_${currentUser.uid}`, 'true');
+    }
+    setShowWelcomeBackToast(false);
+  };
+
+  const handleNavigate = (tab, param = null) => {
+    if (tab === 'announcements') {
+      setSelectedAnnouncementId(param || null);
+    }
+    setActiveTab(tab);
+  };
   
   // Phase 2 & 3 Modal States
   const [suggestionModalOpen, setSuggestionModalOpen] = useState(false);
@@ -40,6 +73,7 @@ const MainAppContent = () => {
   const [reportModalState, setReportModalState] = useState({ isOpen: false, material: null });
   const [versionHistoryState, setVersionHistoryState] = useState({ isOpen: false, type: null, item: null });
   const [adminManagementState, setAdminManagementState] = useState({ isOpen: false, initialTab: 'suggestions' });
+  const [specialAnnouncementModalOpen, setSpecialAnnouncementModalOpen] = useState(false);
 
   // Admin Form Modal State
   const [adminModalState, setAdminModalState] = useState({
@@ -119,7 +153,7 @@ const MainAppContent = () => {
       {/* Top Header Navbar */}
       <Navbar 
         activeTab={activeTab} 
-        setActiveTab={setActiveTab}
+        setActiveTab={handleNavigate}
         onOpenAdminManagement={openAdminManagement}
         onOpenUserDirectory={() => setUserDirectoryModalOpen(true)}
         onOpenSuggestionModal={() => setSuggestionModalOpen(true)}
@@ -130,7 +164,7 @@ const MainAppContent = () => {
         
         {activeTab === 'home' && (
           <Home 
-            onNavigate={(tab) => setActiveTab(tab)} 
+            onNavigate={handleNavigate} 
             onPreviewMaterial={(mat) => setPreviewMaterial(mat)} 
           />
         )}
@@ -170,8 +204,10 @@ const MainAppContent = () => {
 
         {activeTab === 'announcements' && (
           <AnnouncementsPage 
-            onOpenAdminForm={openAdminForm} 
+            onOpenAdminForm={openAdminForm}
+            onOpenSpecialAnnouncementModal={() => setSpecialAnnouncementModalOpen(true)}
             onPreviewMaterial={(mat) => setPreviewMaterial(mat)} 
+            targetAnnouncementId={selectedAnnouncementId}
           />
         )}
 
@@ -274,6 +310,40 @@ const MainAppContent = () => {
         isOpen={userDirectoryModalOpen}
         onClose={() => setUserDirectoryModalOpen(false)}
       />
+
+      {/* Special Announcement Modal */}
+      {specialAnnouncementModalOpen && (
+        <SpecialAnnouncementModal
+          onClose={() => setSpecialAnnouncementModalOpen(false)}
+        />
+      )}
+
+      {/* Global Broadcast Announcement Overlay */}
+      {currentUser && activeBroadcast && (
+        <BroadcastOverlay
+          broadcast={activeBroadcast}
+          onDismiss={dismissBroadcast}
+        />
+      )}
+
+      {/* Post-Registration Compact Signup Welcome Toast */}
+      {currentUser && currentUser.role === 'student' && !currentUser.hasSeenWelcome && (
+        <SignupWelcomeToast
+          userName={currentUser.name}
+          onDismiss={() => {
+            completeWelcomeScreen();
+            handleNavigate('home');
+          }}
+        />
+      )}
+
+      {/* Existing Student Login "Welcome Back" Toast */}
+      {showWelcomeBackToast && currentUser && (
+        <WelcomeBackToast
+          userName={currentUser.name}
+          onDismiss={handleDismissWelcomeBack}
+        />
+      )}
     </div>
   );
 };

@@ -310,6 +310,19 @@ export const INITIAL_AI_TOOLS = [
 
 export const INITIAL_ANNOUNCEMENTS = [
   {
+    id: 'ann-special-1',
+    title: '✨ Special Announcement: Department Excellence Award & 100% Campus Placements Drive',
+    description: 'Hearty Congratulations IT Department! Our department has achieved top placement metrics. Exclusive drive scheduled with 18 LPA dream packages starting next week!',
+    date: '2026-07-28',
+    time: '09:00 AM',
+    category: 'Special Announcement',
+    priority: 'Special',
+    isPinned: true,
+    author: 'Head of Department / IT Council',
+    viewCount: 340,
+    viewedBy: ['Alex Morgan', 'Rahul Sharma', 'Priya Patel', 'Siddharth V', 'Kavya S', 'Anish R', 'Divya M', 'Admin']
+  },
+  {
     id: 'ann-1',
     title: '🚨 Mid-Semester Examination Schedule Announced (Fall 2026)',
     description: 'The IT Department Mid-Sem examinations will commence from August 10th, 2026. Detailed seating arrangement and subject dates have been published on the notice board. Please clear all pending lab records.',
@@ -409,7 +422,7 @@ export const INITIAL_TIMETABLES = [
         { time: '11:00 - 12:30 PM', period: 'III & IV', span: 2, subject: 'ADS', fullName: 'Advanced Data Structures', room: 'MBIII ANX301', teacher: 'Ms. S.M. Sobana [SMS]', type: 'Placement' },
         { time: '01:20 - 02:05 PM', period: 'V', span: 1, subject: 'DC', fullName: 'Distributed Computing', room: 'MBIII ANX301', teacher: 'Ms. S.M. Sobana [SMS]', type: 'Theory' },
         { time: '02:05 - 02:50 PM', period: 'VI', span: 1, subject: 'FSWD', fullName: 'Full Stack Web Development', room: 'MBIII ANX301', teacher: 'Mr. N. Vinayakaswamy [NV]', type: 'Theory' },
-        { time: '03:05 - 04:30 PM', period: 'VII & VIII', span: 2, subject: 'PROJECT', fullName: 'Mini Project Work', room: 'MBIII ANX301', teacher: 'Ms. S.M. Sobana [SMS]', type: 'Placement' }
+        { time: '03:05 - 04:30 PM', period: 'VII & VIII', span: 2, subject: 'PROJECT', fullName: 'Mini Project Work', room: 'MBIII ANX301', teacher: 'Ms. S.M. Sobana [SMS]', type: 'Project' }
       ],
       Friday: [
         { time: '09:15 - 10:45 AM', period: 'I & II', span: 2, subject: 'APTI', fullName: 'Aptitude Training', room: 'MBIII ANX301', teacher: 'Ms. S.M. Sobana [SMS]', type: 'Placement' },
@@ -469,7 +482,7 @@ export const INITIAL_TIMETABLES = [
         { time: '11:00 - 12:30 PM', period: 'III & IV', span: 2, subject: 'ADS', fullName: 'Advanced Data Structures', room: 'MBIII ANX301', teacher: 'Ms. S.M. Sobana [SMS]', type: 'Placement' },
         { time: '01:20 - 02:05 PM', period: 'V', span: 1, subject: 'DC', fullName: 'Distributed Computing', room: 'MBIII ANX301', teacher: 'Ms. S.M. Sobana [SMS]', type: 'Theory' },
         { time: '02:05 - 02:50 PM', period: 'VI', span: 1, subject: 'FSWD', fullName: 'Full Stack Web Development', room: 'MBIII ANX301', teacher: 'Mr. N. Vinayakaswamy [NV]', type: 'Theory' },
-        { time: '03:05 - 04:30 PM', period: 'VII & VIII', span: 2, subject: 'PROJECT', fullName: 'Mini Project Work', room: 'MBIII ANX301', teacher: 'Ms. S.M. Sobana [SMS]', type: 'Placement' }
+        { time: '03:05 - 04:30 PM', period: 'VII & VIII', span: 2, subject: 'PROJECT', fullName: 'Mini Project Work', room: 'MBIII ANX301', teacher: 'Ms. S.M. Sobana [SMS]', type: 'Project' }
       ],
       Friday: [
         { time: '09:15 - 10:45 AM', period: 'I & II', span: 2, subject: 'APTI', fullName: 'Aptitude Training', room: 'MBIII ANX301', teacher: 'Ms. S.M. Sobana [SMS]', type: 'Placement' },
@@ -896,6 +909,24 @@ export const INITIAL_EVENTS = [
     endDate: '2026-06-10',
     registrationDeadline: '2026-06-08',
     createdAt: '2026-06-01'
+  }
+];
+
+export const INITIAL_BROADCASTS = [
+  {
+    id: 'bcast-1',
+    title: '✨ Diwali Special Grand Hackathon 2026',
+    message: 'Celebrate Diwali with Code! Join the 48-Hour National AI & Cloud Hackathon with cash prizes up to ₹1,50,000 & direct interview fast-tracks!',
+    bannerImageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80',
+    linkUrl: 'https://hackathon.itdept.edu',
+    linkLabel: 'Register Now 🚀',
+    isSkippable: true,
+    autoCloseSeconds: 10,
+    isFestivalMode: true,
+    animationType: 'confetti',
+    isActive: true,
+    createdAt: '2026-07-28T10:00:00.000Z',
+    createdBy: 'HOD / IT Department'
   }
 ];
 
