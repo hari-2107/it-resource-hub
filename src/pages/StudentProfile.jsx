@@ -42,7 +42,9 @@ export const StudentProfile = ({ onPreviewMaterial, onOpenAdminForm, onOpenAdmin
   const { 
     subjects,
     timetables, 
+    materials,
     allMaterials, 
+    aiTools,
     allAiTools, 
     favorites, 
     toggleFavoriteItem,
@@ -320,8 +322,10 @@ export const StudentProfile = ({ onPreviewMaterial, onOpenAdminForm, onOpenAdmin
   const studentTimetable = customTimetable || classDefaultTimetable;
 
   // Resolve favorite items
-  const savedMaterials = allMaterials.filter(m => favorites?.materialIds?.includes(m.id));
-  const savedAiTools = allAiTools.filter(t => favorites?.aiToolIds?.includes(t.id));
+  const rawMaterials = allMaterials || materials || [];
+  const rawAiTools = allAiTools || aiTools || [];
+  const savedMaterials = rawMaterials.filter(m => favorites?.materialIds?.includes(m.id));
+  const savedAiTools = rawAiTools.filter(t => favorites?.aiToolIds?.includes(t.id));
 
   const handlePrintTimetable = () => {
     window.print();

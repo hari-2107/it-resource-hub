@@ -35,7 +35,7 @@ import {
 
 export const Navbar = ({ activeTab, setActiveTab, onOpenAdminForm, onOpenAdminManagement, onOpenUserDirectory, onOpenSuggestionModal }) => {
   const { currentUser, isAdmin, logout, updateUserProfile } = useAuth();
-  const { announcements, suggestions, reports, allMaterials, interviewExperiences } = useData();
+  const { announcements, suggestions, reports, allMaterials, interviewExperiences, siteConfig } = useData();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [announcementsOpen, setAnnouncementsOpen] = useState(false);
@@ -73,7 +73,9 @@ export const Navbar = ({ activeTab, setActiveTab, onOpenAdminForm, onOpenAdminMa
 
   const totalAdminBadges = pendingCount + openReportsCount + pendingNotesCount + pendingExpsCount;
 
-  const navLinks = [
+  const brainZoneEnabled = siteConfig?.brainZoneEnabled !== false;
+
+  const rawNavLinks = [
     { id: 'home', label: 'Home', icon: BookOpen },
     { id: 'materials', label: 'Materials', icon: Layers },
     { id: 'aitools', label: 'AI Tools', icon: Sparkles },
@@ -83,6 +85,13 @@ export const Navbar = ({ activeTab, setActiveTab, onOpenAdminForm, onOpenAdminMa
     { id: 'announcements', label: 'Notices', icon: Bell },
     { id: 'profile', label: 'Profile', icon: User },
   ];
+
+  const navLinks = rawNavLinks.filter(link => {
+    if (link.id === 'brainzone' && !brainZoneEnabled && !isAdmin) {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <header className="sticky top-0 z-40 w-full glass-panel border-b border-slate-800/80">
@@ -372,22 +381,13 @@ export const Navbar = ({ activeTab, setActiveTab, onOpenAdminForm, onOpenAdminMa
               )}
             </div>
 
-            {/* Admin Controls: User Directory & Admin Center */}
+            {/* Admin Controls: Admin Center ONLY (User Directory merged into Admin Center sidebar) */}
             {isAdmin && (
               <div className="hidden sm:flex items-center space-x-2">
                 <button
-                  onClick={() => onOpenUserDirectory && onOpenUserDirectory()}
-                  className="relative p-2 sm:px-3 rounded-xl text-cyan-400 hover:text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 transition-all flex items-center space-x-1.5 shadow"
-                  title="User Directory & Activity Analytics"
-                >
-                  <Users className="w-4 h-4" />
-                  <span className="text-xs font-bold hidden sm:inline">User Directory</span>
-                </button>
-
-                <button
-                  onClick={() => onOpenAdminManagement && onOpenAdminManagement()}
+                  onClick={() => onOpenAdminManagement && onOpenAdminManagement('dashboard')}
                   className="relative p-2 sm:px-3 rounded-xl text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition-all flex items-center space-x-1.5 shadow"
-                  title="Admin Control Center (Suggestions & Reports)"
+                  title="Admin Control Center"
                 >
                   <ShieldAlert className="w-4 h-4" />
                   <span className="text-xs font-bold hidden sm:inline">Admin Center</span>

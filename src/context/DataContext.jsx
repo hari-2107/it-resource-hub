@@ -31,6 +31,15 @@ export const DataProvider = ({ children }) => {
   const [broadcasts, setBroadcasts] = useState([]);
   const [dismissedBroadcastIds, setDismissedBroadcastIds] = useState([]);
   const [thisOrThatPolls, setThisOrThatPolls] = useState([]);
+  const [activityLog, setActivityLog] = useState([]);
+  const [quizQuestions, setQuizQuestions] = useState([]);
+  const [itFacts, setItFacts] = useState([]);
+  const [siteConfig, setSiteConfig] = useState({
+    brainZoneEnabled: true,
+    registrationEnabled: true,
+    maintenanceMode: false,
+    maintenanceMessage: 'System undergoing scheduled maintenance. Please check back shortly.'
+  });
 
   // Load initial data
   useEffect(() => {
@@ -50,6 +59,10 @@ export const DataProvider = ({ children }) => {
     setRegisteredUsers(StorageService.getCustomUsers());
     setBroadcasts(StorageService.getBroadcasts());
     setThisOrThatPolls(StorageService.getThisOrThatPolls());
+    setActivityLog(StorageService.getActivityLog());
+    setSiteConfig(StorageService.getSiteConfig());
+    setQuizQuestions(StorageService.getQuizQuestions());
+    setItFacts(StorageService.getITFactsList());
     
     const uid = currentUser?.id || 'guest';
     setDismissedBroadcastIds(StorageService.getDismissedBroadcastIds(uid));
@@ -451,11 +464,86 @@ export const DataProvider = ({ children }) => {
     }
   };
 
+  const logAdminActivity = async (action, targetType = 'General', targetId = null) => {
+    const entry = {
+      id: `act-${Date.now()}`,
+      adminId: currentUser?.uid || currentUser?.id || 'adm-1',
+      adminName: currentUser?.name || 'Admin',
+      action,
+      targetType,
+      targetId,
+      timestamp: new Date().toISOString()
+    };
+    const updated = StorageService.logActivity(entry);
+    setActivityLog(updated);
+
+    if (isFirebaseConfigured && db) {
+      try {
+        await setDoc(doc(db, 'adminActivityLog', entry.id), entry);
+      } catch (err) {
+        console.error('Firestore logAdminActivity error:', err);
+      }
+    }
+  };
+
+  const updateSiteConfig = async (newConfig) => {
+    const updated = StorageService.saveSiteConfig(newConfig);
+    setSiteConfig(updated);
+    logAdminActivity(`Updated site configuration`, 'SiteSettings');
+
+    if (isFirebaseConfigured && db) {
+      try {
+        await setDoc(doc(db, 'siteConfig', 'settings'), updated, { merge: true });
+      } catch (err) {
+        console.error('Firestore updateSiteConfig error:', err);
+      }
+    }
+  };
+
+  const addOrUpdateQuizQuestion = (qData) => {
+    const updated = StorageService.saveQuizQuestion(qData);
+    setQuizQuestions(updated);
+    logAdminActivity(`Saved quiz question '${qData.q}'`, 'BrainZone');
+  };
+
+  const removeQuizQuestion = (id) => {
+    const updated = StorageService.deleteQuizQuestion(id);
+    setQuizQuestions(updated);
+    logAdminActivity(`Deleted quiz question`, 'BrainZone');
+  };
+
+  const addOrUpdateITFact = (factData) => {
+    const updated = StorageService.saveITFact(factData);
+    setItFacts(updated);
+    logAdminActivity(`Added IT Fact '${factData.fact}'`, 'BrainZone');
+  };
+
+  const removeITFact = (id) => {
+    const updated = StorageService.deleteITFact(id);
+    setItFacts(updated);
+    logAdminActivity(`Deleted IT Fact`, 'BrainZone');
+  };
+
+  const clearActivityLogs = () => {
+    const updated = StorageService.clearActivityLog();
+    setActivityLog(updated);
+  };
+
+  const updateUserRole = (userId, newRole) => {
+    const users = StorageService.getCustomUsers();
+    const updated = users.map(u => (u.uid === userId || u.id === userId) ? { ...u, role: newRole } : u);
+    StorageService.saveCustomUsers(updated);
+    setRegisteredUsers(updated);
+    logAdminActivity(`Changed user role to ${newRole}`, 'User', userId);
+  };
+
   return (
     <DataContext.Provider value={{
       subjects,
       materials,
+      allMaterials: materials,
       aiTools,
+      allAiTools: aiTools,
       announcements,
       timetables,
       favorites,
@@ -521,7 +609,19 @@ export const DataProvider = ({ children }) => {
       removeRegisteredUser,
       thisOrThatPolls,
       addThisOrThatPoll,
-      voteThisOrThatPoll
+      voteThisOrThatPoll,
+      activityLog,
+      siteConfig,
+      logAdminActivity,
+      updateSiteConfig,
+      quizQuestions,
+      addOrUpdateQuizQuestion,
+      removeQuizQuestion,
+      itFacts,
+      addOrUpdateITFact,
+      removeITFact,
+      clearActivityLogs,
+      updateUserRole
     }}>
       {children}
     </DataContext.Provider>

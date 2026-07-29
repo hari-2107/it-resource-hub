@@ -12,6 +12,7 @@ import {
   INITIAL_EVENTS,
   INITIAL_BROADCASTS,
   INITIAL_THIS_OR_THAT,
+  INITIAL_IT_FACTS,
   DEMO_USERS 
 } from '../data/mockData';
 
@@ -36,7 +37,11 @@ const LOCAL_STORAGE_KEYS = {
   USER_RESUMES: 'it_hub_user_resumes_v1',
   BROADCASTS: 'it_hub_broadcasts_v1',
   DISMISSED_BROADCASTS: 'it_hub_dismissed_broadcasts_v1',
-  THIS_OR_THAT: 'it_hub_this_or_that_v1'
+  THIS_OR_THAT: 'it_hub_this_or_that_v1',
+  ACTIVITY_LOG: 'it_hub_activity_log_v1',
+  SITE_CONFIG: 'it_hub_site_config_v1',
+  QUIZ_QUESTIONS: 'it_hub_quiz_questions_v1',
+  IT_FACTS: 'it_hub_it_facts_v1'
 };
 
 // Helper: safe JSON parse
@@ -901,6 +906,85 @@ export const StorageService = {
     });
     setItemJson(LOCAL_STORAGE_KEYS.THIS_OR_THAT, updated);
     return updated;
+  },
+
+  // Admin Activity Log
+  getActivityLog: () => getItemParsed(LOCAL_STORAGE_KEYS.ACTIVITY_LOG, [
+    { id: 'act-1', adminId: 'adm-1', adminName: 'Alex Morgan (Admin)', action: "Initialized system security & settings", targetType: 'System', timestamp: new Date().toISOString() },
+    { id: 'act-2', adminId: 'adm-1', adminName: 'Alex Morgan (Admin)', action: "Published semester examination timetable", targetType: 'Timetable', timestamp: new Date(Date.now() - 3600000).toISOString() }
+  ]),
+  logActivity: (entry) => {
+    const list = StorageService.getActivityLog();
+    const newEntry = {
+      ...entry,
+      id: entry.id || `act-${Date.now()}`,
+      timestamp: entry.timestamp || new Date().toISOString()
+    };
+    const updated = [newEntry, ...list].slice(0, 100); // keep top 100 log items
+    setItemJson(LOCAL_STORAGE_KEYS.ACTIVITY_LOG, updated);
+    return updated;
+  },
+
+  // Site Configuration & Maintenance Mode
+  getSiteConfig: () => getItemParsed(LOCAL_STORAGE_KEYS.SITE_CONFIG, {
+    brainZoneEnabled: true,
+    registrationEnabled: true,
+    maintenanceMode: false,
+    maintenanceMessage: 'The IT Resource Hub is currently undergoing scheduled maintenance. Please check back shortly.'
+  }),
+  saveSiteConfig: (config) => {
+    const current = StorageService.getSiteConfig();
+    const updated = { ...current, ...config };
+    setItemJson(LOCAL_STORAGE_KEYS.SITE_CONFIG, updated);
+    return updated;
+  },
+
+  clearActivityLog: () => {
+    setItemJson(LOCAL_STORAGE_KEYS.ACTIVITY_LOG, []);
+    return [];
+  },
+
+  // 60-Second Challenge Quiz Questions
+  getQuizQuestions: () => getItemParsed(LOCAL_STORAGE_KEYS.QUIZ_QUESTIONS, [
+    { id: 'qq-1', q: "What does API stand for in software engineering?", options: ["Automated Program Interface", "Application Programming Interface", "Advanced Process Integration", "Application Protocol Instruction"], answer: 1, category: "Web Dev" },
+    { id: 'qq-2', q: "Which data structure follows the Last-In, First-Out (LIFO) principle?", options: ["Queue", "Binary Tree", "Stack", "Linked List"], answer: 2, category: "Data Structures" },
+    { id: 'qq-3', q: "What default port does HTTPS protocol use?", options: ["80", "21", "8080", "443"], answer: 3, category: "Networking" },
+    { id: 'qq-4', q: "Which Big-O time complexity represents binary search algorithm?", options: ["O(N)", "O(log N)", "O(N^2)", "O(1)"], answer: 1, category: "Algorithms" },
+    { id: 'qq-5', q: "Which HTTP status code signifies 'Resource Not Found'?", options: ["200", "403", "404", "500"], answer: 2, category: "Web Dev" }
+  ]),
+  saveQuizQuestion: (question) => {
+    const list = StorageService.getQuizQuestions();
+    const newQ = {
+      ...question,
+      id: question.id || `qq-${Date.now()}`
+    };
+    const updated = [newQ, ...list.filter(q => q.id !== newQ.id)];
+    setItemJson(LOCAL_STORAGE_KEYS.QUIZ_QUESTIONS, updated);
+    return updated;
+  },
+  deleteQuizQuestion: (id) => {
+    const list = StorageService.getQuizQuestions().filter(q => q.id !== id);
+    setItemJson(LOCAL_STORAGE_KEYS.QUIZ_QUESTIONS, list);
+    return list;
+  },
+
+  // IT Facts Management
+  getITFactsList: () => getItemParsed(LOCAL_STORAGE_KEYS.IT_FACTS, INITIAL_IT_FACTS),
+  saveITFact: (factObj) => {
+    const list = StorageService.getITFactsList();
+    const newFact = {
+      ...factObj,
+      id: factObj.id || `fact-${Date.now()}`,
+      category: factObj.category || 'CS History'
+    };
+    const updated = [newFact, ...list.filter(f => f.id !== newFact.id)];
+    setItemJson(LOCAL_STORAGE_KEYS.IT_FACTS, updated);
+    return updated;
+  },
+  deleteITFact: (id) => {
+    const list = StorageService.getITFactsList().filter(f => f.id !== id && f.fact !== id);
+    setItemJson(LOCAL_STORAGE_KEYS.IT_FACTS, list);
+    return list;
   }
 };
 

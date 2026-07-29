@@ -25,7 +25,7 @@ import { LoginRegister } from './pages/LoginRegister';
 import { PlacementPrepHub } from './pages/PlacementPrepHub';
 import { EventsPage } from './pages/EventsPage';
 import { BrainZonePage } from './pages/BrainZonePage';
-import { GraduationCap } from 'lucide-react';
+import { GraduationCap, ShieldAlert } from 'lucide-react';
 import { BroadcastOverlay } from './components/BroadcastOverlay';
 import { SignupWelcomeToast } from './components/SignupWelcomeToast';
 import { WelcomeBackToast } from './components/WelcomeBackToast';
@@ -33,7 +33,7 @@ import { useData } from './context/DataContext';
 
 const MainAppContent = () => {
   const { currentUser, loading, completeWelcomeScreen } = useAuth();
-  const { activeBroadcast, dismissBroadcast } = useData();
+  const { activeBroadcast, dismissBroadcast, siteConfig } = useData();
   const [activeTab, setActiveTab] = useState('home');
   const [previewMaterial, setPreviewMaterial] = useState(null);
   const [selectedAnnouncementId, setSelectedAnnouncementId] = useState(null);
@@ -73,7 +73,7 @@ const MainAppContent = () => {
   const [eventDetailModalState, setEventDetailModalState] = useState({ isOpen: false, event: null });
   const [reportModalState, setReportModalState] = useState({ isOpen: false, material: null });
   const [versionHistoryState, setVersionHistoryState] = useState({ isOpen: false, type: null, item: null });
-  const [adminManagementState, setAdminManagementState] = useState({ isOpen: false, initialTab: 'suggestions' });
+  const [adminManagementState, setAdminManagementState] = useState({ isOpen: false, initialTab: 'dashboard' });
   const [specialAnnouncementModalOpen, setSpecialAnnouncementModalOpen] = useState(false);
 
   // Admin Form Modal State
@@ -107,7 +107,7 @@ const MainAppContent = () => {
     setReportModalState({ isOpen: true, material });
   };
 
-  const openAdminManagement = (initialTab = 'suggestions') => {
+  const openAdminManagement = (initialTab = 'dashboard') => {
     setAdminManagementState({ isOpen: true, initialTab });
   };
 
@@ -145,6 +145,27 @@ const MainAppContent = () => {
         <footer className="py-4 text-center text-xs text-slate-500 border-t border-slate-800/60">
           © {new Date().getFullYear()} whitedevilt. All rights reserved.
         </footer>
+      </div>
+    );
+  }
+
+  // Check Maintenance Mode for non-admin users
+  const isAdmin = currentUser.role === 'admin';
+  if (!isAdmin && siteConfig?.maintenanceMode) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 text-slate-100 p-6 text-center space-y-6">
+        <div className="w-20 h-20 rounded-3xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center shadow-2xl animate-pulse">
+          <ShieldAlert className="w-10 h-10" />
+        </div>
+        <div className="space-y-2 max-w-lg">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white">System Under Maintenance</h1>
+          <p className="text-sm text-slate-300 leading-relaxed">
+            {siteConfig.maintenanceMessage || 'The IT Resource Hub is currently undergoing scheduled maintenance. Please check back shortly.'}
+          </p>
+        </div>
+        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-xs text-slate-400 font-mono">
+          Status: Scheduled Maintenance • Dept of Information Technology
+        </div>
       </div>
     );
   }
