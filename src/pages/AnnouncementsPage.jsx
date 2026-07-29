@@ -67,7 +67,7 @@ const downloadFileFromUrl = (fileUrl, fileName) => {
 
 export const AnnouncementsPage = ({ onOpenAdminForm, onOpenSpecialAnnouncementModal, onPreviewMaterial, targetAnnouncementId }) => {
   const { announcements, removeAnnouncement, togglePinAnnouncement, trackAnnouncementView } = useData();
-  const { currentUser, isAdmin, toggleMuteCategory } = useAuth();
+  const { currentUser, isAdmin, updateUserProfile, toggleMuteCategory } = useAuth();
   const [filterCategory, setFilterCategory] = useState('All');
   const [highlightedId, setHighlightedId] = useState(targetAnnouncementId);
 
@@ -293,38 +293,62 @@ export const AnnouncementsPage = ({ onOpenAdminForm, onOpenSpecialAnnouncementMo
                       <UserCheck className="w-3.5 h-3.5 mr-1 text-brand-400" /> {ann.author}
                     </span>
 
-                    {isAdmin && (
-                      <div className="flex items-center space-x-1.5 pl-2 border-l border-slate-800">
-                        {/* Pin Toggle Button */}
-                        <button
-                          onClick={() => togglePinAnnouncement(ann.id)}
-                          className={`p-1 px-2 rounded font-semibold text-xs flex items-center space-x-1 transition-colors ${
-                            ann.isPinned
-                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                              : 'bg-slate-900 text-slate-400 hover:text-amber-300'
-                          }`}
-                          title={ann.isPinned ? "Unpin Notice" : "Pin Notice to Top"}
-                        >
-                          <Pin className={`w-3.5 h-3.5 ${ann.isPinned ? 'fill-amber-300' : ''}`} />
-                          <span className="text-[10px] hidden sm:inline">{ann.isPinned ? 'Pinned' : 'Pin'}</span>
-                        </button>
+                    <div className="flex items-center space-x-1.5 pl-2 border-l border-slate-800">
+                      <button
+                        onClick={() => {
+                          const currentDismissed = currentUser?.dismissedNotifications || [];
+                          const isDismissed = currentDismissed.includes(ann.id);
+                          const updated = isDismissed 
+                            ? currentDismissed.filter(id => id !== ann.id)
+                            : [...currentDismissed, ann.id];
+                          updateUserProfile({ dismissedNotifications: updated });
+                        }}
+                        className={`p-1 px-2 rounded font-semibold text-xs flex items-center space-x-1 transition-colors ${
+                          currentUser?.dismissedNotifications?.includes(ann.id)
+                            ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                            : 'bg-slate-900 text-slate-400 hover:text-rose-400 border border-slate-800'
+                        }`}
+                        title={currentUser?.dismissedNotifications?.includes(ann.id) ? "Restore notification in Bell popover" : "Clear notification from Bell popover"}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span className="text-[10px] hidden sm:inline">
+                          {currentUser?.dismissedNotifications?.includes(ann.id) ? 'Cleared' : 'Clear'}
+                        </span>
+                      </button>
 
-                        <button
-                          onClick={() => onOpenAdminForm('announcement', ann)}
-                          className="p-1 rounded bg-slate-900 text-slate-400 hover:text-emerald-400"
-                          title="Edit Notice"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => removeAnnouncement(ann.id)}
-                          className="p-1 rounded bg-slate-900 text-slate-400 hover:text-rose-400"
-                          title="Delete Notice"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    )}
+                      {isAdmin && (
+                        <>
+                          {/* Pin Toggle Button */}
+                          <button
+                            onClick={() => togglePinAnnouncement(ann.id)}
+                            className={`p-1 px-2 rounded font-semibold text-xs flex items-center space-x-1 transition-colors ${
+                              ann.isPinned
+                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                                : 'bg-slate-900 text-slate-400 hover:text-amber-300'
+                            }`}
+                            title={ann.isPinned ? "Unpin Notice" : "Pin Notice to Top"}
+                          >
+                            <Pin className={`w-3.5 h-3.5 ${ann.isPinned ? 'fill-amber-300' : ''}`} />
+                            <span className="text-[10px] hidden sm:inline">{ann.isPinned ? 'Pinned' : 'Pin'}</span>
+                          </button>
+
+                          <button
+                            onClick={() => onOpenAdminForm('announcement', ann)}
+                            className="p-1 rounded bg-slate-900 text-slate-400 hover:text-emerald-400"
+                            title="Edit Notice"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => removeAnnouncement(ann.id)}
+                            className="p-1 rounded bg-slate-900 text-slate-400 hover:text-rose-400"
+                            title="Delete Notice"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
 

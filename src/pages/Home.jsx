@@ -15,7 +15,8 @@ import {
   Layers,
   GraduationCap,
   Trophy,
-  Award
+  Award,
+  Brain
 } from 'lucide-react';
 
 export const Home = ({ onNavigate, onPreviewMaterial }) => {
@@ -87,6 +88,13 @@ export const Home = ({ onNavigate, onPreviewMaterial }) => {
             >
               <Sparkles className="w-4 h-4 text-violet-300" />
               <span>Discover AI Tools</span>
+            </button>
+            <button 
+              onClick={() => onNavigate('brainzone')}
+              className="w-full sm:w-auto px-5 py-3 rounded-2xl text-xs sm:text-sm font-bold bg-gradient-to-r from-purple-600/40 via-pink-600/40 to-amber-600/40 hover:from-purple-600/60 hover:to-amber-600/60 text-purple-100 hover:text-white border border-purple-500/50 shadow-xl transition-all flex items-center justify-center space-x-2"
+            >
+              <Brain className="w-4 h-4 text-purple-300 animate-pulse" />
+              <span>🧠 BrainZone Arcade</span>
             </button>
           </div>
           

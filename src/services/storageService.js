@@ -11,6 +11,7 @@ import {
   INITIAL_PLACEMENT_RESOURCES,
   INITIAL_EVENTS,
   INITIAL_BROADCASTS,
+  INITIAL_THIS_OR_THAT,
   DEMO_USERS 
 } from '../data/mockData';
 
@@ -34,7 +35,8 @@ const LOCAL_STORAGE_KEYS = {
   RATINGS: 'it_hub_ratings_v1',
   USER_RESUMES: 'it_hub_user_resumes_v1',
   BROADCASTS: 'it_hub_broadcasts_v1',
-  DISMISSED_BROADCASTS: 'it_hub_dismissed_broadcasts_v1'
+  DISMISSED_BROADCASTS: 'it_hub_dismissed_broadcasts_v1',
+  THIS_OR_THAT: 'it_hub_this_or_that_v1'
 };
 
 // Helper: safe JSON parse
@@ -867,6 +869,38 @@ export const StorageService = {
       return updated;
     }
     return dismissed;
+  },
+
+  // This or That Daily Polls
+  getThisOrThatPolls: () => getItemParsed(LOCAL_STORAGE_KEYS.THIS_OR_THAT, INITIAL_THIS_OR_THAT),
+  saveThisOrThatPoll: (poll) => {
+    const list = StorageService.getThisOrThatPolls();
+    const newPoll = {
+      ...poll,
+      id: poll.id || `tot-${Date.now()}`,
+      date: poll.date || new Date().toISOString().split('T')[0],
+      votesA: poll.votesA || 0,
+      votesB: poll.votesB || 0,
+      createdAt: new Date().toISOString()
+    };
+    const updated = [newPoll, ...list.filter(p => p.id !== newPoll.id)];
+    setItemJson(LOCAL_STORAGE_KEYS.THIS_OR_THAT, updated);
+    return updated;
+  },
+  voteThisOrThatPoll: (pollId, option) => {
+    const list = StorageService.getThisOrThatPolls();
+    const updated = list.map(p => {
+      if (p.id === pollId) {
+        return {
+          ...p,
+          votesA: option === 'A' ? (p.votesA || 0) + 1 : (p.votesA || 0),
+          votesB: option === 'B' ? (p.votesB || 0) + 1 : (p.votesB || 0)
+        };
+      }
+      return p;
+    });
+    setItemJson(LOCAL_STORAGE_KEYS.THIS_OR_THAT, updated);
+    return updated;
   }
 };
 

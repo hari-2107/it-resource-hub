@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { StorageService } from '../services/storageService';
 import { useAuth } from './AuthContext';
 import { isFirebaseConfigured, db } from '../config/firebase';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, updateDoc } from 'firebase/firestore';
 
 const DataContext = createContext();
 
@@ -30,6 +30,7 @@ export const DataProvider = ({ children }) => {
   const [registeredUsers, setRegisteredUsers] = useState([]);
   const [broadcasts, setBroadcasts] = useState([]);
   const [dismissedBroadcastIds, setDismissedBroadcastIds] = useState([]);
+  const [thisOrThatPolls, setThisOrThatPolls] = useState([]);
 
   // Load initial data
   useEffect(() => {
@@ -48,6 +49,7 @@ export const DataProvider = ({ children }) => {
     setRatings(StorageService.getRatings());
     setRegisteredUsers(StorageService.getCustomUsers());
     setBroadcasts(StorageService.getBroadcasts());
+    setThisOrThatPolls(StorageService.getThisOrThatPolls());
     
     const uid = currentUser?.id || 'guest';
     setDismissedBroadcastIds(StorageService.getDismissedBroadcastIds(uid));
@@ -409,14 +411,51 @@ export const DataProvider = ({ children }) => {
     setDismissedBroadcastIds(updated);
   };
 
+  const addThisOrThatPoll = async (pollData) => {
+    const updated = StorageService.saveThisOrThatPoll(pollData);
+    setThisOrThatPolls(updated);
+
+    if (isFirebaseConfigured && db) {
+      try {
+        const id = pollData.id || `tot-${Date.now()}`;
+        await setDoc(doc(db, 'thisOrThat', id), {
+          ...pollData,
+          id,
+          date: pollData.date || new Date().toISOString().split('T')[0],
+          votesA: pollData.votesA || 0,
+          votesB: pollData.votesB || 0,
+          createdAt: new Date().toISOString()
+        }, { merge: true });
+      } catch (err) {
+        console.error('Firestore saveThisOrThat error:', err);
+      }
+    }
+  };
+
+  const voteThisOrThatPoll = async (pollId, option) => {
+    const updated = StorageService.voteThisOrThatPoll(pollId, option);
+    setThisOrThatPolls(updated);
+
+    if (isFirebaseConfigured && db) {
+      try {
+        const target = (thisOrThatPolls || []).find(p => p.id === pollId);
+        const currentA = target?.votesA || 0;
+        const currentB = target?.votesB || 0;
+        await updateDoc(doc(db, 'thisOrThat', pollId), {
+          votesA: option === 'A' ? currentA + 1 : currentA,
+          votesB: option === 'B' ? currentB + 1 : currentB
+        });
+      } catch (err) {
+        console.error('Firestore voteThisOrThat error:', err);
+      }
+    }
+  };
+
   return (
     <DataContext.Provider value={{
-      loading,
       subjects,
-      materials: filteredMaterials,
-      allMaterials: materials,
-      aiTools: filteredAITools,
-      allAiTools: aiTools,
+      materials,
+      aiTools,
       announcements,
       timetables,
       favorites,
@@ -479,7 +518,10 @@ export const DataProvider = ({ children }) => {
       addOrUpdateSubject,
       removeSubject,
       registeredUsers,
-      removeRegisteredUser
+      removeRegisteredUser,
+      thisOrThatPolls,
+      addThisOrThatPoll,
+      voteThisOrThatPoll
     }}>
       {children}
     </DataContext.Provider>

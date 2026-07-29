@@ -26,7 +26,13 @@ import {
   BellOff,
   Trophy,
   BookOpen,
-  Users
+  Users,
+  Target,
+  Save,
+  RefreshCw,
+  RotateCcw,
+  Check,
+  Brain
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar, Legend } from 'recharts';
 import { SemesterTargetCalculator } from '../components/SemesterTargetCalculator';
@@ -52,6 +58,93 @@ export const StudentProfile = ({ onPreviewMaterial, onOpenAdminForm, onOpenAdmin
   const [showSaveToast, setShowSaveToast] = useState(false);
   const [timetableSubFilter, setTimetableSubFilter] = useState('all'); // 'all' | 'class' | 'internal' | 'semester'
   const [selectedInternalTest, setSelectedInternalTest] = useState('Internal 1');
+  const [marksSubTab, setMarksSubTab] = useState('internal_marks'); // 'internal_marks' | 'calculator' | 'sgpa'
+
+  // Calculate SGPA and CGPA metrics
+  const currentSgpaData = currentUser?.sgpaData || {};
+
+  const calculateSgpaMetrics = (sgpaData) => {
+    const completed = [];
+    for (let sem = 1; sem <= 8; sem++) {
+      const val = sgpaData[sem] ?? sgpaData[String(sem)];
+      if (val !== undefined && val !== null && val !== '') {
+        const num = Number(val);
+        if (!isNaN(num) && num >= 0 && num <= 10) {
+          completed.push({ sem, sgpa: num });
+        }
+      }
+    }
+    if (completed.length === 0) {
+      return { completedSemesters: [], currentSgpa: null, overallCgpa: null, latestSem: null };
+    }
+    const sum = completed.reduce((acc, curr) => acc + curr.sgpa, 0);
+    const overallCgpa = sum / completed.length;
+    const highestSemObj = completed.reduce((prev, curr) => (prev.sem > curr.sem ? prev : curr), completed[0]);
+    return {
+      completedSemesters: completed,
+      currentSgpa: highestSemObj ? highestSemObj.sgpa : null,
+      overallCgpa,
+      latestSem: highestSemObj ? highestSemObj.sem : null
+    };
+  };
+
+  const { completedSemesters, currentSgpa, overallCgpa, latestSem } = calculateSgpaMetrics(currentSgpaData);
+
+  const currentSgpaDisplay = currentSgpa !== null ? `${currentSgpa.toFixed(2)} / 10` : 'N/A';
+  const overallCgpaDisplay = overallCgpa !== null ? `${overallCgpa.toFixed(2)} / 10` : 'N/A';
+
+  const [sgpaInputs, setSgpaInputs] = useState(() => {
+    const initial = {};
+    for (let s = 1; s <= 8; s++) {
+      const val = currentUser?.sgpaData?.[s] ?? currentUser?.sgpaData?.[String(s)];
+      initial[s] = val !== undefined && val !== null ? String(val) : '';
+    }
+    return initial;
+  });
+
+  React.useEffect(() => {
+    if (currentUser?.sgpaData) {
+      setSgpaInputs(prev => {
+        const updated = { ...prev };
+        for (let s = 1; s <= 8; s++) {
+          const val = currentUser.sgpaData[s] ?? currentUser.sgpaData[String(s)];
+          if (val !== undefined && val !== null) {
+            updated[s] = String(val);
+          }
+        }
+        return updated;
+      });
+    }
+  }, [currentUser?.sgpaData]);
+
+  const handleSgpaChange = (sem, value) => {
+    setSgpaInputs(prev => ({ ...prev, [sem]: value }));
+  };
+
+  const handleSaveAllSgpas = (e) => {
+    if (e) e.preventDefault();
+    const newSgpaData = {};
+    for (let s = 1; s <= 8; s++) {
+      const rawVal = sgpaInputs[s];
+      if (rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== '') {
+        const num = Number(rawVal);
+        if (!isNaN(num) && num >= 0 && num <= 10) {
+          newSgpaData[s] = Number(num.toFixed(2));
+        }
+      }
+    }
+    updateUserProfile({ sgpaData: newSgpaData });
+    triggerSaveToast();
+  };
+
+  const handleClearSemesterSgpa = (sem) => {
+    setSgpaInputs(prev => ({ ...prev, [sem]: '' }));
+    const newSgpaData = { ...(currentUser?.sgpaData || {}) };
+    delete newSgpaData[sem];
+    delete newSgpaData[String(sem)];
+    updateUserProfile({ sgpaData: newSgpaData });
+    triggerSaveToast();
+  };
 
   const triggerSaveToast = () => {
     setShowSaveToast(true);
@@ -213,15 +306,15 @@ export const StudentProfile = ({ onPreviewMaterial, onOpenAdminForm, onOpenAdmin
 
   // Find class default timetable matching student's Year + Semester + Class Section
   const userSection = (currentUser?.classSection || 'IT-A').toLowerCase();
-  const classDefaultTimetable = timetables.find(t => 
-    t.year === currentUser?.year && 
+  const classDefaultTimetable = (timetables || []).find(t => 
+    t && t.year === currentUser?.year && 
     t.semester === Number(currentUser?.semester) && 
-    (t.classSection.toLowerCase() === userSection || 
-     (userSection.includes('a') && t.classSection.toLowerCase().includes('a')))
-  ) || timetables.find(t => 
-    t.year === currentUser?.year && 
+    (((t.classSection || '').toLowerCase() === userSection) || 
+     (userSection.includes('a') && (t.classSection || '').toLowerCase().includes('a')))
+  ) || (timetables || []).find(t => 
+    t && t.year === currentUser?.year && 
     t.semester === Number(currentUser?.semester)
-  ) || timetables[0];
+  ) || timetables?.[0];
 
   // Effective active timetable (customized or default)
   const studentTimetable = customTimetable || classDefaultTimetable;
@@ -309,6 +402,18 @@ export const StudentProfile = ({ onPreviewMaterial, onOpenAdminForm, onOpenAdmin
                     </span>
                     <span className="px-2.5 py-1 rounded-lg bg-slate-900 text-brand-300 border border-brand-500/30">
                       Class: {currentUser.classSection === 'IT-A' ? 'Class A' : currentUser.classSection === 'IT-B' ? 'Class B' : currentUser.classSection === 'IT-C' ? 'Class C' : (currentUser.classSection || 'Class A')}
+                    </span>
+                    <span className="px-2.5 py-1 rounded-lg bg-indigo-950/80 text-indigo-300 border border-indigo-500/40 font-bold flex items-center space-x-1.5 shadow-sm">
+                      <GraduationCap className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>Current SGPA: {currentSgpaDisplay}</span>
+                    </span>
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 font-bold flex items-center space-x-1.5 shadow-sm">
+                      <Trophy className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Overall CGPA: {overallCgpaDisplay}</span>
+                    </span>
+                    <span className="px-2.5 py-1 rounded-lg bg-purple-950/80 text-purple-300 border border-purple-500/40 font-bold flex items-center space-x-1.5 shadow-sm">
+                      <Brain className="w-3.5 h-3.5 text-purple-400" />
+                      <span>BrainZone: {currentUser.funPoints || 450} XP • 🔥 {currentUser.streak || 5}d</span>
                     </span>
                   </>
                 ) : (
@@ -1252,327 +1357,367 @@ export const StudentProfile = ({ onPreviewMaterial, onOpenAdminForm, onOpenAdmin
         return (
           <div className="space-y-6">
             
-            {/* DISCLAIMER & INFO BANNER */}
-            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start space-x-3 text-amber-300 text-xs">
-              <AlertTriangle className="w-5 h-5 flex-shrink-0 text-amber-400 mt-0.5" />
-              <div>
-                <p className="font-bold text-amber-200">50-Mark Internal Assessment Tracker</p>
-                <p className="mt-0.5 leading-relaxed text-amber-300/90">
-                  Each Internal Exam is out of <strong>50 marks</strong>. Select a subject for Semester {newMark.semester} below to log <strong>Internal 1</strong> and <strong>Internal 2</strong> marks — the <strong>Comparison Graph</strong> will group side-by-side bars per subject!
+            {/* SELF-MARKS TRACKER HEADER & HORIZONTAL SUB-TAB NAVIGATION */}
+            <div className="glass-panel p-6 rounded-3xl border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <h2 className="text-xl font-extrabold text-white flex items-center space-x-2">
+                  <ChartIcon className="w-6 h-6 text-accent-cyan" />
+                  <span>Self-Marks Tracker</span>
+                </h2>
+                <p className="text-xs text-slate-400">
+                  Organized academic tracking: internal marks, semester target calculator, and SGPA/CGPA record.
                 </p>
               </div>
-            </div>
 
-            {/* Add/Log Internal Marks Form */}
-            <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
-              <h3 className="text-sm font-bold text-white flex items-center space-x-2">
-                <Plus className="w-4 h-4 text-brand-400" />
-                <span>Log Subject Internal Marks (Max 50 Each)</span>
-              </h3>
-
-              <form onSubmit={handleAddMarkSubmit} className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-                
-                {/* Semester Picker */}
-                <div className="sm:col-span-2">
-                  <label className="block text-[10px] font-semibold text-slate-400 mb-1">Semester</label>
-                  <select
-                    value={newMark.semester}
-                    onChange={(e) => setNewMark({ ...newMark, semester: Number(e.target.value), subject: '' })}
-                    className="w-full px-3 py-2 bg-slate-900 text-xs text-slate-100 rounded-xl border border-slate-800 focus:outline-none focus:border-brand-500"
-                  >
-                    {[1,2,3,4,5,6,7,8].map(s => (
-                      <option key={s} value={s}>Sem {s}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Subject Name Dropdown Selection */}
-                <div className="sm:col-span-4">
-                  <label className="block text-[10px] font-semibold text-slate-400 mb-1">Subject (Sem {newMark.semester})</label>
-                  <select
-                    required
-                    value={newMark.subject}
-                    onChange={(e) => setNewMark({ ...newMark, subject: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-900 text-xs text-slate-100 rounded-xl border border-slate-800 focus:outline-none focus:border-brand-500"
-                  >
-                    <option value="" disabled>-- Select Semester {newMark.semester} Subject --</option>
-                    {semesterSubjectOptions.map((subName, i) => (
-                      <option key={i} value={subName}>
-                        {subName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Internal 1 */}
-                <div className="sm:col-span-2">
-                  <label className="block text-[10px] font-semibold text-slate-400 mb-1">Internal 1 (/50)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="50"
-                    placeholder="Marks / 50"
-                    value={newMark.internal1}
-                    onChange={(e) => setNewMark({ ...newMark, internal1: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-900 text-xs text-slate-100 rounded-xl border border-slate-800 focus:outline-none focus:border-brand-500"
-                  />
-                </div>
-
-                {/* Internal 2 */}
-                <div className="sm:col-span-2">
-                  <label className="block text-[10px] font-semibold text-slate-400 mb-1">Internal 2 (/50)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="50"
-                    placeholder="Marks / 50"
-                    value={newMark.internal2}
-                    onChange={(e) => setNewMark({ ...newMark, internal2: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-900 text-xs text-slate-100 rounded-xl border border-slate-800 focus:outline-none focus:border-brand-500"
-                  />
-                </div>
-
-                {/* Save Button */}
-                <div className="sm:col-span-2 flex items-end">
+              {/* CLEAN HORIZONTAL TAB NAVIGATION (MATCHES TIMETABLES SECTION VISUAL STYLE) */}
+              <div className="flex bg-slate-950 p-1.5 rounded-2xl border border-slate-800 overflow-x-auto scrollbar-none gap-1.5 w-full sm:w-auto">
+                {[
+                  { id: 'internal_marks', label: '📊 Internal Marks' },
+                  { id: 'calculator', label: '🎯 Internal Marks Calculator' },
+                  { id: 'sgpa', label: '🎓 Semester SGPA' }
+                ].map((tab) => (
                   <button
-                    type="submit"
-                    className="w-full py-2.5 rounded-xl text-xs font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-md shadow-brand-600/20 flex items-center justify-center space-x-1"
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setMarksSubTab(tab.id)}
+                    className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-200 flex items-center space-x-2 ${
+                      marksSubTab === tab.id
+                        ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30 ring-1 ring-brand-400/40'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-900 border border-transparent'
+                    }`}
                   >
-                    <Plus className="w-4 h-4" />
-                    <span>Save Marks</span>
+                    <span>{tab.label}</span>
                   </button>
-                </div>
-              </form>
-            </div>
-
-            {/* PERFORMANCE OVERVIEW CARDS */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 space-y-1">
-                <p className="text-[11px] font-bold text-indigo-300 uppercase tracking-wider">Internal 1 Average</p>
-                <div className="flex items-baseline space-x-2">
-                  <span className="text-2xl font-black text-white">{avgI1}</span>
-                  <span className="text-xs text-slate-400 font-bold">/ 50 marks</span>
-                </div>
-                <p className="text-[10px] text-indigo-200/80">
-                  {avgI1 > 0 ? `${((avgI1 / 50) * 100).toFixed(1)}% class average` : 'No marks logged yet'}
-                </p>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 space-y-1">
-                <p className="text-[11px] font-bold text-cyan-300 uppercase tracking-wider">Internal 2 Average</p>
-                <div className="flex items-baseline space-x-2">
-                  <span className="text-2xl font-black text-white">{avgI2}</span>
-                  <span className="text-xs text-slate-400 font-bold">/ 50 marks</span>
-                </div>
-                <p className="text-[10px] text-cyan-200/80">
-                  {avgI2 > 0 ? `${((avgI2 / 50) * 100).toFixed(1)}% class average` : 'No marks logged yet'}
-                </p>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-emerald-950/40 border border-emerald-500/30 space-y-1">
-                <p className="text-[11px] font-bold text-emerald-300 uppercase tracking-wider">Overall Growth Trend</p>
-                <div className="flex items-baseline space-x-2">
-                  <span className={`text-2xl font-black ${Number(diffAvg) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {Number(diffAvg) >= 0 ? `+${diffAvg}` : diffAvg}
-                  </span>
-                  <span className="text-xs text-slate-400 font-bold">marks</span>
-                </div>
-                <p className="text-[10px] text-emerald-200/80">
-                  {Number(diffPercent) >= 0 ? `📈 +${diffPercent}% improvement` : `📉 ${diffPercent}% change`} in Int 2
-                </p>
+                ))}
               </div>
             </div>
 
-            {/* THREE-GRAPH SYSTEM DISPLAY */}
-            <div className="space-y-6">
-              
-              {/* GRAPH 1 & GRAPH 2 SIDE-BY-SIDE */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                
-                {/* GRAPH 1: INTERNAL 1 MARKS */}
-                <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-white flex items-center space-x-2">
-                      <ChartIcon className="w-4 h-4 text-indigo-400" />
-                      <span>1️⃣ Internal 1 Assessment (Max 50)</span>
-                    </h3>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                      Int 1 Results
-                    </span>
-                  </div>
-
-                  {internal1Data.length > 0 ? (
-                    <div className="h-60 w-full pt-2">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={internal1Data}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                          <XAxis dataKey="name" stroke="#64748b" fontSize={10} />
-                          <YAxis domain={[0, 50]} stroke="#64748b" fontSize={10} />
-                          <Tooltip 
-                            contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', fontSize: '12px' }}
-                            formatter={(val) => [`${val} / 50 marks (${((val / 50) * 100).toFixed(0)}%)`, 'Internal 1']}
-                          />
-                          <Bar dataKey="Internal 1 Marks" fill="#6366f1" radius={[8, 8, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <div className="h-60 flex items-center justify-center text-xs text-slate-500 italic">
-                      No Internal 1 marks logged yet.
-                    </div>
-                  )}
-                </div>
-
-                {/* GRAPH 2: INTERNAL 2 MARKS */}
-                <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-white flex items-center space-x-2">
-                      <ChartIcon className="w-4 h-4 text-cyan-400" />
-                      <span>2️⃣ Internal 2 Assessment (Max 50)</span>
-                    </h3>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                      Int 2 Results
-                    </span>
-                  </div>
-
-                  {internal2Data.length > 0 ? (
-                    <div className="h-60 w-full pt-2">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={internal2Data}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                          <XAxis dataKey="name" stroke="#64748b" fontSize={10} />
-                          <YAxis domain={[0, 50]} stroke="#64748b" fontSize={10} />
-                          <Tooltip 
-                            contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', fontSize: '12px' }}
-                            formatter={(val) => [`${val} / 50 marks (${((val / 50) * 100).toFixed(0)}%)`, 'Internal 2']}
-                          />
-                          <Bar dataKey="Internal 2 Marks" fill="#06b6d4" radius={[8, 8, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <div className="h-60 flex items-center justify-center text-xs text-slate-500 italic">
-                      No Internal 2 marks logged yet.
-                    </div>
-                  )}
-                </div>
-
-              </div>
-
-              {/* GRAPH 3: COMPARATIVE ANALYSIS (INTERNAL 1 vs INTERNAL 2 SIDE-BY-SIDE BARS) */}
-              <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
+            {/* TAB 1 — INTERNAL MARKS */}
+            {marksSubTab === 'internal_marks' && (
+              <div className="space-y-6 animate-in fade-in duration-300">
+                {/* DISCLAIMER & INFO BANNER */}
+                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start space-x-3 text-amber-300 text-xs">
+                  <AlertTriangle className="w-5 h-5 flex-shrink-0 text-amber-400 mt-0.5" />
                   <div>
-                    <h3 className="text-base font-extrabold text-white flex items-center space-x-2">
-                      <Sparkles className="w-5 h-5 text-emerald-400" />
-                      <span>3️⃣ Internal 1 vs Internal 2 Comparison Graph</span>
-                    </h3>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      Subject-wise comparative evaluation displaying Internal 1 (left) and Internal 2 (right) side-by-side out of 50.
+                    <p className="font-bold text-amber-200">50-Mark Internal Assessment Tracker</p>
+                    <p className="mt-0.5 leading-relaxed text-amber-300/90">
+                      Each Internal Exam is out of <strong>50 marks</strong>. Select a subject for Semester {newMark.semester} below to log <strong>Internal 1</strong> and <strong>Internal 2</strong> marks — the <strong>Comparison Graph</strong> will group side-by-side bars per subject!
                     </p>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                    hasBothInternals 
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse'
-                      : 'bg-slate-800 text-slate-400 border border-slate-700'
-                  }`}>
-                    {hasBothInternals ? '⚡ Side-by-Side Comparison Active' : '🔒 Log Both Internals to Compare'}
-                  </span>
                 </div>
 
-                {comparisonData.length > 0 ? (
-                  <div className="h-72 w-full pt-4">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={comparisonData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                        <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} />
-                        <YAxis domain={[0, 50]} stroke="#94a3b8" fontSize={11} />
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '14px', fontSize: '12px' }}
-                          formatter={(value, name) => [`${value} / 50 marks (${((value / 50) * 100).toFixed(0)}%)`, name]}
-                        />
-                        <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                        <Bar dataKey="Internal 1 (50)" fill="#6366f1" radius={[6, 6, 0, 0]} name="Internal 1" />
-                        <Bar dataKey="Internal 2 (50)" fill="#10b981" radius={[6, 6, 0, 0]} name="Internal 2" />
-                      </BarChart>
-                    </ResponsiveContainer>
+                {/* Add/Log Internal Marks Form */}
+                <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
+                  <h3 className="text-sm font-bold text-white flex items-center space-x-2">
+                    <Plus className="w-4 h-4 text-brand-400" />
+                    <span>Log Subject Internal Marks (Max 50 Each)</span>
+                  </h3>
+
+                  <form onSubmit={handleAddMarkSubmit} className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                    
+                    {/* Semester Picker */}
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] font-semibold text-slate-400 mb-1">Semester</label>
+                      <select
+                        value={newMark.semester}
+                        onChange={(e) => setNewMark({ ...newMark, semester: Number(e.target.value), subject: '' })}
+                        className="w-full px-3 py-2 bg-slate-900 text-xs text-slate-100 rounded-xl border border-slate-800 focus:outline-none focus:border-brand-500"
+                      >
+                        {[1,2,3,4,5,6,7,8].map(s => (
+                          <option key={s} value={s}>Sem {s}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Subject Name Dropdown Selection */}
+                    <div className="sm:col-span-4">
+                      <label className="block text-[10px] font-semibold text-slate-400 mb-1">Subject (Sem {newMark.semester})</label>
+                      <select
+                        required
+                        value={newMark.subject}
+                        onChange={(e) => setNewMark({ ...newMark, subject: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-900 text-xs text-slate-100 rounded-xl border border-slate-800 focus:outline-none focus:border-brand-500"
+                      >
+                        <option value="" disabled>-- Select Semester {newMark.semester} Subject --</option>
+                        {semesterSubjectOptions.map((subName, i) => (
+                          <option key={i} value={subName}>
+                            {subName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Internal 1 */}
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] font-semibold text-slate-400 mb-1">Internal 1 (/50)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="50"
+                        placeholder="Marks / 50"
+                        value={newMark.internal1}
+                        onChange={(e) => setNewMark({ ...newMark, internal1: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-900 text-xs text-slate-100 rounded-xl border border-slate-800 focus:outline-none focus:border-brand-500"
+                      />
+                    </div>
+
+                    {/* Internal 2 */}
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] font-semibold text-slate-400 mb-1">Internal 2 (/50)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="50"
+                        placeholder="Marks / 50"
+                        value={newMark.internal2}
+                        onChange={(e) => setNewMark({ ...newMark, internal2: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-900 text-xs text-slate-100 rounded-xl border border-slate-800 focus:outline-none focus:border-brand-500"
+                      />
+                    </div>
+
+                    {/* Save Button */}
+                    <div className="sm:col-span-2 flex items-end">
+                      <button
+                        type="submit"
+                        className="w-full py-2.5 rounded-xl text-xs font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-md shadow-brand-600/20 flex items-center justify-center space-x-1"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Save Marks</span>
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                {/* PERFORMANCE OVERVIEW CARDS */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 space-y-1">
+                    <p className="text-[11px] font-bold text-indigo-300 uppercase tracking-wider">Internal 1 Average</p>
+                    <div className="flex items-baseline space-x-2">
+                      <span className="text-2xl font-black text-white">{avgI1}</span>
+                      <span className="text-xs text-slate-400 font-bold">/ 50 marks</span>
+                    </div>
+                    <p className="text-[10px] text-indigo-200/80">
+                      {avgI1 > 0 ? `${((avgI1 / 50) * 100).toFixed(1)}% class average` : 'No marks logged yet'}
+                    </p>
                   </div>
-                ) : (
-                  <div className="h-64 flex flex-col items-center justify-center text-center p-8 bg-slate-900/50 rounded-2xl border border-slate-800 space-y-2">
-                    <ChartIcon className="w-8 h-8 text-slate-600" />
-                    <p className="text-xs font-semibold text-slate-300">No Comparison Data Available</p>
-                    <p className="text-[11px] text-slate-500">Log both Internal 1 and Internal 2 marks above to visualize subject-wise growth!</p>
+
+                  <div className="p-4 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 space-y-1">
+                    <p className="text-[11px] font-bold text-cyan-300 uppercase tracking-wider">Internal 2 Average</p>
+                    <div className="flex items-baseline space-x-2">
+                      <span className="text-2xl font-black text-white">{avgI2}</span>
+                      <span className="text-xs text-slate-400 font-bold">/ 50 marks</span>
+                    </div>
+                    <p className="text-[10px] text-cyan-200/80">
+                      {avgI2 > 0 ? `${((avgI2 / 50) * 100).toFixed(1)}% class average` : 'No marks logged yet'}
+                    </p>
                   </div>
-                )}
-              </div>
 
-            </div>
+                  <div className="p-4 rounded-2xl bg-emerald-950/40 border border-emerald-500/30 space-y-1">
+                    <p className="text-[11px] font-bold text-emerald-300 uppercase tracking-wider">Overall Growth Trend</p>
+                    <div className="flex items-baseline space-x-2">
+                      <span className={`text-2xl font-black ${Number(diffAvg) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {Number(diffAvg) >= 0 ? `+${diffAvg}` : diffAvg}
+                      </span>
+                      <span className="text-xs text-slate-400 font-bold">marks</span>
+                    </div>
+                    <p className="text-[10px] text-emerald-200/80">
+                      {Number(diffPercent) >= 0 ? `📈 +${diffPercent}% improvement` : `📉 ${diffPercent}% change`} in Int 2
+                    </p>
+                  </div>
+                </div>
 
-            {/* MARKS SUMMARY TABLE */}
-            <div className="glass-panel rounded-3xl p-6 border border-slate-800 overflow-x-auto space-y-3">
-              <h3 className="text-sm font-bold text-white">Detailed Internal Marks Statement</h3>
+                {/* THREE-GRAPH SYSTEM DISPLAY */}
+                <div className="space-y-6">
+                  
+                  {/* GRAPH 1 & GRAPH 2 SIDE-BY-SIDE */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    
+                    {/* GRAPH 1: INTERNAL 1 MARKS */}
+                    <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-bold text-white flex items-center space-x-2">
+                          <ChartIcon className="w-4 h-4 text-indigo-400" />
+                          <span>1️⃣ Internal 1 Assessment (Max 50)</span>
+                        </h3>
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                          Int 1 Results
+                        </span>
+                      </div>
 
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-800 text-slate-400 bg-slate-900/60">
-                    <th className="py-3 px-4 font-semibold">Subject</th>
-                    <th className="py-3 px-4 font-semibold">Semester</th>
-                    <th className="py-3 px-4 font-semibold text-center">Internal 1 (/50)</th>
-                    <th className="py-3 px-4 font-semibold text-center">Internal 2 (/50)</th>
-                    <th className="py-3 px-4 font-semibold text-center">Total (/100)</th>
-                    <th className="py-3 px-4 font-semibold text-center">Percentage</th>
-                    <th className="py-3 px-4 font-semibold text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60">
-                  {consolidatedMarks.map(m => {
-                    const i1 = m.internal1 !== null && m.internal1 !== undefined ? Number(m.internal1) : '-';
-                    const i2 = m.internal2 !== null && m.internal2 !== undefined ? Number(m.internal2) : '-';
-                    const total = (typeof i1 === 'number' ? i1 : 0) + (typeof i2 === 'number' ? i2 : 0);
-                    const hasBoth = typeof i1 === 'number' && typeof i2 === 'number';
-                    const pct = hasBoth ? total : (typeof i1 === 'number' ? (i1 / 50) * 100 : (typeof i2 === 'number' ? (i2 / 50) * 100 : 0));
+                      {internal1Data.length > 0 ? (
+                        <div className="h-60 w-full pt-2">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={internal1Data}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                              <XAxis dataKey="name" stroke="#64748b" fontSize={10} />
+                              <YAxis domain={[0, 50]} stroke="#64748b" fontSize={10} />
+                              <Tooltip 
+                                contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', fontSize: '12px' }}
+                                formatter={(val) => [`${val} / 50 marks (${((val / 50) * 100).toFixed(0)}%)`, 'Internal 1']}
+                              />
+                              <Bar dataKey="Internal 1 Marks" fill="#6366f1" radius={[8, 8, 0, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <div className="h-60 flex items-center justify-center text-xs text-slate-500 italic">
+                          No Internal 1 marks logged yet.
+                        </div>
+                      )}
+                    </div>
 
-                    return (
-                      <tr key={m.id} className="hover:bg-slate-900/40">
-                        <td className="py-3 px-4 font-bold text-white">{m.subject}</td>
-                        <td className="py-3 px-4 text-slate-400">Sem {m.semester}</td>
-                        <td className="py-3 px-4 text-center font-bold text-indigo-300">
-                          {i1 !== '-' ? `${i1} / 50` : <span className="text-slate-600 italic">Not set</span>}
-                        </td>
-                        <td className="py-3 px-4 text-center font-bold text-cyan-300">
-                          {i2 !== '-' ? `${i2} / 50` : <span className="text-slate-600 italic">Not set</span>}
-                        </td>
-                        <td className="py-3 px-4 text-center font-bold text-emerald-300">
-                          {hasBoth ? `${total} / 100` : <span className="text-slate-500 font-normal">Pending</span>}
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold ${
-                            pct >= 90 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
-                            pct >= 75 ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' :
-                            pct >= 50 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
-                            'bg-slate-800 text-slate-400'
-                          }`}>
-                            {pct > 0 ? `${pct.toFixed(0)}%` : 'N/A'}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <button
-                            onClick={() => removeMark(m.id)}
-                            className="text-rose-400 hover:text-rose-300 p-1 rounded-lg hover:bg-rose-500/10"
-                            title="Delete entry"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
+                    {/* GRAPH 2: INTERNAL 2 MARKS */}
+                    <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-bold text-white flex items-center space-x-2">
+                          <ChartIcon className="w-4 h-4 text-cyan-400" />
+                          <span>2️⃣ Internal 2 Assessment (Max 50)</span>
+                        </h3>
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                          Int 2 Results
+                        </span>
+                      </div>
+
+                      {internal2Data.length > 0 ? (
+                        <div className="h-60 w-full pt-2">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={internal2Data}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                              <XAxis dataKey="name" stroke="#64748b" fontSize={10} />
+                              <YAxis domain={[0, 50]} stroke="#64748b" fontSize={10} />
+                              <Tooltip 
+                                contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', fontSize: '12px' }}
+                                formatter={(val) => [`${val} / 50 marks (${((val / 50) * 100).toFixed(0)}%)`, 'Internal 2']}
+                              />
+                              <Bar dataKey="Internal 2 Marks" fill="#06b6d4" radius={[8, 8, 0, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <div className="h-60 flex items-center justify-center text-xs text-slate-500 italic">
+                          No Internal 2 marks logged yet.
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+
+                  {/* GRAPH 3: COMPARATIVE ANALYSIS (INTERNAL 1 vs INTERNAL 2 SIDE-BY-SIDE BARS) */}
+                  <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <h3 className="text-base font-extrabold text-white flex items-center space-x-2">
+                          <Sparkles className="w-5 h-5 text-emerald-400" />
+                          <span>3️⃣ Internal 1 vs Internal 2 Comparison Graph</span>
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Subject-wise comparative evaluation displaying Internal 1 (left) and Internal 2 (right) side-by-side out of 50.
+                        </p>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        hasBothInternals 
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse'
+                          : 'bg-slate-800 text-slate-400 border border-slate-700'
+                      }`}>
+                        {hasBothInternals ? '⚡ Side-by-Side Comparison Active' : '🔒 Log Both Internals to Compare'}
+                      </span>
+                    </div>
+
+                    {comparisonData.length > 0 ? (
+                      <div className="h-72 w-full pt-4">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={comparisonData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                            <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} />
+                            <YAxis domain={[0, 50]} stroke="#94a3b8" fontSize={11} />
+                            <Tooltip 
+                              contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '14px', fontSize: '12px' }}
+                              formatter={(value, name) => [`${value} / 50 marks (${((value / 50) * 100).toFixed(0)}%)`, name]}
+                            />
+                            <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                            <Bar dataKey="Internal 1 (50)" fill="#6366f1" radius={[6, 6, 0, 0]} name="Internal 1" />
+                            <Bar dataKey="Internal 2 (50)" fill="#10b981" radius={[6, 6, 0, 0]} name="Internal 2" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <div className="h-64 flex flex-col items-center justify-center text-center p-8 bg-slate-900/50 rounded-2xl border border-slate-800 space-y-2">
+                        <ChartIcon className="w-8 h-8 text-slate-600" />
+                        <p className="text-xs font-semibold text-slate-300">No Comparison Data Available</p>
+                        <p className="text-[11px] text-slate-500">Log both Internal 1 and Internal 2 marks above to visualize subject-wise growth!</p>
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+
+                {/* MARKS SUMMARY TABLE */}
+                <div className="glass-panel rounded-3xl p-6 border border-slate-800 overflow-x-auto space-y-3">
+                  <h3 className="text-sm font-bold text-white">Detailed Internal Marks Statement</h3>
+
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-800 text-slate-400 bg-slate-900/60">
+                        <th className="py-3 px-4 font-semibold">Subject</th>
+                        <th className="py-3 px-4 font-semibold">Semester</th>
+                        <th className="py-3 px-4 font-semibold text-center">Internal 1 (/50)</th>
+                        <th className="py-3 px-4 font-semibold text-center">Internal 2 (/50)</th>
+                        <th className="py-3 px-4 font-semibold text-center">Total (/100)</th>
+                        <th className="py-3 px-4 font-semibold text-center">Percentage</th>
+                        <th className="py-3 px-4 font-semibold text-right">Action</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {consolidatedMarks.map(m => {
+                        const i1 = m.internal1 !== null && m.internal1 !== undefined ? Number(m.internal1) : '-';
+                        const i2 = m.internal2 !== null && m.internal2 !== undefined ? Number(m.internal2) : '-';
+                        const total = (typeof i1 === 'number' ? i1 : 0) + (typeof i2 === 'number' ? i2 : 0);
+                        const hasBoth = typeof i1 === 'number' && typeof i2 === 'number';
+                        const pct = hasBoth ? total : (typeof i1 === 'number' ? (i1 / 50) * 100 : (typeof i2 === 'number' ? (i2 / 50) * 100 : 0));
 
-            {/* DEDICATED INTERNAL MARKS CALCULATOR SECTION */}
-            {(() => {
+                        return (
+                          <tr key={m.id} className="hover:bg-slate-900/40">
+                            <td className="py-3 px-4 font-bold text-white">{m.subject}</td>
+                            <td className="py-3 px-4 text-slate-400">Sem {m.semester}</td>
+                            <td className="py-3 px-4 text-center font-bold text-indigo-300">
+                              {i1 !== '-' ? `${i1} / 50` : <span className="text-slate-600 italic">Not set</span>}
+                            </td>
+                            <td className="py-3 px-4 text-center font-bold text-cyan-300">
+                              {i2 !== '-' ? `${i2} / 50` : <span className="text-slate-600 italic">Not set</span>}
+                            </td>
+                            <td className="py-3 px-4 text-center font-bold text-emerald-300">
+                              {hasBoth ? `${total} / 100` : <span className="text-slate-500 font-normal">Pending</span>}
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold ${
+                                pct >= 90 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
+                                pct >= 75 ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' :
+                                pct >= 50 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
+                                'bg-slate-800 text-slate-400'
+                              }`}>
+                                {pct > 0 ? `${pct.toFixed(0)}%` : 'N/A'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <button
+                                onClick={() => removeMark(m.id)}
+                                className="text-rose-400 hover:text-rose-300 p-1 rounded-lg hover:bg-rose-500/10"
+                                title="Delete entry"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2 — INTERNAL MARKS CALCULATOR */}
+            {marksSubTab === 'calculator' && (() => {
               const calcSubjectOptions = (() => {
                 const matchedSubs = (subjects || []).filter(s => Number(s.semester) === Number(calcState.semester));
                 if (matchedSubs.length > 0) return matchedSubs.map(s => s.name);
@@ -1621,165 +1766,368 @@ export const StudentProfile = ({ onPreviewMaterial, onOpenAdminForm, onOpenAdmin
               }
 
               return (
-                <div className="glass-panel p-6 rounded-3xl border border-brand-500/30 bg-slate-900/90 space-y-6">
-                  
-                  <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-800">
-                    <div className="space-y-1">
-                      <h3 className="text-lg font-extrabold text-white flex items-center space-x-2">
-                        <Calculator className="w-5 h-5 text-brand-400" />
-                        <span>🧮 Internal Marks Calculator</span>
-                      </h3>
-                      <p className="text-xs text-slate-400">
-                        Calculate your estimated Continuous Assessment internal mark out of 40 based on your 50-mark Internal exams.
-                      </p>
-                    </div>
-                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-brand-500/20 text-brand-300 border border-brand-500/40">
-                      Formula: (Average / 50) × 40
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div className="space-y-6 animate-in fade-in duration-300">
+                  <div className="glass-panel p-6 rounded-3xl border border-brand-500/30 bg-slate-900/90 space-y-6">
                     
-                    {/* Left Column: Form Controls */}
-                    <div className="lg:col-span-7 space-y-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        
-                        {/* Semester Selection */}
-                        <div className="space-y-1">
-                          <label className="block text-xs font-bold text-slate-300">Select Semester</label>
-                          <select
-                            value={calcState.semester}
-                            onChange={(e) => {
-                              const newSem = Number(e.target.value);
-                              setCalcState({ semester: newSem, subject: '', internal1: '', internal2: '' });
-                            }}
-                            className="w-full px-3.5 py-2.5 bg-slate-950 text-xs text-slate-100 rounded-xl border border-slate-800 focus:outline-none focus:border-brand-500"
-                          >
-                            {[1,2,3,4,5,6,7,8].map(s => (
-                              <option key={s} value={s}>Semester {s}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Subject Selection */}
-                        <div className="space-y-1">
-                          <label className="block text-xs font-bold text-slate-300">Select Subject</label>
-                          <select
-                            value={calcState.subject}
-                            onChange={(e) => {
-                              const selSub = e.target.value;
-                              const existing = consolidatedMarks.find(m => (m.subject || '').toLowerCase().trim() === selSub.toLowerCase().trim());
-                              setCalcState({
-                                semester: calcState.semester,
-                                subject: selSub,
-                                internal1: existing && existing.internal1 !== null ? existing.internal1 : '',
-                                internal2: existing && existing.internal2 !== null ? existing.internal2 : ''
-                              });
-                            }}
-                            className="w-full px-3.5 py-2.5 bg-slate-950 text-xs text-slate-100 rounded-xl border border-slate-800 focus:outline-none focus:border-brand-500"
-                          >
-                            <option value="" disabled>-- Choose Subject for Sem {calcState.semester} --</option>
-                            {calcSubjectOptions.map((subName, i) => (
-                              <option key={i} value={subName}>{subName}</option>
-                            ))}
-                          </select>
-                        </div>
-
+                    <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-800">
+                      <div className="space-y-1">
+                        <h3 className="text-lg font-extrabold text-white flex items-center space-x-2">
+                          <Calculator className="w-5 h-5 text-brand-400" />
+                          <span>🧮 Internal Marks Calculator</span>
+                        </h3>
+                        <p className="text-xs text-slate-400">
+                          Calculate your estimated Continuous Assessment internal mark out of 40 based on your 50-mark Internal exams.
+                        </p>
                       </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                        
-                        {/* Internal 1 Input */}
-                        <div className="space-y-1.5 p-3.5 rounded-2xl bg-indigo-950/30 border border-indigo-500/20">
-                          <div className="flex items-center justify-between">
-                            <label className="text-xs font-bold text-indigo-300">Internal 1 Marks</label>
-                            <span className="text-[10px] text-slate-400 font-medium">Out of 50</span>
-                          </div>
-                          <div className="relative">
-                            <input
-                              type="number"
-                              min="0"
-                              max="50"
-                              placeholder="Marks / 50"
-                              value={calcState.internal1}
-                              onChange={(e) => setCalcState(prev => ({ ...prev, internal1: e.target.value }))}
-                              className="w-full px-3.5 py-2 bg-slate-900 text-sm font-bold text-white rounded-xl border border-indigo-500/30 focus:outline-none focus:border-indigo-400"
-                            />
-                            <span className="absolute right-3 top-2 text-xs text-slate-500 font-bold">/ 50</span>
-                          </div>
-                        </div>
-
-                        {/* Internal 2 Input */}
-                        <div className="space-y-1.5 p-3.5 rounded-2xl bg-cyan-950/30 border border-cyan-500/20">
-                          <div className="flex items-center justify-between">
-                            <label className="text-xs font-bold text-cyan-300">Internal 2 Marks</label>
-                            <span className="text-[10px] text-slate-400 font-medium">Out of 50</span>
-                          </div>
-                          <div className="relative">
-                            <input
-                              type="number"
-                              min="0"
-                              max="50"
-                              placeholder="Marks / 50"
-                              value={calcState.internal2}
-                              onChange={(e) => setCalcState(prev => ({ ...prev, internal2: e.target.value }))}
-                              className="w-full px-3.5 py-2 bg-slate-900 text-sm font-bold text-white rounded-xl border border-cyan-500/30 focus:outline-none focus:border-cyan-400"
-                            />
-                            <span className="absolute right-3 top-2 text-xs text-slate-500 font-bold">/ 50</span>
-                          </div>
-                        </div>
-
-                      </div>
+                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-brand-500/20 text-brand-300 border border-brand-500/40">
+                        Formula: (Average / 50) × 40
+                      </span>
                     </div>
 
-                    {/* Right Column: Calculated Results Display */}
-                    <div className="lg:col-span-5 flex flex-col justify-between p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
-                      <div className="space-y-3">
-                        <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Calculation Summary</span>
-                        
-                        <div className="flex items-center justify-between py-2 border-b border-slate-800 text-xs">
-                          <span className="text-slate-400 font-medium">Average Mark:</span>
-                          <span className="text-white font-bold text-sm">
-                            {calcHasVal ? `${calcAvg.toFixed(1)} / 50` : '-'}
-                          </span>
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                      
+                      {/* Left Column: Form Controls */}
+                      <div className="lg:col-span-7 space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          
+                          {/* Semester Selection */}
+                          <div className="space-y-1">
+                            <label className="block text-xs font-bold text-slate-300">Select Semester</label>
+                            <select
+                              value={calcState.semester}
+                              onChange={(e) => {
+                                const newSem = Number(e.target.value);
+                                setCalcState({ semester: newSem, subject: '', internal1: '', internal2: '' });
+                              }}
+                              className="w-full px-3.5 py-2.5 bg-slate-950 text-xs text-slate-100 rounded-xl border border-slate-800 focus:outline-none focus:border-brand-500"
+                            >
+                              {[1,2,3,4,5,6,7,8].map(s => (
+                                <option key={s} value={s}>Semester {s}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Subject Selection */}
+                          <div className="space-y-1">
+                            <label className="block text-xs font-bold text-slate-300">Select Subject</label>
+                            <select
+                              value={calcState.subject}
+                              onChange={(e) => {
+                                const selSub = e.target.value;
+                                const existing = consolidatedMarks.find(m => (m.subject || '').toLowerCase().trim() === selSub.toLowerCase().trim());
+                                setCalcState({
+                                  semester: calcState.semester,
+                                  subject: selSub,
+                                  internal1: existing && existing.internal1 !== null ? existing.internal1 : '',
+                                  internal2: existing && existing.internal2 !== null ? existing.internal2 : ''
+                                });
+                              }}
+                              className="w-full px-3.5 py-2.5 bg-slate-950 text-xs text-slate-100 rounded-xl border border-slate-800 focus:outline-none focus:border-brand-500"
+                            >
+                              <option value="" disabled>-- Choose Subject for Sem {calcState.semester} --</option>
+                              {calcSubjectOptions.map((subName, i) => (
+                                <option key={i} value={subName}>{subName}</option>
+                              ))}
+                            </select>
+                          </div>
+
                         </div>
 
-                        <div className="p-4 rounded-2xl bg-gradient-to-br from-brand-900/50 to-indigo-950/50 border border-brand-500/40 space-y-1">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-brand-300">Estimated Internal Mark</span>
-                          <div className="flex items-baseline space-x-2">
-                            <span className="text-3xl font-black text-white">
-                              {calcHasVal ? calcEst.toFixed(1) : '0.0'}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                          
+                          {/* Internal 1 Input */}
+                          <div className="space-y-1.5 p-3.5 rounded-2xl bg-indigo-950/30 border border-indigo-500/20">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-indigo-300">Internal 1 Marks</label>
+                              <span className="text-[10px] text-slate-400 font-medium">Out of 50</span>
+                            </div>
+                            <div className="relative">
+                              <input
+                                type="number"
+                                min="0"
+                                max="50"
+                                placeholder="Marks / 50"
+                                value={calcState.internal1}
+                                onChange={(e) => setCalcState(prev => ({ ...prev, internal1: e.target.value }))}
+                                className="w-full px-3.5 py-2 bg-slate-900 text-sm font-bold text-white rounded-xl border border-indigo-500/30 focus:outline-none focus:border-indigo-400"
+                              />
+                              <span className="absolute right-3 top-2 text-xs text-slate-500 font-bold">/ 50</span>
+                            </div>
+                          </div>
+
+                          {/* Internal 2 Input */}
+                          <div className="space-y-1.5 p-3.5 rounded-2xl bg-cyan-950/30 border border-cyan-500/20">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-cyan-300">Internal 2 Marks</label>
+                              <span className="text-[10px] text-slate-400 font-medium">Out of 50</span>
+                            </div>
+                            <div className="relative">
+                              <input
+                                type="number"
+                                min="0"
+                                max="50"
+                                placeholder="Marks / 50"
+                                value={calcState.internal2}
+                                onChange={(e) => setCalcState(prev => ({ ...prev, internal2: e.target.value }))}
+                                className="w-full px-3.5 py-2 bg-slate-900 text-sm font-bold text-white rounded-xl border border-cyan-500/30 focus:outline-none focus:border-cyan-400"
+                              />
+                              <span className="absolute right-3 top-2 text-xs text-slate-500 font-bold">/ 50</span>
+                            </div>
+                          </div>
+
+                        </div>
+                      </div>
+
+                      {/* Right Column: Calculated Results Display */}
+                      <div className="lg:col-span-5 flex flex-col justify-between p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
+                        <div className="space-y-3">
+                          <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Calculation Summary</span>
+                          
+                          <div className="flex items-center justify-between py-2 border-b border-slate-800 text-xs">
+                            <span className="text-slate-400 font-medium">Average Mark:</span>
+                            <span className="text-white font-bold text-sm">
+                              {calcHasVal ? `${calcAvg.toFixed(1)} / 50` : '-'}
                             </span>
-                            <span className="text-sm font-bold text-brand-300">/ 40 marks</span>
                           </div>
-                          {calcHasVal && (
-                            <p className="text-[11px] text-brand-200/90 font-medium pt-1">
-                              ({calcAvg.toFixed(1)} ÷ 50) × 40 = <strong>{calcEst.toFixed(1)} / 40</strong>
-                            </p>
-                          )}
+
+                          <div className="p-4 rounded-2xl bg-gradient-to-br from-brand-900/50 to-indigo-950/50 border border-brand-500/40 space-y-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-brand-300">Estimated Internal Mark</span>
+                            <div className="flex items-baseline space-x-2">
+                              <span className="text-3xl font-black text-white">
+                                {calcHasVal ? calcEst.toFixed(1) : '0.0'}
+                              </span>
+                              <span className="text-sm font-bold text-brand-300">/ 40 marks</span>
+                            </div>
+                            {calcHasVal && (
+                              <p className="text-[11px] text-brand-200/90 font-medium pt-1">
+                                ({calcAvg.toFixed(1)} ÷ 50) × 40 = <strong>{calcEst.toFixed(1)} / 40</strong>
+                              </p>
+                            )}
+                          </div>
                         </div>
+                      </div>
+
+                    </div>
+
+                    {/* MANDATORY DISCLAIMER BANNER */}
+                    <div className="p-4 rounded-2xl bg-slate-950/90 border border-amber-500/30 flex items-start space-x-3 text-xs">
+                      <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <p className="font-bold text-amber-300 uppercase tracking-wide text-[11px]">⚠️ Disclaimer</p>
+                        <p className="text-slate-300 leading-relaxed text-[11px]">
+                          "This is only an estimated calculation for personal reference and is NOT your official internal/Continuous Assessment mark. The actual mark may be higher or lower depending on the official college calculation method and other assessment components. Please refer to your college/department for your official marks."
+                        </p>
                       </div>
                     </div>
 
-                  </div>
-
-                  {/* MANDATORY DISCLAIMER BANNER */}
-                  <div className="p-4 rounded-2xl bg-slate-950/90 border border-amber-500/30 flex items-start space-x-3 text-xs">
-                    <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-                    <div className="space-y-1">
-                      <p className="font-bold text-amber-300 uppercase tracking-wide text-[11px]">⚠️ Disclaimer</p>
-                      <p className="text-slate-300 leading-relaxed text-[11px]">
-                        "This is only an estimated calculation for personal reference and is NOT your official internal/Continuous Assessment mark. The actual mark may be higher or lower depending on the official college calculation method and other assessment components. Please refer to your college/department for your official marks."
-                      </p>
-                    </div>
                   </div>
 
                   {/* SEMESTER EXAM TARGET CALCULATOR */}
-                  <SemesterTargetCalculator internalMark={cI1 !== null && cI2 !== null ? calcEst : null} />
-
+                  <SemesterTargetCalculator internalMark={calcHasVal ? calcEst : null} />
                 </div>
               );
             })()}
+
+            {/* TAB 3 — SEMESTER SGPA */}
+            {marksSubTab === 'sgpa' && (
+              <div className="space-y-6 animate-in fade-in duration-300">
+                
+                {/* Summary Metrics Banner */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  
+                  {/* Current SGPA Card */}
+                  <div className="p-5 rounded-3xl bg-gradient-to-br from-indigo-950/60 to-slate-900 border border-indigo-500/30 space-y-2 relative overflow-hidden">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-extrabold uppercase tracking-wider text-indigo-300 flex items-center space-x-1.5">
+                        <GraduationCap className="w-4 h-4 text-indigo-400" />
+                        <span>Current SGPA</span>
+                      </span>
+                      {latestSem && (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                          Semester {latestSem}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-baseline space-x-2">
+                      <span className="text-3xl font-black text-white">
+                        {currentSgpa !== null ? currentSgpa.toFixed(2) : '--.--'}
+                      </span>
+                      <span className="text-sm font-bold text-slate-400">/ 10</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      {currentSgpa !== null ? `Most recent semester SGPA (Sem ${latestSem})` : 'No semester SGPA entered yet'}
+                    </p>
+                  </div>
+
+                  {/* Overall CGPA Card */}
+                  <div className="p-5 rounded-3xl bg-gradient-to-br from-emerald-950/60 to-slate-900 border border-emerald-500/30 space-y-2 relative overflow-hidden">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-300 flex items-center space-x-1.5">
+                        <Trophy className="w-4 h-4 text-emerald-400" />
+                        <span>Overall CGPA</span>
+                      </span>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        Auto-Calculated
+                      </span>
+                    </div>
+                    <div className="flex items-baseline space-x-2">
+                      <span className="text-3xl font-black text-emerald-400">
+                        {overallCgpa !== null ? overallCgpa.toFixed(2) : '--.--'}
+                      </span>
+                      <span className="text-sm font-bold text-slate-400">/ 10</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      {completedSemesters.length > 0 
+                        ? `Average of ${completedSemesters.length} completed ${completedSemesters.length === 1 ? 'semester' : 'semesters'}` 
+                        : 'Enter SGPAs below to calculate overall CGPA'}
+                    </p>
+                  </div>
+
+                  {/* Academic Performance Status Card */}
+                  <div className="p-5 rounded-3xl bg-gradient-to-br from-purple-950/60 to-slate-900 border border-purple-500/30 space-y-2 relative overflow-hidden">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-extrabold uppercase tracking-wider text-purple-300 flex items-center space-x-1.5">
+                        <Award className="w-4 h-4 text-purple-400" />
+                        <span>Academic Standing</span>
+                      </span>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                        {completedSemesters.length}/8 Sems
+                      </span>
+                    </div>
+                    <div className="text-lg font-extrabold text-white truncate pt-1">
+                      {overallCgpa !== null ? (
+                        overallCgpa >= 8.5 ? '⭐ First Class with Distinction' :
+                        overallCgpa >= 7.5 ? '🟢 First Class' :
+                        overallCgpa >= 6.0 ? '🟡 Second Class' : '✅ Pass Grade'
+                      ) : 'Pending Entry'}
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      {completedSemesters.length > 0
+                        ? `${completedSemesters.length} of 8 semester SGPAs recorded`
+                        : 'Log SGPAs to calculate status'}
+                    </p>
+                  </div>
+
+                </div>
+
+                {/* SGPA Input Grid (Semesters 1 to 8) */}
+                <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
+                    <div>
+                      <h3 className="text-base font-extrabold text-white flex items-center space-x-2">
+                        <GraduationCap className="w-5 h-5 text-indigo-400" />
+                        <span>Semester SGPA Entry (Semesters 1 - 8)</span>
+                      </h3>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Enter your SGPA for each semester out of 10.00. Overall CGPA will automatically calculate as the average of completed semester SGPAs.
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <button
+                        type="button"
+                        onClick={handleSaveAllSgpas}
+                        className="px-4 py-2.5 rounded-xl text-xs font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-md shadow-brand-600/20 flex items-center space-x-1.5 transition-all hover:scale-[1.02]"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Save SGPA Records</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 8 SEMESTER CARDS GRID */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => {
+                      const valStr = sgpaInputs[sem] || '';
+                      const numVal = valStr !== '' ? Number(valStr) : null;
+                      const isSaved = currentUser?.sgpaData?.[sem] !== undefined && currentUser?.sgpaData?.[sem] !== null;
+
+                      return (
+                        <div 
+                          key={sem} 
+                          className={`p-4 rounded-2xl border transition-all space-y-3 relative ${
+                            isSaved
+                              ? 'bg-slate-900/90 border-indigo-500/40 shadow-sm'
+                              : 'bg-slate-950/60 border-slate-800/80 hover:border-slate-700'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-extrabold text-white">Semester {sem}</span>
+                            {isSaved && numVal !== null && (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                Saved
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="block text-[10px] font-semibold text-slate-400">
+                              SGPA (0.00 - 10.00)
+                            </label>
+                            <div className="relative flex items-center">
+                              <input
+                                type="number"
+                                min="0"
+                                max="10"
+                                step="0.01"
+                                placeholder="e.g. 8.50"
+                                value={valStr}
+                                onChange={(e) => handleSgpaChange(sem, e.target.value)}
+                                className="w-full px-3 py-2 bg-slate-950 text-sm font-bold text-white rounded-xl border border-slate-800 focus:outline-none focus:border-brand-500 pr-12"
+                              />
+                              <span className="absolute right-3 text-xs text-slate-500 font-bold pointer-events-none">
+                                / 10
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1">
+                            {valStr ? (
+                              <button
+                                type="button"
+                                onClick={() => handleClearSemesterSgpa(sem)}
+                                className="text-[11px] text-rose-400 hover:text-rose-300 font-medium flex items-center space-x-1"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                <span>Clear</span>
+                              </button>
+                            ) : (
+                              <span className="text-[10px] text-slate-600 italic">Not entered</span>
+                            )}
+
+                            {numVal !== null && !isNaN(numVal) && numVal > 0 && (
+                              <span className="text-[11px] font-bold text-indigo-300">
+                                {numVal.toFixed(2)} / 10
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* CGPA COMPUTATION FOOTER SUMMARY */}
+                  {completedSemesters.length > 0 && (
+                    <div className="p-4 rounded-2xl bg-indigo-950/30 border border-indigo-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                      <div className="space-y-1">
+                        <span className="font-bold text-indigo-300 flex items-center space-x-1.5 text-xs">
+                          <Sparkles className="w-4 h-4 text-indigo-400" />
+                          <span>Calculation Breakdown</span>
+                        </span>
+                        <p className="text-slate-300 text-[11px] leading-relaxed">
+                          SGPAs recorded: {completedSemesters.map(c => `Sem ${c.sem}: ${c.sgpa.toFixed(2)}`).join(' • ')}
+                        </p>
+                      </div>
+                      <div className="px-4 py-2 rounded-xl bg-indigo-900/40 border border-indigo-500/40 text-right flex-shrink-0">
+                        <span className="text-[10px] text-indigo-300 block font-semibold uppercase">Overall CGPA</span>
+                        <span className="text-base font-black text-white">{overallCgpa.toFixed(2)} / 10</span>
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              </div>
+            )}
 
           </div>
         );

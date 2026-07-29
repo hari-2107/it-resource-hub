@@ -24,6 +24,7 @@ import { StudentProfile } from './pages/StudentProfile';
 import { LoginRegister } from './pages/LoginRegister';
 import { PlacementPrepHub } from './pages/PlacementPrepHub';
 import { EventsPage } from './pages/EventsPage';
+import { BrainZonePage } from './pages/BrainZonePage';
 import { GraduationCap } from 'lucide-react';
 import { BroadcastOverlay } from './components/BroadcastOverlay';
 import { SignupWelcomeToast } from './components/SignupWelcomeToast';
@@ -197,6 +198,12 @@ const MainAppContent = () => {
           <EventsPage 
             onOpenAdminForm={openAdminForm}
             onOpenEventDetail={(event) => setEventDetailModalState({ isOpen: true, event })}
+          />
+        )}
+
+        {activeTab === 'brainzone' && (
+          <BrainZonePage 
+            onOpenAdminForm={openAdminForm}
           />
         )}
 

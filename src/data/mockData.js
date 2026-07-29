@@ -930,3 +930,78 @@ export const INITIAL_BROADCASTS = [
   }
 ];
 
+export const INITIAL_THIS_OR_THAT = [
+  {
+    id: 'tot-1',
+    date: new Date().toISOString().split('T')[0],
+    question: 'Which backend tech stack do you prefer for high-scale web apps?',
+    optionA: 'Node.js / Express 🚀',
+    optionB: 'Python / FastAPI 🐍',
+    votesA: 48,
+    votesB: 36,
+    category: 'Backend Dev',
+    createdAt: '2026-07-29'
+  },
+  {
+    id: 'tot-2',
+    date: '2026-07-28',
+    question: 'Frontend Styling Philosophy:',
+    optionA: 'Tailwind CSS Utility-First 🎨',
+    optionB: 'Vanilla CSS / Custom Modules 💎',
+    votesA: 72,
+    votesB: 28,
+    category: 'UI Engineering',
+    createdAt: '2026-07-28'
+  },
+  {
+    id: 'tot-3',
+    date: '2026-07-27',
+    question: 'Ideal Database Choice for Social Media Platforms:',
+    optionA: 'PostgreSQL Relational 🐘',
+    optionB: 'MongoDB Document NoSQL 🍃',
+    votesA: 55,
+    votesB: 45,
+    category: 'Database',
+    createdAt: '2026-07-27'
+  }
+];
+
+export const INITIAL_IT_FACTS = [
+  {
+    id: 'fact-1',
+    fact: 'The first computer bug was an actual real moth trapped inside a Harvard Mark II relay in 1947 by Grace Hopper\'s team.',
+    category: 'Computer History'
+  },
+  {
+    id: 'fact-2',
+    fact: 'Over 90% of the world\'s currency exists purely as digital data on secure banking servers, rather than physical banknotes or coins.',
+    category: 'Fintech & Security'
+  },
+  {
+    id: 'fact-3',
+    fact: 'Java was originally named "Oak", named after an oak tree standing outside creator James Gosling\'s office window.',
+    category: 'Programming Languages'
+  },
+  {
+    id: 'fact-4',
+    fact: 'Linux operating systems power 100% of the top 500 fastest supercomputers in the world today.',
+    category: 'Operating Systems'
+  },
+  {
+    id: 'fact-5',
+    fact: 'The QWERTY keyboard layout was created in 1873 to deliberately slow down typists and prevent mechanical typewriter jams!',
+    category: 'Hardware'
+  }
+];
+
+export const INITIAL_LEADERBOARD_USERS = [
+  { id: 'usr-1', name: 'Alex Morgan', classSection: 'IT-A', funPoints: 1420, streak: 14, border: 'cyber_neon', role: 'student' },
+  { id: 'usr-2', name: 'Priya Sharma', classSection: 'IT-B', funPoints: 1280, streak: 11, border: 'gold_legend', role: 'student' },
+  { id: 'usr-3', name: 'Rahul Verma', classSection: 'IT-A', funPoints: 1150, streak: 8, border: 'emerald_hacker', role: 'student' },
+  { id: 'usr-4', name: 'Karthik Raja', classSection: 'IT-C', funPoints: 1040, streak: 7, border: 'quantum_violet', role: 'student' },
+  { id: 'usr-5', name: 'Sneha Patel', classSection: 'IT-B', funPoints: 980, streak: 6, border: 'crimson_master', role: 'student' },
+  { id: 'usr-6', name: 'Vikas Kumar', classSection: 'IT-C', funPoints: 890, streak: 5, border: 'default', role: 'student' },
+  { id: 'usr-7', name: 'Ananya Reddy', classSection: 'IT-A', funPoints: 810, streak: 4, border: 'default', role: 'student' },
+  { id: 'usr-8', name: 'Gokul Krishna', classSection: 'IT-B', funPoints: 750, streak: 3, border: 'default', role: 'student' }
+];
+

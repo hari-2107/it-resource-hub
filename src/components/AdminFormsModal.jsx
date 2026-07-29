@@ -5,8 +5,18 @@ import { useAuth } from '../context/AuthContext';
 import { YEAR_SEMESTERS, CLASS_SECTIONS_PER_YEAR } from '../data/mockData';
 
 export const AdminFormsModal = ({ type, initialData, onClose }) => {
-  const { subjects, addOrUpdateMaterial, addOrUpdateAITool, addOrUpdateAnnouncement, addOrUpdateTimetable } = useData();
+  const { subjects, addOrUpdateMaterial, addOrUpdateAITool, addOrUpdateAnnouncement, addOrUpdateTimetable, addThisOrThatPoll } = useData();
   const { currentUser } = useAuth();
+
+  // This or That Poll Form state
+  const [thisOrThatForm, setThisOrThatForm] = useState(initialData || {
+    id: '',
+    question: '',
+    optionA: '',
+    optionB: '',
+    category: 'General IT',
+    date: new Date().toISOString().split('T')[0]
+  });
 
   // Timetable Form state
   const [timetableForm, setTimetableForm] = useState(initialData ? {
@@ -174,6 +184,8 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
       addOrUpdatePlacementCompany(companyForm);
     } else if (type === 'event') {
       addOrUpdateEvent(eventForm);
+    } else if (type === 'thisOrThat') {
+      addThisOrThatPoll(thisOrThatForm);
     }
     onClose();
   };
@@ -190,10 +202,11 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
               {type === 'aitool' && <Sparkles className="w-5 h-5" />}
               {type === 'announcement' && <Bell className="w-5 h-5" />}
               {type === 'timetable' && <Calendar className="w-5 h-5" />}
+              {type === 'thisOrThat' && <Sparkles className="w-5 h-5 text-amber-400" />}
             </div>
             <div>
               <h3 className="text-base font-bold text-white capitalize">
-                {initialData?.id ? `Edit ${type}` : `Add New ${type}`}
+                {initialData?.id ? `Edit ${type}` : `Add New ${type === 'thisOrThat' ? 'This or That Poll' : type}`}
               </h3>
               <p className="text-xs text-slate-400">Admin Control Panel</p>
             </div>
@@ -205,6 +218,72 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
 
         {/* Modal Body Form */}
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4 flex-1">
+          
+          {/* THIS OR THAT POLL FORM */}
+          {type === 'thisOrThat' && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Poll Question / Debate Topic Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Which backend tech stack do you prefer for high-scale web apps?"
+                  value={thisOrThatForm.question}
+                  onChange={(e) => setThisOrThatForm({ ...thisOrThatForm, question: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-amber-400 mb-1">Option A</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Node.js / Express 🚀"
+                    value={thisOrThatForm.optionA}
+                    onChange={(e) => setThisOrThatForm({ ...thisOrThatForm, optionA: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-800 text-sm text-amber-200 rounded-xl border border-amber-500/40 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-indigo-400 mb-1">Option B</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Python / FastAPI 🐍"
+                    value={thisOrThatForm.optionB}
+                    onChange={(e) => setThisOrThatForm({ ...thisOrThatForm, optionB: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-800 text-sm text-indigo-200 rounded-xl border border-indigo-500/40 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Category</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Backend Dev / Databases / Frontend"
+                    value={thisOrThatForm.category}
+                    onChange={(e) => setThisOrThatForm({ ...thisOrThatForm, category: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Poll Active Date</label>
+                  <input
+                    type="date"
+                    value={thisOrThatForm.date}
+                    onChange={(e) => setThisOrThatForm({ ...thisOrThatForm, date: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
           
           {/* MATERIAL FORM */}
           {type === 'material' && (
