@@ -265,12 +265,13 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
       q: quizForm.q,
       options: [quizForm.option0, quizForm.option1, quizForm.option2 || 'Option 3', quizForm.option3 || 'Option 4'],
       answer: Number(quizForm.answer),
-      category: quizForm.category || 'General CS'
+      category: quizForm.category || 'General CS',
+      difficulty: quizForm.difficulty || 'intermediate'
     };
 
     addOrUpdateQuizQuestion(qPayload);
     setQuizModalOpen(false);
-    setQuizForm({ id: '', q: '', option0: '', option1: '', option2: '', option3: '', answer: 0, category: 'Web Dev' });
+    setQuizForm({ id: '', q: '', option0: '', option1: '', option2: '', option3: '', answer: 0, category: 'Web Dev', difficulty: 'intermediate' });
   };
 
   // IT Fact Form Handler
@@ -1797,6 +1798,19 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
                   <option value={1}>Option 2 is Correct</option>
                   <option value={2}>Option 3 is Correct</option>
                   <option value={3}>Option 4 is Correct</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Target Difficulty Level</label>
+                <select
+                  value={quizForm.difficulty || 'intermediate'}
+                  onChange={(e) => setQuizForm({ ...quizForm, difficulty: e.target.value })}
+                  className="w-full p-2 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                >
+                  <option value="beginner">🟢 Beginner (1.0x XP)</option>
+                  <option value="intermediate">🟡 Intermediate (1.5x XP)</option>
+                  <option value="advanced">🔴 Advanced (2.0x XP)</option>
                 </select>
               </div>
 

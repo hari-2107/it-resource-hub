@@ -437,7 +437,7 @@ export const Navbar = ({ activeTab, setActiveTab, onOpenAdminForm, onOpenAdminMa
                       <p className="text-sm font-semibold text-white">{currentUser.name}</p>
                       <p className="text-xs text-slate-400 truncate">{currentUser.email}</p>
                       <div className="mt-1 text-[11px] text-brand-300 font-medium">
-                        {currentUser.role === 'admin' ? 'IT Department Admin' : `${currentUser.year} • Sem ${currentUser.semester} (${currentUser.classSection})`}
+                        {currentUser.role === 'admin' ? 'Administrator' : `${currentUser.year} • Sem ${currentUser.semester} (${currentUser.classSection})`}
                       </div>
                     </div>
 

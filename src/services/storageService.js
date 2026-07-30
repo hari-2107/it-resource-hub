@@ -41,7 +41,9 @@ const LOCAL_STORAGE_KEYS = {
   ACTIVITY_LOG: 'it_hub_activity_log_v1',
   SITE_CONFIG: 'it_hub_site_config_v1',
   QUIZ_QUESTIONS: 'it_hub_quiz_questions_v1',
-  IT_FACTS: 'it_hub_it_facts_v1'
+  IT_FACTS: 'it_hub_it_facts_v1',
+  GUESS_OUTPUT: 'it_hub_guess_output_v1',
+  FIND_BUG: 'it_hub_find_bug_v1'
 };
 
 // Helper: safe JSON parse
@@ -946,17 +948,23 @@ export const StorageService = {
 
   // 60-Second Challenge Quiz Questions
   getQuizQuestions: () => getItemParsed(LOCAL_STORAGE_KEYS.QUIZ_QUESTIONS, [
-    { id: 'qq-1', q: "What does API stand for in software engineering?", options: ["Automated Program Interface", "Application Programming Interface", "Advanced Process Integration", "Application Protocol Instruction"], answer: 1, category: "Web Dev" },
-    { id: 'qq-2', q: "Which data structure follows the Last-In, First-Out (LIFO) principle?", options: ["Queue", "Binary Tree", "Stack", "Linked List"], answer: 2, category: "Data Structures" },
-    { id: 'qq-3', q: "What default port does HTTPS protocol use?", options: ["80", "21", "8080", "443"], answer: 3, category: "Networking" },
-    { id: 'qq-4', q: "Which Big-O time complexity represents binary search algorithm?", options: ["O(N)", "O(log N)", "O(N^2)", "O(1)"], answer: 1, category: "Algorithms" },
-    { id: 'qq-5', q: "Which HTTP status code signifies 'Resource Not Found'?", options: ["200", "403", "404", "500"], answer: 2, category: "Web Dev" }
+    { id: 'qq-1', q: "What does API stand for in software engineering?", options: ["Automated Program Interface", "Application Programming Interface", "Advanced Process Integration", "Application Protocol Instruction"], answer: 1, category: "Web Dev", difficulty: "beginner" },
+    { id: 'qq-2', q: "Which data structure follows the Last-In, First-Out (LIFO) principle?", options: ["Queue", "Binary Tree", "Stack", "Linked List"], answer: 2, category: "Data Structures", difficulty: "beginner" },
+    { id: 'qq-3', q: "What default port does HTTPS protocol use?", options: ["80", "21", "8080", "443"], answer: 3, category: "Networking", difficulty: "intermediate" },
+    { id: 'qq-4', q: "Which Big-O time complexity represents binary search algorithm?", options: ["O(N)", "O(log N)", "O(N^2)", "O(1)"], answer: 1, category: "Algorithms", difficulty: "intermediate" },
+    { id: 'qq-5', q: "Which HTTP status code signifies 'Resource Not Found'?", options: ["200", "403", "404", "500"], answer: 2, category: "Web Dev", difficulty: "beginner" },
+    { id: 'qq-6', q: "What is the closure concept in JavaScript lexical scoping?", options: ["Function retaining outer scope references", "Closing a database connection", "Private class constructor", "Asynchronous promise completion"], answer: 0, category: "Web Dev", difficulty: "advanced" },
+    { id: 'qq-7', q: "Which sorting algorithm guarantees O(N log N) worst-case time complexity?", options: ["Quick Sort", "Bubble Sort", "Merge Sort", "Insertion Sort"], answer: 2, category: "Algorithms", difficulty: "advanced" },
+    { id: 'qq-8', q: "Which SQL clause filters aggregated query results after GROUP BY?", options: ["WHERE", "HAVING", "FILTER", "ORDER BY"], answer: 1, category: "Databases", difficulty: "intermediate" },
+    { id: 'qq-9', q: "What protocol handles domain name to IP address resolution?", options: ["DHCP", "DNS", "ARP", "BGP"], answer: 1, category: "Networking", difficulty: "beginner" },
+    { id: 'qq-10', q: "What is the primary function of a mutex in concurrent programming?", options: ["Memory allocation", "Prevent race conditions via mutual exclusion", "Task scheduling", "Cache invalidation"], answer: 1, category: "OS & Systems", difficulty: "advanced" }
   ]),
   saveQuizQuestion: (question) => {
     const list = StorageService.getQuizQuestions();
     const newQ = {
       ...question,
-      id: question.id || `qq-${Date.now()}`
+      id: question.id || `qq-${Date.now()}`,
+      difficulty: question.difficulty || 'intermediate'
     };
     const updated = [newQ, ...list.filter(q => q.id !== newQ.id)];
     setItemJson(LOCAL_STORAGE_KEYS.QUIZ_QUESTIONS, updated);
@@ -984,6 +992,118 @@ export const StorageService = {
   deleteITFact: (id) => {
     const list = StorageService.getITFactsList().filter(f => f.id !== id && f.fact !== id);
     setItemJson(LOCAL_STORAGE_KEYS.IT_FACTS, list);
+    return list;
+  },
+
+  // Guess The Output Challenges
+  getGuessOutputChallenges: () => getItemParsed(LOCAL_STORAGE_KEYS.GUESS_OUTPUT, [
+    {
+      id: 'go-1',
+      title: 'JavaScript String Concatenation',
+      language: 'javascript',
+      difficulty: 'beginner',
+      code: 'console.log(1 + "2" + 3);',
+      options: ['"123"', '"6"', '"15"', 'NaN'],
+      answer: 0,
+      explanation: 'In JavaScript, numbers added to strings are converted to strings: 1 + "2" = "12", then "12" + 3 = "123".'
+    },
+    {
+      id: 'go-2',
+      title: 'Python Default Arguments',
+      language: 'python',
+      difficulty: 'intermediate',
+      code: 'def add_item(val, items=[]):\n    items.append(val)\n    return items\n\nprint(add_item(1))\nprint(add_item(2))',
+      options: ['[1]\n[2]', '[1]\n[1, 2]', '[1, 2]\n[1, 2]', 'Error'],
+      answer: 1,
+      explanation: 'Default arguments in Python are evaluated once when the function is defined, sharing the mutable list object across calls.'
+    },
+    {
+      id: 'go-3',
+      title: 'C++ Post and Pre Increment',
+      language: 'cpp',
+      difficulty: 'advanced',
+      code: 'int a = 5;\nint b = a++ + ++a;\ncout << b;',
+      options: ['12', '11', '10', '13'],
+      answer: 0,
+      explanation: 'a++ evaluates to 5 (a becomes 6), ++a increments to 7. 5 + 7 = 12.'
+    },
+    {
+      id: 'go-4',
+      title: 'JavaScript Boolean Coercion',
+      language: 'javascript',
+      difficulty: 'beginner',
+      code: 'console.log(Boolean("") + Boolean("0"));',
+      options: ['0', '1', '2', 'false'],
+      answer: 1,
+      explanation: 'Boolean("") is false (0), Boolean("0") is true (1). 0 + 1 = 1.'
+    },
+    {
+      id: 'go-5',
+      title: 'JavaScript Event Loop Microtask',
+      language: 'javascript',
+      difficulty: 'advanced',
+      code: 'console.log(1);\nsetTimeout(() => console.log(2), 0);\nPromise.resolve().then(() => console.log(3));\nconsole.log(4);',
+      options: ['1, 4, 3, 2', '1, 2, 3, 4', '1, 4, 2, 3', '4, 1, 3, 2'],
+      answer: 0,
+      explanation: 'Sync code runs first (1, 4), then Microtasks (Promise: 3), then Macrotasks (setTimeout: 2).'
+    }
+  ]),
+  saveGuessOutputChallenge: (obj) => {
+    const list = StorageService.getGuessOutputChallenges();
+    const newObj = { ...obj, id: obj.id || `go-${Date.now()}`, difficulty: obj.difficulty || 'intermediate' };
+    const updated = [newObj, ...list.filter(item => item.id !== newObj.id)];
+    setItemJson(LOCAL_STORAGE_KEYS.GUESS_OUTPUT, updated);
+    return updated;
+  },
+  deleteGuessOutputChallenge: (id) => {
+    const list = StorageService.getGuessOutputChallenges().filter(item => item.id !== id);
+    setItemJson(LOCAL_STORAGE_KEYS.GUESS_OUTPUT, list);
+    return list;
+  },
+
+  // Find The Bug Challenges
+  getFindBugChallenges: () => getItemParsed(LOCAL_STORAGE_KEYS.FIND_BUG, [
+    {
+      id: 'fb-1',
+      title: 'Infinite Decrement Loop',
+      language: 'javascript',
+      difficulty: 'beginner',
+      code: 'function countToTen() {\n  for (let i = 0; i < 10; i--) {\n    console.log(i);\n  }\n}',
+      options: ['Line 2: i-- causes infinite loop', 'Line 1: Missing const keyword', 'Line 3: Syntax error in console.log', 'Line 2: Missing semicolon'],
+      answer: 0,
+      explanation: 'i-- decrements i away from 10, causing an infinite loop. It should be i++.'
+    },
+    {
+      id: 'fb-2',
+      title: 'Java Null Pointer Dereference',
+      language: 'java',
+      difficulty: 'intermediate',
+      code: 'String role = null;\nif (role.equals("ADMIN")) {\n  System.out.println("Access Granted");\n}',
+      options: ['Line 2: NullPointerException on null object', 'Line 1: Incompatible types', 'Line 2: String cannot use .equals()', 'Line 3: Missing semicolon'],
+      answer: 0,
+      explanation: 'Invoking .equals() on a null reference throws a NullPointerException. Safe approach: "ADMIN".equals(role).'
+    },
+    {
+      id: 'fb-3',
+      title: 'Async Unhandled Promise Rejection',
+      language: 'javascript',
+      difficulty: 'advanced',
+      code: 'async function fetchData() {\n  const res = fetch("/api/data");\n  return res.data.length;\n}',
+      options: ['Line 2: Missing await keyword before fetch call', 'Line 1: async functions cannot return integers', 'Line 3: .length property does not exist on Array', 'Line 2: Missing try/catch block'],
+      answer: 0,
+      explanation: 'fetch() returns a Promise object. Without await, res is a Promise, so res.data throws a TypeError.'
+    }
+  ]),
+  saveFindBugChallenge: (obj) => {
+    const list = StorageService.getFindBugChallenges();
+    const newObj = { ...obj, id: obj.id || `fb-${Date.now()}`, difficulty: obj.difficulty || 'intermediate' };
+    const updated = [newObj, ...list.filter(item => item.id !== newObj.id)];
+    setItemJson(LOCAL_STORAGE_KEYS.FIND_BUG, updated);
+    return updated;
+  },
+  deleteFindBugChallenge: (id) => {
+    const list = StorageService.getFindBugChallenges().filter(item => item.id !== id);
+    setItemJson(LOCAL_STORAGE_KEYS.FIND_BUG, list);
     return list;
   }
 };

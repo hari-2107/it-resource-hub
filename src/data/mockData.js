@@ -720,7 +720,7 @@ export const DEMO_USERS = {
     role: 'admin',
     year: '4th Year',
     semester: 7,
-    classSection: 'IT Department Admin',
+    classSection: 'Administrator',
     registeredDate: '2025-08-01'
   }
 };
@@ -995,13 +995,14 @@ export const INITIAL_IT_FACTS = [
 ];
 
 export const INITIAL_LEADERBOARD_USERS = [
-  { id: 'usr-1', name: 'Alex Morgan', classSection: 'IT-A', funPoints: 1420, streak: 14, border: 'cyber_neon', role: 'student' },
-  { id: 'usr-2', name: 'Priya Sharma', classSection: 'IT-B', funPoints: 1280, streak: 11, border: 'gold_legend', role: 'student' },
-  { id: 'usr-3', name: 'Rahul Verma', classSection: 'IT-A', funPoints: 1150, streak: 8, border: 'emerald_hacker', role: 'student' },
-  { id: 'usr-4', name: 'Karthik Raja', classSection: 'IT-C', funPoints: 1040, streak: 7, border: 'quantum_violet', role: 'student' },
-  { id: 'usr-5', name: 'Sneha Patel', classSection: 'IT-B', funPoints: 980, streak: 6, border: 'crimson_master', role: 'student' },
-  { id: 'usr-6', name: 'Vikas Kumar', classSection: 'IT-C', funPoints: 890, streak: 5, border: 'default', role: 'student' },
-  { id: 'usr-7', name: 'Ananya Reddy', classSection: 'IT-A', funPoints: 810, streak: 4, border: 'default', role: 'student' },
-  { id: 'usr-8', name: 'Gokul Krishna', classSection: 'IT-B', funPoints: 750, streak: 3, border: 'default', role: 'student' }
+  { id: 'usr-1', uid: 'u1', name: 'Alex Morgan', classSection: 'IT-A', funPoints: 1420, streak: 14, equippedBorder: 'cyber_neon', equippedTitleId: 'title_code_architect', equippedAvatarBgId: 'bg_indigo', unlockedBorderIds: ['default', 'cyber_neon'], unlockedTitleIds: ['title_novice', 'title_code_architect'], unlockedAvatarBgIds: ['bg_slate', 'bg_indigo'], role: 'student' },
+  { id: 'usr-2', uid: 'u2', name: 'Priya Sharma', classSection: 'IT-B', funPoints: 1280, streak: 11, equippedBorder: 'golden_legend', equippedTitleId: 'title_quiz_master', equippedAvatarBgId: 'bg_emerald', unlockedBorderIds: ['default', 'cyber_neon', 'golden_legend'], unlockedTitleIds: ['title_novice', 'title_quiz_master'], unlockedAvatarBgIds: ['bg_slate', 'bg_emerald'], role: 'student' },
+  { id: 'usr-3', uid: 'u3', name: 'Rahul Verma', classSection: 'IT-A', funPoints: 1150, streak: 8, equippedBorder: 'emerald_shield', equippedTitleId: 'title_bug_hunter', equippedAvatarBgId: 'bg_amber', unlockedBorderIds: ['default', 'emerald_shield'], unlockedTitleIds: ['title_novice', 'title_bug_hunter'], unlockedAvatarBgIds: ['bg_slate', 'bg_amber'], role: 'student' },
+  { id: 'usr-4', uid: 'u4', name: 'Karthik Raja', classSection: 'IT-C', funPoints: 1040, streak: 7, equippedBorder: 'quantum_violet', equippedTitleId: 'title_algorithm_boss', equippedAvatarBgId: 'bg_sunset', unlockedBorderIds: ['default', 'quantum_violet'], unlockedTitleIds: ['title_novice', 'title_algorithm_boss'], unlockedAvatarBgIds: ['bg_slate', 'bg_sunset'], role: 'student' },
+  { id: 'usr-5', uid: 'u5', name: 'Sneha Patel', classSection: 'IT-B', funPoints: 980, streak: 6, equippedBorder: 'crimson_master', equippedTitleId: 'title_cyber_hero', equippedAvatarBgId: 'bg_galaxy', unlockedBorderIds: ['default', 'crimson_master'], unlockedTitleIds: ['title_novice', 'title_cyber_hero'], unlockedAvatarBgIds: ['bg_slate', 'bg_galaxy'], role: 'student' },
+  { id: 'usr-6', uid: 'u6', name: 'Vikas Kumar', classSection: 'IT-C', funPoints: 890, streak: 5, equippedBorder: 'default', equippedTitleId: 'title_novice', equippedAvatarBgId: 'bg_slate', unlockedBorderIds: ['default'], unlockedTitleIds: ['title_novice'], unlockedAvatarBgIds: ['bg_slate'], role: 'student' },
+  { id: 'usr-7', uid: 'u7', name: 'Ananya Reddy', classSection: 'IT-A', funPoints: 810, streak: 4, equippedBorder: 'default', equippedTitleId: 'title_novice', equippedAvatarBgId: 'bg_slate', unlockedBorderIds: ['default'], unlockedTitleIds: ['title_novice'], unlockedAvatarBgIds: ['bg_slate'], role: 'student' },
+  { id: 'usr-8', uid: 'u8', name: 'Gokul Krishna', classSection: 'IT-B', funPoints: 750, streak: 3, equippedBorder: 'default', equippedTitleId: 'title_novice', equippedAvatarBgId: 'bg_slate', unlockedBorderIds: ['default'], unlockedTitleIds: ['title_novice'], unlockedAvatarBgIds: ['bg_slate'], role: 'student' }
 ];
+
 

@@ -34,6 +34,8 @@ export const DataProvider = ({ children }) => {
   const [activityLog, setActivityLog] = useState([]);
   const [quizQuestions, setQuizQuestions] = useState([]);
   const [itFacts, setItFacts] = useState([]);
+  const [guessOutputChallenges, setGuessOutputChallenges] = useState([]);
+  const [findBugChallenges, setFindBugChallenges] = useState([]);
   const [siteConfig, setSiteConfig] = useState({
     brainZoneEnabled: true,
     registrationEnabled: true,
@@ -63,6 +65,8 @@ export const DataProvider = ({ children }) => {
     setSiteConfig(StorageService.getSiteConfig());
     setQuizQuestions(StorageService.getQuizQuestions());
     setItFacts(StorageService.getITFactsList());
+    setGuessOutputChallenges(StorageService.getGuessOutputChallenges());
+    setFindBugChallenges(StorageService.getFindBugChallenges());
     
     const uid = currentUser?.id || 'guest';
     setDismissedBroadcastIds(StorageService.getDismissedBroadcastIds(uid));
@@ -537,6 +541,30 @@ export const DataProvider = ({ children }) => {
     logAdminActivity(`Changed user role to ${newRole}`, 'User', userId);
   };
 
+  const addOrUpdateGuessOutputChallenge = (obj) => {
+    const updated = StorageService.saveGuessOutputChallenge(obj);
+    setGuessOutputChallenges(updated);
+    logAdminActivity(`Saved Guess Output challenge '${obj.title}'`, 'BrainZone');
+  };
+
+  const removeGuessOutputChallenge = (id) => {
+    const updated = StorageService.deleteGuessOutputChallenge(id);
+    setGuessOutputChallenges(updated);
+    logAdminActivity(`Deleted Guess Output challenge`, 'BrainZone');
+  };
+
+  const addOrUpdateFindBugChallenge = (obj) => {
+    const updated = StorageService.saveFindBugChallenge(obj);
+    setFindBugChallenges(updated);
+    logAdminActivity(`Saved Find Bug challenge '${obj.title}'`, 'BrainZone');
+  };
+
+  const removeFindBugChallenge = (id) => {
+    const updated = StorageService.deleteFindBugChallenge(id);
+    setFindBugChallenges(updated);
+    logAdminActivity(`Deleted Find Bug challenge`, 'BrainZone');
+  };
+
   return (
     <DataContext.Provider value={{
       subjects,
@@ -621,7 +649,13 @@ export const DataProvider = ({ children }) => {
       addOrUpdateITFact,
       removeITFact,
       clearActivityLogs,
-      updateUserRole
+      updateUserRole,
+      guessOutputChallenges,
+      addOrUpdateGuessOutputChallenge,
+      removeGuessOutputChallenge,
+      findBugChallenges,
+      addOrUpdateFindBugChallenge,
+      removeFindBugChallenge
     }}>
       {children}
     </DataContext.Provider>

@@ -80,9 +80,18 @@ export const AuthProvider = ({ children }) => {
         role: 'admin',
         year: '4th Year',
         semester: 7,
-        classSection: 'IT Department Admin',
+        classSection: 'Administrator',
+        equippedBorder: 'admin_supreme',
+        equippedTitleId: 'title_admin_supreme',
+        equippedTitle: 'title_admin_supreme',
+        equippedAvatarBgId: 'bg_admin_royal',
+        equippedAvatarBackgroundId: 'bg_admin_royal',
+        unlockedBorderIds: ['admin_supreme', 'default', 'cyber_neon', 'golden_legend', 'emerald_shield', 'cosmic_purple', 'quantum_violet', 'crimson_master', 'titanium_aura'],
+        unlockedTitleIds: ['title_admin_supreme', 'title_novice', 'title_quiz_master', 'title_bug_hunter', 'title_code_architect', 'title_algorithm_boss', 'title_cyber_hero', 'title_legendary_dev'],
+        unlockedAvatarBgIds: ['bg_admin_royal', 'bg_slate', 'bg_indigo', 'bg_emerald', 'bg_amber', 'bg_sunset', 'bg_galaxy'],
         registeredDate: new Date().toISOString().split('T')[0]
       };
+
       setCurrentUser(adminUser);
       StorageService.setCurrentUser(adminUser);
       StorageService.saveCustomUser(adminUser);

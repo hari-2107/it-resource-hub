@@ -36,6 +36,8 @@ import {
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar, Legend } from 'recharts';
 import { SemesterTargetCalculator } from '../components/SemesterTargetCalculator';
+import { getBorderObj, getTitleObj, getAvatarBgObj } from '../utils/cosmetics';
+
 
 export const StudentProfile = ({ onPreviewMaterial, onOpenAdminForm, onOpenAdminManagement, onOpenUserDirectory }) => {
   const { currentUser, isAdmin, updateUserProfile, toggleMuteCategory } = useAuth();
@@ -342,92 +344,109 @@ export const StudentProfile = ({ onPreviewMaterial, onOpenAdminForm, onOpenAdmin
           
           {/* User Avatar & Info */}
           <div className="flex items-start sm:items-center space-x-4 sm:space-x-5">
-            <div className="relative group flex-shrink-0">
-              {currentUser.avatar ? (
-                <img 
-                  src={currentUser.avatar} 
-                  alt={currentUser.name} 
-                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-brand-500/50 shadow-xl shadow-brand-500/20"
-                />
-              ) : (
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-brand-600 via-indigo-500 to-accent-cyan flex items-center justify-center text-white text-2xl font-black shadow-xl shadow-brand-500/20">
-                  {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'S'}
-                </div>
-              )}
-              <button
-                onClick={() => {
-                  setProfileForm({
-                    name: currentUser.name || '',
-                    registerNumber: currentUser.registerNumber || '',
-                    year: currentUser.year || '3rd Year',
-                    semester: currentUser.semester || 5,
-                    classSection: currentUser.classSection || 'IT-A',
-                    avatar: currentUser.avatar || '',
-                    bio: currentUser.bio || ''
-                  });
-                  setIsEditingProfile(true);
-                }}
-                className="absolute -bottom-1 -right-1 p-1.5 rounded-full bg-brand-600 hover:bg-brand-500 text-white border border-slate-900 shadow transition-transform hover:scale-110"
-                title="Change Photo & Profile Info"
-              >
-                <Camera className="w-3.5 h-3.5" />
-              </button>
-            </div>
+            {(() => {
+              const borderObj = getBorderObj(currentUser.equippedBorder || currentUser.equippedBorderId || 'default');
+              const avatarBgObj = getAvatarBgObj(currentUser.equippedAvatarBgId || currentUser.equippedAvatarBackgroundId || 'bg_slate');
+              const titleObj = getTitleObj(currentUser.equippedTitleId || currentUser.equippedTitle || 'title_novice');
 
-            <div className="space-y-1.5 min-w-0">
-              <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                <h1 className="text-xl sm:text-2xl font-extrabold text-white truncate">{currentUser.name}</h1>
-                <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                  isAdmin 
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' 
-                    : 'bg-brand-500/20 text-brand-300 border border-brand-500/40'
-                }`}>
-                  {isAdmin ? 'Admin' : 'Student'}
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">{currentUser.email}</p>
-              {currentUser.bio && (
-                <p className="text-xs text-slate-300 italic max-w-md">"{currentUser.bio}"</p>
-              )}
-              
-              <div className="flex flex-wrap items-center gap-2 pt-1 text-xs font-medium">
-                {currentUser.registerNumber && (
-                  <span className="px-2.5 py-1 rounded-lg bg-indigo-950/60 text-indigo-300 border border-indigo-500/30 font-mono">
-                    Reg No: {currentUser.registerNumber}
-                  </span>
-                )}
-                {!isAdmin ? (
-                  <>
-                    <span className="px-2.5 py-1 rounded-lg bg-slate-900 text-slate-300 border border-slate-800">
-                      {currentUser.year}
-                    </span>
-                    <span className="px-2.5 py-1 rounded-lg bg-slate-900 text-slate-300 border border-slate-800">
-                      Semester {currentUser.semester}
-                    </span>
-                    <span className="px-2.5 py-1 rounded-lg bg-slate-900 text-brand-300 border border-brand-500/30">
-                      Class: {currentUser.classSection === 'IT-A' ? 'Class A' : currentUser.classSection === 'IT-B' ? 'Class B' : currentUser.classSection === 'IT-C' ? 'Class C' : (currentUser.classSection || 'Class A')}
-                    </span>
-                    <span className="px-2.5 py-1 rounded-lg bg-indigo-950/80 text-indigo-300 border border-indigo-500/40 font-bold flex items-center space-x-1.5 shadow-sm">
-                      <GraduationCap className="w-3.5 h-3.5 text-indigo-400" />
-                      <span>Current SGPA: {currentSgpaDisplay}</span>
-                    </span>
-                    <span className="px-2.5 py-1 rounded-lg bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 font-bold flex items-center space-x-1.5 shadow-sm">
-                      <Trophy className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>Overall CGPA: {overallCgpaDisplay}</span>
-                    </span>
-                    <span className="px-2.5 py-1 rounded-lg bg-purple-950/80 text-purple-300 border border-purple-500/40 font-bold flex items-center space-x-1.5 shadow-sm">
-                      <Brain className="w-3.5 h-3.5 text-purple-400" />
-                      <span>BrainZone: {currentUser.funPoints || 450} XP • 🔥 {currentUser.streak || 5}d</span>
-                    </span>
-                  </>
-                ) : (
-                  <span className="px-2.5 py-1 rounded-lg bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 font-bold flex items-center space-x-1.5 shadow-sm">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Role: IT Department Admin</span>
-                  </span>
-                )}
-              </div>
-            </div>
+              return (
+                <>
+                  <div className="relative group flex-shrink-0">
+                    <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-2xl p-0.5 border-2 transition-all ${borderObj.color}`}>
+                      {currentUser.avatar ? (
+                        <img 
+                          src={currentUser.avatar} 
+                          alt={currentUser.name} 
+                          className="w-full h-full rounded-[14px] object-cover"
+                        />
+                      ) : (
+                        <div className={`w-full h-full rounded-[14px] ${avatarBgObj.gradient} flex items-center justify-center text-white text-2xl font-black shadow-xl`}>
+                          {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'S'}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => {
+                        setProfileForm({
+                          name: currentUser.name || '',
+                          registerNumber: currentUser.registerNumber || '',
+                          year: currentUser.year || '3rd Year',
+                          semester: currentUser.semester || 5,
+                          classSection: currentUser.classSection || 'IT-A',
+                          avatar: currentUser.avatar || '',
+                          bio: currentUser.bio || ''
+                        });
+                        setIsEditingProfile(true);
+                      }}
+                      className="absolute -bottom-1 -right-1 p-1.5 rounded-full bg-brand-600 hover:bg-brand-500 text-white border border-slate-900 shadow transition-transform hover:scale-110"
+                      title="Change Photo & Profile Info"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                      <h1 className="text-xl sm:text-2xl font-extrabold text-white truncate">{currentUser.name}</h1>
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                        isAdmin 
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' 
+                          : 'bg-brand-500/20 text-brand-300 border border-brand-500/40'
+                      }`}>
+                        {isAdmin ? 'Admin' : 'Student'}
+                      </span>
+                      {titleObj && (
+                        <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border shadow-sm ${titleObj.badgeBg}`}>
+                          🏷️ {titleObj.title}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-400">{currentUser.email}</p>
+                    {currentUser.bio && (
+                      <p className="text-xs text-slate-300 italic max-w-md">"{currentUser.bio}"</p>
+                    )}
+                    
+                    <div className="flex flex-wrap items-center gap-2 pt-1 text-xs font-medium">
+                      {currentUser.registerNumber && (
+                        <span className="px-2.5 py-1 rounded-lg bg-indigo-950/60 text-indigo-300 border border-indigo-500/30 font-mono">
+                          Reg No: {currentUser.registerNumber}
+                        </span>
+                      )}
+                      {!isAdmin ? (
+                        <>
+                          <span className="px-2.5 py-1 rounded-lg bg-slate-900 text-slate-300 border border-slate-800">
+                            {currentUser.year}
+                          </span>
+                          <span className="px-2.5 py-1 rounded-lg bg-slate-900 text-slate-300 border border-slate-800">
+                            Semester {currentUser.semester}
+                          </span>
+                          <span className="px-2.5 py-1 rounded-lg bg-slate-900 text-brand-300 border border-brand-500/30">
+                            Class: {currentUser.classSection === 'IT-A' ? 'Class A' : currentUser.classSection === 'IT-B' ? 'Class B' : currentUser.classSection === 'IT-C' ? 'Class C' : (currentUser.classSection || 'Class A')}
+                          </span>
+                          <span className="px-2.5 py-1 rounded-lg bg-indigo-950/80 text-indigo-300 border border-indigo-500/40 font-bold flex items-center space-x-1.5 shadow-sm">
+                            <GraduationCap className="w-3.5 h-3.5 text-indigo-400" />
+                            <span>Current SGPA: {currentSgpaDisplay}</span>
+                          </span>
+                          <span className="px-2.5 py-1 rounded-lg bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 font-bold flex items-center space-x-1.5 shadow-sm">
+                            <Trophy className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Overall CGPA: {overallCgpaDisplay}</span>
+                          </span>
+                          <span className="px-2.5 py-1 rounded-lg bg-purple-950/80 text-purple-300 border border-purple-500/40 font-bold flex items-center space-x-1.5 shadow-sm">
+                            <Brain className="w-3.5 h-3.5 text-purple-400" />
+                            <span>BrainZone: {currentUser.funPoints || 450} XP • 🔥 {currentUser.streak || 5}d</span>
+                          </span>
+                        </>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-lg bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 font-bold flex items-center space-x-1.5 shadow-sm">
+                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Role: Administrator</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
           </div>
 
           {/* Action Buttons: Edit Profile & Manage Timetables */}
