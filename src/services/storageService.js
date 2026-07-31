@@ -13,37 +13,41 @@ import {
   INITIAL_BROADCASTS,
   INITIAL_THIS_OR_THAT,
   INITIAL_IT_FACTS,
-  DEMO_USERS 
+  DEMO_USERS,
+  getYearFromSemester
 } from '../data/mockData';
 
 const LOCAL_STORAGE_KEYS = {
   SUBJECTS: 'it_hub_subjects_v1',
   MATERIALS: 'it_hub_materials_v1',
-  AI_TOOLS: 'it_hub_aitools_v1',
+  AI_TOOLS: 'it_hub_ai_tools_v2',
   ANNOUNCEMENTS: 'it_hub_announcements_v1',
   TIMETABLES: 'it_hub_timetables_v40',
   CUSTOM_TIMETABLES: 'it_hub_custom_timetables_v40',
   FAVORITES: 'it_hub_favorites_v1',
-  STUDENT_MARKS: 'it_hub_student_marks_v10',
+  STUDENT_MARKS: 'it_hub_student_marks_v1',
   CURRENT_USER: 'it_hub_current_user_v1',
   CUSTOM_USERS: 'it_hub_custom_users_v1',
   SUGGESTIONS: 'it_hub_suggestions_v1',
   REPORTS: 'it_hub_reports_v1',
-  PLACEMENT_COMPANIES: 'it_hub_placement_companies_v1',
+  PLACEMENT_COMPANIES: 'it_hub_placement_companies_v2',
   INTERVIEW_EXPERIENCES: 'it_hub_interview_experiences_v1',
-  PLACEMENT_RESOURCES: 'it_hub_placement_resources_v1',
+  PLACEMENT_RESOURCES: 'it_hub_placement_resources_v2',
   EVENTS: 'it_hub_events_v1',
   RATINGS: 'it_hub_ratings_v1',
   USER_RESUMES: 'it_hub_user_resumes_v1',
   BROADCASTS: 'it_hub_broadcasts_v1',
   DISMISSED_BROADCASTS: 'it_hub_dismissed_broadcasts_v1',
   THIS_OR_THAT: 'it_hub_this_or_that_v1',
-  ACTIVITY_LOG: 'it_hub_activity_log_v1',
+  ACTIVITY_LOG: 'it_hub_admin_activity_log_v1',
   SITE_CONFIG: 'it_hub_site_config_v1',
   QUIZ_QUESTIONS: 'it_hub_quiz_questions_v1',
   IT_FACTS: 'it_hub_it_facts_v1',
   GUESS_OUTPUT: 'it_hub_guess_output_v1',
-  FIND_BUG: 'it_hub_find_bug_v1'
+  FIND_BUG: 'it_hub_find_bug_v1',
+  WEEKLY_MISSIONS: 'it_hub_weekly_missions_v1',
+  BADGES: 'it_hub_badges_v1',
+  MYSTERY_REWARDS: 'it_hub_mystery_rewards_v1'
 };
 
 // Helper: safe JSON parse
@@ -95,23 +99,35 @@ export const StorageService = {
   },
 
   // Subjects
-  getSubjects: () => getItemParsed(LOCAL_STORAGE_KEYS.SUBJECTS, INITIAL_SUBJECTS),
+  getSubjects: () => {
+    const list = getItemParsed(LOCAL_STORAGE_KEYS.SUBJECTS, INITIAL_SUBJECTS);
+    // Sanitize subjects to ensure year strictly matches semester
+    return (list || []).map(s => {
+      const sem = Number(s.semester) || 5;
+      const correctYear = getYearFromSemester(sem);
+      return { ...s, semester: sem, year: correctYear };
+    });
+  },
   saveSubject: (subjectData) => {
     const list = StorageService.getSubjects();
-    const existingIdx = list.findIndex(s => s.id === subjectData.id);
+    const sem = Number(subjectData.semester) || 5;
+    const year = getYearFromSemester(sem);
+
+    const subjectToSave = {
+      id: subjectData.id || `sub-${Date.now()}`,
+      name: subjectData.name || '',
+      code: subjectData.code || '',
+      year: year,
+      semester: sem,
+      type: subjectData.type || 'Theory'
+    };
+
+    const existingIdx = list.findIndex(s => s.id === subjectToSave.id);
     let updated;
     if (existingIdx >= 0) {
-      updated = list.map((s, idx) => idx === existingIdx ? { ...s, ...subjectData } : s);
+      updated = list.map((s, idx) => idx === existingIdx ? { ...s, ...subjectToSave } : s);
     } else {
-      const newSubject = {
-        id: subjectData.id || `sub-${Date.now()}`,
-        name: subjectData.name || '',
-        code: subjectData.code || '',
-        year: subjectData.year || '3rd Year',
-        semester: Number(subjectData.semester) || 5,
-        type: subjectData.type || 'Theory'
-      };
-      updated = [newSubject, ...list];
+      updated = [subjectToSave, ...list];
     }
     setItemJson(LOCAL_STORAGE_KEYS.SUBJECTS, updated);
     return updated;
@@ -209,7 +225,26 @@ export const StorageService = {
   },
 
   // AI Tools
-  getAITools: () => getItemParsed(LOCAL_STORAGE_KEYS.AI_TOOLS, INITIAL_AI_TOOLS),
+  getAITools: () => {
+    const list = getItemParsed(LOCAL_STORAGE_KEYS.AI_TOOLS, INITIAL_AI_TOOLS);
+    if (!Array.isArray(list) || list.length === 0) return INITIAL_AI_TOOLS;
+
+    const listMap = new Map(list.map(t => [t.name?.toLowerCase(), t]));
+    let hasNew = false;
+
+    INITIAL_AI_TOOLS.forEach(seeded => {
+      if (!listMap.has(seeded.name?.toLowerCase())) {
+        listMap.set(seeded.name?.toLowerCase(), seeded);
+        hasNew = true;
+      }
+    });
+
+    const combined = Array.from(listMap.values());
+    if (hasNew) {
+      setItemJson(LOCAL_STORAGE_KEYS.AI_TOOLS, combined);
+    }
+    return combined;
+  },
   saveAITool: (tool) => {
     const list = StorageService.getAITools();
     const existingIndex = list.findIndex(t => t.id === tool.id);
@@ -909,6 +944,11 @@ export const StorageService = {
     setItemJson(LOCAL_STORAGE_KEYS.THIS_OR_THAT, updated);
     return updated;
   },
+  deleteThisOrThatPoll: (pollId) => {
+    const list = StorageService.getThisOrThatPolls().filter(p => p.id !== pollId);
+    setItemJson(LOCAL_STORAGE_KEYS.THIS_OR_THAT, list);
+    return list;
+  },
 
   // Admin Activity Log
   getActivityLog: () => getItemParsed(LOCAL_STORAGE_KEYS.ACTIVITY_LOG, [
@@ -927,13 +967,34 @@ export const StorageService = {
     return updated;
   },
 
-  // Site Configuration & Maintenance Mode
-  getSiteConfig: () => getItemParsed(LOCAL_STORAGE_KEYS.SITE_CONFIG, {
-    brainZoneEnabled: true,
-    registrationEnabled: true,
-    maintenanceMode: false,
-    maintenanceMessage: 'The IT Resource Hub is currently undergoing scheduled maintenance. Please check back shortly.'
-  }),
+  // Site Configuration & Maintenance Mode & Custom XP Settings
+  getSiteConfig: () => {
+    const cfg = getItemParsed(LOCAL_STORAGE_KEYS.SITE_CONFIG, {
+      brainZoneEnabled: true,
+      registrationEnabled: true,
+      maintenanceMode: false,
+      maintenanceMessage: 'The IT Resource Hub is currently undergoing scheduled maintenance. Please check back shortly.',
+      xpSettings: {
+        beginnerMultiplier: 1.0,
+        intermediateMultiplier: 1.5,
+        advancedMultiplier: 2.0,
+        beginnerXP: 50,
+        intermediateXP: 100,
+        advancedXP: 150
+      }
+    });
+    if (!cfg.xpSettings) {
+      cfg.xpSettings = {
+        beginnerMultiplier: 1.0,
+        intermediateMultiplier: 1.5,
+        advancedMultiplier: 2.0,
+        beginnerXP: 50,
+        intermediateXP: 100,
+        advancedXP: 150
+      };
+    }
+    return cfg;
+  },
   saveSiteConfig: (config) => {
     const current = StorageService.getSiteConfig();
     const updated = { ...current, ...config };
@@ -941,9 +1002,102 @@ export const StorageService = {
     return updated;
   },
 
+  // Weekly Missions Management
+  getWeeklyMissions: () => getItemParsed(LOCAL_STORAGE_KEYS.WEEKLY_MISSIONS, [
+    { id: 'm-1', title: 'Complete 3 Quick Quizzes', target: 3, progress: 0, reward: 75 },
+    { id: 'm-2', title: 'Play Spin & Learn 3 times', target: 3, progress: 0, reward: 50 },
+    { id: 'm-3', title: 'Complete 2 Coding Challenges', target: 2, progress: 0, reward: 100 }
+  ]),
+  saveWeeklyMission: (mission) => {
+    const list = StorageService.getWeeklyMissions();
+    const newM = { ...mission, id: mission.id || `m-${Date.now()}` };
+    const updated = [newM, ...list.filter(m => m.id !== newM.id)];
+    setItemJson(LOCAL_STORAGE_KEYS.WEEKLY_MISSIONS, updated);
+    return updated;
+  },
+  deleteWeeklyMission: (id) => {
+    const list = StorageService.getWeeklyMissions().filter(m => m.id !== id);
+    setItemJson(LOCAL_STORAGE_KEYS.WEEKLY_MISSIONS, list);
+    return list;
+  },
+
+  // Badges & Achievements Management
+  getBadges: () => getItemParsed(LOCAL_STORAGE_KEYS.BADGES, [
+    { id: 'first_spin', title: 'First Spin', icon: '🎡', desc: 'Spin the BrainZone wheel for the first time', target: 1, reward: '+50 XP' },
+    { id: 'poll_voter', title: 'Poll Master', icon: '🤔', desc: 'Vote in 5 Daily This or That polls', target: 5, reward: '+100 XP' },
+    { id: 'speed_demon', title: 'Speed Demon', icon: '⚡', desc: 'Complete 60-Second Challenge with >80% score', target: 1, reward: '+150 XP' },
+    { id: 'streak_fire', title: 'On Fire', icon: '🔥', desc: 'Maintain a 7-day learning streak', target: 7, reward: '+200 XP & Neon Border' },
+    { id: 'mystery_hunter', title: 'Mystery Hunter', icon: '🎁', desc: 'Open 3 Daily Mystery Boxes', target: 3, reward: '+75 XP' },
+    { id: 'class_hero', title: 'Class Hero', icon: '🏫', desc: 'Contribute to your Class vs Class Leaderboard', target: 1, reward: '+120 XP' }
+  ]),
+  saveBadge: (badge) => {
+    const list = StorageService.getBadges();
+    const newB = { ...badge, id: badge.id || `bdg-${Date.now()}` };
+    const updated = [newB, ...list.filter(b => b.id !== newB.id)];
+    setItemJson(LOCAL_STORAGE_KEYS.BADGES, updated);
+    return updated;
+  },
+  deleteBadge: (id) => {
+    const list = StorageService.getBadges().filter(b => b.id !== id);
+    setItemJson(LOCAL_STORAGE_KEYS.BADGES, list);
+    return list;
+  },
+
+  // Mystery Box Rewards Management
+  getMysteryRewards: () => getItemParsed(LOCAL_STORAGE_KEYS.MYSTERY_REWARDS, [
+    { id: 'mr-1', title: '+150 Super XP Bonus', icon: '💎', rewardType: 'xp', value: 150, rarity: 'Rare', desc: 'Instant +150 XP added to student profile' },
+    { id: 'mr-2', title: 'Golden Legend Border', icon: '🎁', rewardType: 'cosmetic', value: 'golden_legend', rarity: 'Legendary', desc: 'Unlocks Golden Legend profile border' },
+    { id: 'mr-3', title: '1x Streak Shield', icon: '🛡️', rewardType: 'shield', value: 1, rarity: 'Common', desc: 'Protects learning streak for 1 missed day' },
+    { id: 'mr-4', title: '+250 Master XP Loot', icon: '⚡', rewardType: 'xp', value: 250, rarity: 'Legendary', desc: 'Instant +250 XP bonus payout' },
+    { id: 'mr-5', title: '+50 Daily Bonus XP', icon: '🌟', rewardType: 'xp', value: 50, rarity: 'Common', desc: 'Instant +50 XP bonus payout' }
+  ]),
+  saveMysteryReward: (reward) => {
+    const list = StorageService.getMysteryRewards();
+    const newR = { ...reward, id: reward.id || `mr-${Date.now()}` };
+    const updated = [newR, ...list.filter(r => r.id !== newR.id)];
+    setItemJson(LOCAL_STORAGE_KEYS.MYSTERY_REWARDS, updated);
+    return updated;
+  },
+  deleteMysteryReward: (id) => {
+    const list = StorageService.getMysteryRewards().filter(r => r.id !== id);
+    setItemJson(LOCAL_STORAGE_KEYS.MYSTERY_REWARDS, list);
+    return list;
+  },
+
   clearActivityLog: () => {
     setItemJson(LOCAL_STORAGE_KEYS.ACTIVITY_LOG, []);
     return [];
+  },
+
+  // ISO Week Helper & Content Rotation Helper
+  getISOWeekId: (date = new Date()) => {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+  },
+
+  getFilteredContentForCurrentWeek: (contentList = [], currentWeekBatch = StorageService.getISOWeekId()) => {
+    if (!Array.isArray(contentList) || contentList.length === 0) return [];
+    
+    // 1. Exact matches for current week batch
+    const exactMatches = contentList.filter(item => item.weekBatch === currentWeekBatch);
+    if (exactMatches.length > 0) return exactMatches;
+
+    // 2. Fallback to most recent week's content (weekBatch <= currentWeekBatch)
+    const pastMatches = contentList
+      .filter(item => item.weekBatch && item.weekBatch <= currentWeekBatch)
+      .sort((a, b) => b.weekBatch.localeCompare(a.weekBatch));
+
+    if (pastMatches.length > 0) {
+      const mostRecentWeek = pastMatches[0].weekBatch;
+      return pastMatches.filter(item => item.weekBatch === mostRecentWeek);
+    }
+
+    // 3. Ultimate fallback: return full content list if untagged
+    return contentList;
   },
 
   // 60-Second Challenge Quiz Questions
@@ -964,7 +1118,8 @@ export const StorageService = {
     const newQ = {
       ...question,
       id: question.id || `qq-${Date.now()}`,
-      difficulty: question.difficulty || 'intermediate'
+      difficulty: question.difficulty || 'intermediate',
+      weekBatch: question.weekBatch || StorageService.getISOWeekId()
     };
     const updated = [newQ, ...list.filter(q => q.id !== newQ.id)];
     setItemJson(LOCAL_STORAGE_KEYS.QUIZ_QUESTIONS, updated);
@@ -1050,7 +1205,12 @@ export const StorageService = {
   ]),
   saveGuessOutputChallenge: (obj) => {
     const list = StorageService.getGuessOutputChallenges();
-    const newObj = { ...obj, id: obj.id || `go-${Date.now()}`, difficulty: obj.difficulty || 'intermediate' };
+    const newObj = {
+      ...obj,
+      id: obj.id || `go-${Date.now()}`,
+      difficulty: obj.difficulty || 'intermediate',
+      weekBatch: obj.weekBatch || StorageService.getISOWeekId()
+    };
     const updated = [newObj, ...list.filter(item => item.id !== newObj.id)];
     setItemJson(LOCAL_STORAGE_KEYS.GUESS_OUTPUT, updated);
     return updated;
@@ -1096,7 +1256,12 @@ export const StorageService = {
   ]),
   saveFindBugChallenge: (obj) => {
     const list = StorageService.getFindBugChallenges();
-    const newObj = { ...obj, id: obj.id || `fb-${Date.now()}`, difficulty: obj.difficulty || 'intermediate' };
+    const newObj = {
+      ...obj,
+      id: obj.id || `fb-${Date.now()}`,
+      difficulty: obj.difficulty || 'intermediate',
+      weekBatch: obj.weekBatch || StorageService.getISOWeekId()
+    };
     const updated = [newObj, ...list.filter(item => item.id !== newObj.id)];
     setItemJson(LOCAL_STORAGE_KEYS.FIND_BUG, updated);
     return updated;

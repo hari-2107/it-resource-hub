@@ -12,9 +12,9 @@ export const UploadStudentNoteModal = ({ onClose }) => {
   const availableSems = YEAR_SEMESTERS[year] || [5, 6];
   const [semester, setSemester] = useState(currentUser?.semester || availableSems[0]);
 
-  // Filter subjects based on selected Year & Semester
+  // Filter subjects based on selected Semester
   const filteredSubjects = (subjects || []).filter(
-    s => s.year === year && Number(s.semester) === Number(semester)
+    s => Number(s.semester) === Number(semester)
   );
 
   const [subjectId, setSubjectId] = useState(filteredSubjects[0]?.id || 'custom');
@@ -34,14 +34,14 @@ export const UploadStudentNoteModal = ({ onClose }) => {
     const newSem = newSems[0];
     setSemester(newSem);
     
-    const matching = (subjects || []).filter(s => s.year === newYear && Number(s.semester) === Number(newSem));
+    const matching = (subjects || []).filter(s => Number(s.semester) === Number(newSem));
     setSubjectId(matching[0]?.id || 'custom');
   };
 
   const handleSemesterChange = (newSem) => {
     const semNum = Number(newSem);
     setSemester(semNum);
-    const matching = (subjects || []).filter(s => s.year === year && Number(s.semester) === semNum);
+    const matching = (subjects || []).filter(s => Number(s.semester) === semNum);
     setSubjectId(matching[0]?.id || 'custom');
   };
 

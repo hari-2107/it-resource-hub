@@ -36,6 +36,9 @@ export const DataProvider = ({ children }) => {
   const [itFacts, setItFacts] = useState([]);
   const [guessOutputChallenges, setGuessOutputChallenges] = useState([]);
   const [findBugChallenges, setFindBugChallenges] = useState([]);
+  const [weeklyMissions, setWeeklyMissions] = useState([]);
+  const [badges, setBadges] = useState([]);
+  const [mysteryRewards, setMysteryRewards] = useState([]);
   const [siteConfig, setSiteConfig] = useState({
     brainZoneEnabled: true,
     registrationEnabled: true,
@@ -67,6 +70,9 @@ export const DataProvider = ({ children }) => {
     setItFacts(StorageService.getITFactsList());
     setGuessOutputChallenges(StorageService.getGuessOutputChallenges());
     setFindBugChallenges(StorageService.getFindBugChallenges());
+    setWeeklyMissions(StorageService.getWeeklyMissions());
+    setBadges(StorageService.getBadges());
+    setMysteryRewards(StorageService.getMysteryRewards());
     
     const uid = currentUser?.id || 'guest';
     setDismissedBroadcastIds(StorageService.getDismissedBroadcastIds(uid));
@@ -410,7 +416,10 @@ export const DataProvider = ({ children }) => {
       createdBy: currentUser?.name || 'Department Admin'
     });
     setBroadcasts(updated);
+    logAdminActivity(`Saved System Broadcast '${bcastData.title}'`, 'Broadcast');
   };
+
+  const addOrUpdateBroadcast = (bcastData) => addBroadcast(bcastData);
 
   const updateBroadcast = (id, updatedFields) => {
     const updated = StorageService.updateBroadcast(id, updatedFields);
@@ -420,6 +429,15 @@ export const DataProvider = ({ children }) => {
   const deleteBroadcast = (id) => {
     const updated = StorageService.deleteBroadcast(id);
     setBroadcasts(updated);
+    logAdminActivity('Deleted System Broadcast', 'Broadcast');
+  };
+
+  const removeBroadcast = (id) => deleteBroadcast(id);
+
+  const toggleBroadcastStatus = (id, currentStatus) => {
+    const updated = StorageService.updateBroadcast(id, { isActive: !currentStatus });
+    setBroadcasts(updated);
+    logAdminActivity(`Toggled broadcast active status`, 'Broadcast');
   };
 
   const dismissBroadcast = (broadcastId) => {
@@ -467,6 +485,50 @@ export const DataProvider = ({ children }) => {
       }
     }
   };
+
+  const deleteThisOrThatPoll = (id) => {
+    const updated = StorageService.deleteThisOrThatPoll(id);
+    setThisOrThatPolls(updated);
+    logAdminActivity('Deleted This or That poll', 'BrainZone');
+  };
+
+  const addOrUpdateWeeklyMission = (mObj) => {
+    const updated = StorageService.saveWeeklyMission(mObj);
+    setWeeklyMissions(updated);
+    logAdminActivity(`Saved Weekly Mission '${mObj.title}'`, 'BrainZone');
+  };
+
+  const removeWeeklyMission = (id) => {
+    const updated = StorageService.deleteWeeklyMission(id);
+    setWeeklyMissions(updated);
+    logAdminActivity('Deleted Weekly Mission', 'BrainZone');
+  };
+
+  const addOrUpdateBadge = (bObj) => {
+    const updated = StorageService.saveBadge(bObj);
+    setBadges(updated);
+    logAdminActivity(`Saved Achievement Badge '${bObj.title}'`, 'BrainZone');
+  };
+
+  const removeBadge = (id) => {
+    const updated = StorageService.deleteBadge(id);
+    setBadges(updated);
+    logAdminActivity('Deleted Achievement Badge', 'BrainZone');
+  };
+
+  const addOrUpdateMysteryReward = (rewardObj) => {
+    const updated = StorageService.saveMysteryReward(rewardObj);
+    setMysteryRewards(updated);
+    logAdminActivity(`Saved Mystery Box Reward '${rewardObj.title}'`, 'BrainZone');
+  };
+
+  const removeMysteryReward = (id) => {
+    const updated = StorageService.deleteMysteryReward(id);
+    setMysteryRewards(updated);
+    logAdminActivity('Deleted Mystery Box Reward', 'BrainZone');
+  };
+
+
 
   const logAdminActivity = async (action, targetType = 'General', targetId = null) => {
     const entry = {
@@ -655,7 +717,23 @@ export const DataProvider = ({ children }) => {
       removeGuessOutputChallenge,
       findBugChallenges,
       addOrUpdateFindBugChallenge,
-      removeFindBugChallenge
+      removeFindBugChallenge,
+      deleteThisOrThatPoll,
+      weeklyMissions,
+      addOrUpdateWeeklyMission,
+      removeWeeklyMission,
+      badges,
+      addOrUpdateBadge,
+      removeBadge,
+      mysteryRewards,
+      addOrUpdateMysteryReward,
+      removeMysteryReward,
+      broadcasts,
+      activeBroadcast,
+      addOrUpdateBroadcast,
+      removeBroadcast,
+      toggleBroadcastStatus,
+      dismissBroadcast
     }}>
       {children}
     </DataContext.Provider>

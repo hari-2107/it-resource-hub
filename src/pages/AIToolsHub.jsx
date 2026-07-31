@@ -28,7 +28,9 @@ export const AIToolsHub = ({ onOpenAdminForm }) => {
     'Research',
     'Design',
     'Productivity',
-    'Resume/Career'
+    'Resume/Career',
+    'App Building',
+    'Website Building'
   ];
 
   const filteredTools = aiTools.filter(tool => {
@@ -88,31 +90,51 @@ export const AIToolsHub = ({ onOpenAdminForm }) => {
           return (
             <div
               key={tool.id}
-              className="glass-card rounded-3xl p-6 flex flex-col justify-between space-y-4 border border-slate-800 relative group"
+              className="glass-card rounded-3xl overflow-hidden flex flex-col justify-between space-y-4 border border-slate-800 relative group"
             >
               <div className="space-y-4">
                 
-                {/* Logo, Pricing, & Actions */}
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 rounded-2xl bg-slate-900 p-2.5 flex items-center justify-center border border-slate-800 shadow-md">
-                      <img src={tool.logoUrl} alt={tool.name} className="w-7 h-7 object-contain" />
+                {/* AI Tool Photo Preview Banner */}
+                <div className="h-32 w-full relative overflow-hidden bg-slate-900">
+                  <img
+                    src={tool.photoUrl || 'https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&w=600&q=80'}
+                    alt={tool.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = 'https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&w=600&q=80';
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
+
+                  {/* Logo Badge & Category Overlay */}
+                  <div className="absolute bottom-3 left-4 flex items-center space-x-3">
+                    <div className="w-11 h-11 rounded-2xl bg-slate-950 p-2 flex items-center justify-center border border-slate-800 shadow-xl backdrop-blur-md">
+                      <img
+                        src={tool.logoUrl}
+                        alt={tool.name}
+                        className="w-7 h-7 object-contain"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                      <Sparkles className="w-5 h-5 text-amber-400 hidden" />
                     </div>
                     <div>
-                      <h3 className="text-base font-bold text-white group-hover:text-brand-300 transition-colors">
+                      <h3 className="text-base font-extrabold text-white drop-shadow-md group-hover:text-brand-300 transition-colors">
                         {tool.name}
                       </h3>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-[11px] text-brand-400 font-semibold">{tool.category}</span>
-                      </div>
+                      <span className="text-[11px] text-amber-400 font-bold drop-shadow-sm">{tool.category}</span>
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-1.5">
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                      tool.pricing === 'Free' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
-                      tool.pricing === 'Freemium' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
-                      'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                  {/* Pricing & Bookmark Overlay */}
+                  <div className="absolute top-3 right-3 flex items-center space-x-1.5">
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold backdrop-blur-md shadow-md ${
+                      tool.pricing === 'Free' ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-500/40' :
+                      tool.pricing === 'Freemium' ? 'bg-amber-950/80 text-amber-300 border border-amber-500/40' :
+                      'bg-purple-950/80 text-purple-300 border border-purple-500/40'
                     }`}>
                       {tool.pricing}
                     </span>
@@ -120,10 +142,10 @@ export const AIToolsHub = ({ onOpenAdminForm }) => {
                     {currentUser && (
                       <button
                         onClick={() => toggleFavoriteItem('aitool', tool.id)}
-                        className={`p-1.5 rounded-xl border transition-all ${
+                        className={`p-1.5 rounded-xl border backdrop-blur-md shadow-md transition-all ${
                           isFav
-                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                            : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                            ? 'bg-amber-500/30 text-amber-300 border-amber-500/50'
+                            : 'bg-slate-950/80 text-slate-300 border-slate-700 hover:text-white'
                         }`}
                         title={isFav ? "Remove Bookmark" : "Save to Favorites"}
                       >
@@ -132,17 +154,17 @@ export const AIToolsHub = ({ onOpenAdminForm }) => {
                     )}
 
                     {isAdmin && (
-                      <div className="flex items-center space-x-1 pl-1 border-l border-slate-800">
+                      <div className="flex items-center space-x-1 p-1 bg-slate-950/80 rounded-xl border border-slate-800 backdrop-blur-md">
                         <button
                           onClick={() => onOpenAdminForm('aitool', tool)}
-                          className="p-1.5 rounded-lg bg-slate-900 text-slate-400 hover:text-emerald-400 border border-slate-800"
+                          className="p-1 rounded-lg text-slate-300 hover:text-emerald-400"
                           title="Edit Tool"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => removeAITool(tool.id)}
-                          className="p-1.5 rounded-lg bg-slate-900 text-slate-400 hover:text-rose-400 border border-slate-800"
+                          className="p-1 rounded-lg text-slate-300 hover:text-rose-400"
                           title="Delete Tool"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -152,10 +174,20 @@ export const AIToolsHub = ({ onOpenAdminForm }) => {
                   </div>
                 </div>
 
+                <div className="p-6 pt-0 space-y-4">
+
                 {/* Description */}
                 <p className="text-xs text-slate-300 leading-relaxed font-normal">
                   {tool.description}
                 </p>
+
+                {/* Best For Use-Case Blurb */}
+                {tool.bestFor && (
+                  <div className="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 font-semibold leading-relaxed flex items-start space-x-2">
+                    <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <span><strong>Best for:</strong> {tool.bestFor}</span>
+                  </div>
+                )}
 
                 {/* Tag Pills */}
                 {tool.tags && (
@@ -168,14 +200,21 @@ export const AIToolsHub = ({ onOpenAdminForm }) => {
                   </div>
                 )}
               </div>
+            </div>
 
-              {/* Date, Rating & Action Button */}
+            {/* Date, Rating & Action Button */}
               <div className="pt-4 border-t border-slate-800/80 space-y-3">
                 <div className="flex items-center justify-between text-[10px] text-slate-400">
                   <span className="flex items-center">
                     <Clock className="w-3 h-3 mr-1 text-slate-500" />
                     Added: {tool.addedDate || '2026-07-20'}{tool.addedTime ? ` • ${tool.addedTime}` : ''}
                   </span>
+                  {tool.lastVerified && (
+                    <span className="text-[10px] text-emerald-400 font-mono font-semibold flex items-center">
+                      <Check className="w-3 h-3 mr-1 text-emerald-400" />
+                      Verified: {tool.lastVerified}
+                    </span>
+                  )}
                 </div>
 
                 {/* 1-5 Star Rating & Review Widget */}

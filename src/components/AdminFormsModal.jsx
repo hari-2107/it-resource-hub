@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { X, Upload, Plus, Save, Sparkles, FileText, Bell, Calendar, Trash2, GraduationCap } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { YEAR_SEMESTERS, CLASS_SECTIONS_PER_YEAR } from '../data/mockData';
+import { YEAR_SEMESTERS, CLASS_SECTIONS_PER_YEAR, getYearFromSemester } from '../data/mockData';
 
 export const AdminFormsModal = ({ type, initialData, onClose }) => {
   const { subjects, addOrUpdateMaterial, addOrUpdateAITool, addOrUpdateAnnouncement, addOrUpdateTimetable, addThisOrThatPoll } = useData();
   const { currentUser } = useAuth();
+  const [activeDay, setActiveDay] = useState('Monday');
 
   // This or That Poll Form state
   const [thisOrThatForm, setThisOrThatForm] = useState(initialData || {
@@ -144,7 +145,7 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
   };
 
   const categoriesList = ['Notes', 'PPTs', 'PDFs', 'Lab Manuals', 'Assignments', 'Previous Year Papers', 'Question Banks', 'Syllabus'];
-  const aiCategoriesList = ['Coding', 'Writing', 'Research', 'Design', 'Productivity', 'Resume/Career'];
+  const aiCategoriesList = ['Coding', 'Writing', 'Research', 'Design', 'Productivity', 'Resume/Career', 'App Building', 'Website Building'];
 
   const { addOrUpdatePlacementCompany, addOrUpdateEvent } = useData();
 
@@ -297,7 +298,7 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
                       const newYear = e.target.value;
                       const availableSems = YEAR_SEMESTERS[newYear] || [1, 2];
                       const newSem = availableSems[0];
-                      const matchingSub = subjects.find(s => s.year === newYear && s.semester === newSem) || subjects[0];
+                      const matchingSub = (subjects || []).find(s => Number(s.semester) === Number(newSem)) || subjects[0];
                       setMaterialForm({
                         ...materialForm,
                         year: newYear,
@@ -321,10 +322,11 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
                     value={materialForm.semester || 1}
                     onChange={(e) => {
                       const newSem = Number(e.target.value);
-                      const matchingSub = subjects.find(s => s.year === (materialForm.year || '1st Year') && s.semester === newSem) || subjects[0];
+                      const matchingSub = (subjects || []).find(s => Number(s.semester) === Number(newSem)) || subjects[0];
                       setMaterialForm({
                         ...materialForm,
                         semester: newSem,
+                        year: getYearFromSemester(newSem),
                         subjectId: matchingSub ? matchingSub.id : '',
                         subjectName: matchingSub ? matchingSub.name : ''
                       });
@@ -353,12 +355,12 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
                     }}
                     className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-brand-500"
                   >
-                    {subjects
-                      .filter(s => s.year === (materialForm.year || '1st Year') && s.semester === Number(materialForm.semester || 1))
+                    {(subjects || [])
+                      .filter(s => Number(s.semester) === Number(materialForm.semester || 1))
                       .map(s => (
                         <option key={s.id} value={s.id}>{s.name}</option>
                       ))}
-                    {subjects.filter(s => s.year === (materialForm.year || '1st Year') && s.semester === Number(materialForm.semester || 1)).length === 0 && (
+                    {(subjects || []).filter(s => Number(s.semester) === Number(materialForm.semester || 1)).length === 0 && (
                       <option value={materialForm.subjectId}>{materialForm.subjectName || 'Select Subject'}</option>
                     )}
                   </select>
@@ -537,6 +539,29 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
                   onChange={(e) => setAiToolForm({ ...aiToolForm, description: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-brand-500"
                 />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Best For (Use-Case Blurb)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Building portfolio sites before placements"
+                    value={aiToolForm.bestFor || ''}
+                    onChange={(e) => setAiToolForm({ ...aiToolForm, bestFor: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-brand-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Last Verified Date</label>
+                  <input
+                    type="date"
+                    value={aiToolForm.lastVerified || new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setAiToolForm({ ...aiToolForm, lastVerified: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-brand-500"
+                  />
+                </div>
               </div>
             </>
           )}
@@ -1035,6 +1060,265 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
                 </div>
               )}
 
+              {/* DYNAMIC WEEKLY CLASS TIMETABLE PERIODS EDITOR */}
+              {timetableForm.type === 'class' && (
+                <div className="space-y-3 pt-3 border-t border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-bold text-white flex items-center space-x-1.5">
+                        <Calendar className="w-4 h-4 text-brand-400" />
+                        <span>Weekly Class Period Schedule (Monday - Saturday)</span>
+                      </h4>
+                      <p className="text-[11px] text-slate-400">Add or edit period slots for each day of the week.</p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const currentDayList = timetableForm.schedule?.[activeDay] || [];
+                        const periodNumber = currentDayList.length + 1;
+                        const newSlot = {
+                          id: `p-${Date.now()}`,
+                          period: `${periodNumber}`,
+                          time: '09:15 - 10:00 AM',
+                          span: 1,
+                          subject: 'SUB',
+                          fullName: 'Subject Name',
+                          room: 'MBIII ANX301',
+                          teacher: 'Faculty Name',
+                          type: 'Theory'
+                        };
+                        setTimetableForm(prev => ({
+                          ...prev,
+                          schedule: {
+                            ...(prev.schedule || {}),
+                            [activeDay]: [...(prev.schedule?.[activeDay] || []), newSlot]
+                          }
+                        }));
+                      }}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-brand-600 hover:bg-brand-500 text-white flex items-center space-x-1 shadow"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>+ Add Period ({activeDay})</span>
+                    </button>
+                  </div>
+
+                  {/* Day Selector Tabs */}
+                  <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 scrollbar-none">
+                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(day => (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => setActiveDay(day)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                          activeDay === day ? 'bg-brand-600 text-white shadow' : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'
+                        }`}
+                      >
+                        {day} ({(timetableForm.schedule?.[day] || []).length})
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Period Entries List for activeDay */}
+                  <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+                    {(!timetableForm.schedule?.[activeDay] || timetableForm.schedule[activeDay].length === 0) ? (
+                      <div className="text-center py-6 text-slate-500 text-xs italic bg-slate-950/40 rounded-2xl border border-slate-800">
+                        No periods added for {activeDay} yet. Click "+ Add Period ({activeDay})" to set up timetable.
+                      </div>
+                    ) : (
+                      timetableForm.schedule[activeDay].map((slot, idx) => (
+                        <div key={slot.id || idx} className="p-3.5 rounded-2xl bg-slate-800/80 border border-slate-700/80 space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              Period #{idx + 1} ({activeDay})
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setTimetableForm(prev => ({
+                                  ...prev,
+                                  schedule: {
+                                    ...(prev.schedule || {}),
+                                    [activeDay]: (prev.schedule?.[activeDay] || []).filter((_, i) => i !== idx)
+                                  }
+                                }));
+                              }}
+                              className="p-1 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded"
+                              title="Remove period"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                            <div className="sm:col-span-2 space-y-1">
+                              {/* Quick Pick Subject */}
+                              {(() => {
+                                const semSubs = (subjects || []).filter(s => Number(s.semester) === Number(timetableForm.semester));
+                                if (semSubs.length > 0) {
+                                  return (
+                                    <select
+                                      onChange={(e) => {
+                                        const pickedSub = semSubs.find(s => s.id === e.target.value);
+                                        if (pickedSub) {
+                                          setTimetableForm(prev => ({
+                                            ...prev,
+                                            schedule: {
+                                              ...(prev.schedule || {}),
+                                              [activeDay]: (prev.schedule?.[activeDay] || []).map((item, i) => i === idx ? {
+                                                ...item,
+                                                fullName: pickedSub.name,
+                                                subject: pickedSub.code || pickedSub.name.split(' ').map(w => w[0]).join('').toUpperCase(),
+                                                type: pickedSub.type || item.type
+                                              } : item)
+                                            }
+                                          }));
+                                        }
+                                      }}
+                                      className="w-full px-2 py-1 bg-slate-950 text-[11px] text-brand-300 rounded border border-brand-500/30 focus:outline-none"
+                                    >
+                                      <option value="">-- Quick Pick Subject (Sem {timetableForm.semester}) --</option>
+                                      {semSubs.map(s => (
+                                        <option key={s.id} value={s.id}>
+                                          {s.code ? `[${s.code}] ` : ''}{s.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  );
+                                }
+                                return null;
+                              })()}
+
+                              <input
+                                type="text"
+                                required
+                                placeholder="Subject Full Name (e.g. Full Stack Web Development)"
+                                value={slot.fullName || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setTimetableForm(prev => ({
+                                    ...prev,
+                                    schedule: {
+                                      ...(prev.schedule || {}),
+                                      [activeDay]: (prev.schedule?.[activeDay] || []).map((item, i) => i === idx ? { ...item, fullName: val } : item)
+                                    }
+                                  }));
+                                }}
+                                className="w-full px-2.5 py-1.5 bg-slate-900 text-xs text-white rounded-lg border border-slate-700"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] text-slate-400">Short Code</label>
+                              <input
+                                type="text"
+                                placeholder="e.g. FSWD"
+                                value={slot.subject || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setTimetableForm(prev => ({
+                                    ...prev,
+                                    schedule: {
+                                      ...(prev.schedule || {}),
+                                      [activeDay]: (prev.schedule?.[activeDay] || []).map((item, i) => i === idx ? { ...item, subject: val } : item)
+                                    }
+                                  }));
+                                }}
+                                className="w-full px-2.5 py-1.5 bg-slate-900 text-xs text-white rounded-lg border border-slate-700"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] text-slate-400">Time Slot</label>
+                              <input
+                                type="text"
+                                placeholder="e.g. 09:15 - 10:00 AM"
+                                value={slot.time || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setTimetableForm(prev => ({
+                                    ...prev,
+                                    schedule: {
+                                      ...(prev.schedule || {}),
+                                      [activeDay]: (prev.schedule?.[activeDay] || []).map((item, i) => i === idx ? { ...item, time: val } : item)
+                                    }
+                                  }));
+                                }}
+                                className="w-full px-2.5 py-1.5 bg-slate-900 text-xs text-white rounded-lg border border-slate-700"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <label className="block text-[10px] text-slate-400">Classroom / Lab</label>
+                              <input
+                                type="text"
+                                placeholder="e.g. MBIII ANX301"
+                                value={slot.room || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setTimetableForm(prev => ({
+                                    ...prev,
+                                    schedule: {
+                                      ...(prev.schedule || {}),
+                                      [activeDay]: (prev.schedule?.[activeDay] || []).map((item, i) => i === idx ? { ...item, room: val } : item)
+                                    }
+                                  }));
+                                }}
+                                className="w-full px-2.5 py-1 bg-slate-900 text-xs text-white rounded-lg border border-slate-700"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] text-slate-400">Faculty Name</label>
+                              <input
+                                type="text"
+                                placeholder="e.g. Mr. N. Vinayakaswamy"
+                                value={slot.teacher || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setTimetableForm(prev => ({
+                                    ...prev,
+                                    schedule: {
+                                      ...(prev.schedule || {}),
+                                      [activeDay]: (prev.schedule?.[activeDay] || []).map((item, i) => i === idx ? { ...item, teacher: val } : item)
+                                    }
+                                  }));
+                                }}
+                                className="w-full px-2.5 py-1 bg-slate-900 text-xs text-white rounded-lg border border-slate-700"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] text-slate-400">Course Type</label>
+                              <select
+                                value={slot.type || 'Theory'}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setTimetableForm(prev => ({
+                                    ...prev,
+                                    schedule: {
+                                      ...(prev.schedule || {}),
+                                      [activeDay]: (prev.schedule?.[activeDay] || []).map((item, i) => i === idx ? { ...item, type: val } : item)
+                                    }
+                                  }));
+                                }}
+                                className="w-full px-2.5 py-1 bg-slate-900 text-xs text-white rounded-lg border border-slate-700"
+                              >
+                                <option value="Theory">Theory</option>
+                                <option value="Lab">Practical / Lab</option>
+                                <option value="Elective">Elective</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
               <p className="text-xs text-emerald-400">
                 ✓ Active timetables will automatically be displayed to students in {timetableForm.year}, Semester {timetableForm.semester}, Section {timetableForm.classSection}.
               </p>
@@ -1085,6 +1369,28 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
               </div>
 
               <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Roles Offered</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Systems Engineer / Digital Specialist Engineer"
+                  value={companyForm.roles || ''}
+                  onChange={(e) => setCompanyForm({ ...companyForm, roles: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-brand-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Package Range (LPA)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. ₹3.6 – ₹9.5 LPA"
+                  value={companyForm.packageRange || ''}
+                  onChange={(e) => setCompanyForm({ ...companyForm, packageRange: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-brand-500"
+                />
+              </div>
+
+              <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">Eligibility Criteria</label>
                 <input
                   type="text"
@@ -1097,7 +1403,7 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Drive Description & Roles</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Drive Description & Details</label>
                 <textarea
                   rows={3}
                   required

@@ -89,7 +89,8 @@ export const AuthProvider = ({ children }) => {
         unlockedBorderIds: ['admin_supreme', 'default', 'cyber_neon', 'golden_legend', 'emerald_shield', 'cosmic_purple', 'quantum_violet', 'crimson_master', 'titanium_aura'],
         unlockedTitleIds: ['title_admin_supreme', 'title_novice', 'title_quiz_master', 'title_bug_hunter', 'title_code_architect', 'title_algorithm_boss', 'title_cyber_hero', 'title_legendary_dev'],
         unlockedAvatarBgIds: ['bg_admin_royal', 'bg_slate', 'bg_indigo', 'bg_emerald', 'bg_amber', 'bg_sunset', 'bg_galaxy'],
-        registeredDate: new Date().toISOString().split('T')[0]
+        registeredDate: new Date().toISOString().split('T')[0],
+        lastLoginAt: new Date().toISOString()
       };
 
       setCurrentUser(adminUser);
@@ -100,10 +101,13 @@ export const AuthProvider = ({ children }) => {
 
     if (isFirebaseConfigured && auth && !isDemoMode) {
       const res = await signInWithEmailAndPassword(auth, cleanId, password);
-      const userDoc = await getDoc(doc(db, 'users', res.user.uid));
+      const userDocRef = doc(db, 'users', res.user.uid);
+      const userDoc = await getDoc(userDocRef);
       if (userDoc.exists()) {
-        const userData = { uid: res.user.uid, ...userDoc.data() };
+        const userData = { uid: res.user.uid, ...userDoc.data(), lastLoginAt: new Date().toISOString() };
+        await setDoc(userDocRef, { lastLoginAt: new Date().toISOString() }, { merge: true });
         setCurrentUser(userData);
+        StorageService.saveCustomUser(userData);
         return userData;
       }
     } else {
@@ -119,9 +123,11 @@ export const AuthProvider = ({ children }) => {
         if (matched.password && matched.password !== password) {
           throw new Error('Incorrect password. Please try again.');
         }
-        setCurrentUser(matched);
-        StorageService.setCurrentUser(matched);
-        return matched;
+        const updatedUser = { ...matched, lastLoginAt: new Date().toISOString() };
+        setCurrentUser(updatedUser);
+        StorageService.setCurrentUser(updatedUser);
+        StorageService.saveCustomUser(updatedUser);
+        return updatedUser;
       } else {
         throw new Error(`No registered account found with name "${identifier}". Please switch to the "Register" tab to create your account first.`);
       }

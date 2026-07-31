@@ -48,7 +48,9 @@ import {
   UserCheck
 } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import { getYearFromSemester } from '../data/mockData';
 import { BroadcastOverlay } from './BroadcastOverlay';
+import { UserDirectoryManager } from './UserDirectoryModal';
 
 export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpenAdminForm, onOpenVersionHistory }) => {
   const { 
@@ -90,7 +92,24 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
     addOrUpdateITFact,
     removeITFact,
     clearActivityLogs,
-    updateUserRole
+    updateUserRole,
+    deleteThisOrThatPoll,
+    weeklyMissions,
+    addOrUpdateWeeklyMission,
+    removeWeeklyMission,
+    badges,
+    addOrUpdateBadge,
+    removeBadge,
+    mysteryRewards,
+    addOrUpdateMysteryReward,
+    removeMysteryReward,
+    addThisOrThatPoll,
+    addOrUpdateBroadcast,
+    removeBroadcast,
+    toggleBroadcastStatus,
+    materials,
+    addOrUpdateMaterial,
+    addOrUpdateTimetable
   } = useData();
 
   const [activeTab, setActiveTab] = useState(initialTab || 'dashboard');
@@ -160,7 +179,52 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
     category: 'CS History'
   });
 
-  // Broadcast Form State
+  const [missionModalOpen, setMissionModalOpen] = useState(false);
+  const [missionForm, setMissionForm] = useState({
+    id: '',
+    title: '',
+    target: 3,
+    reward: 75
+  });
+
+  const [badgeModalOpen, setBadgeModalOpen] = useState(false);
+  const [badgeForm, setBadgeForm] = useState({
+    id: '',
+    title: '',
+    icon: '🏆',
+    desc: '',
+    target: 1,
+    reward: '+100 XP'
+  });
+
+  // Level Sub-Group Filter for Daily Challenges: 'all' | 'beginner' | 'intermediate' | 'advanced'
+  const [challengeDiffSubTab, setChallengeDiffSubTab] = useState('all');
+
+  // Mystery Box Rewards Form State
+  const [mysteryModalOpen, setMysteryModalOpen] = useState(false);
+  const [mysteryForm, setMysteryForm] = useState({
+    id: '',
+    title: '',
+    icon: '🎁',
+    rewardType: 'xp',
+    value: 150,
+    rarity: 'Rare',
+    desc: ''
+  });
+
+  // Debate Poll Form State
+  const [pollModalOpen, setPollModalOpen] = useState(false);
+  const [pollForm, setPollForm] = useState({
+    id: '',
+    question: '',
+    optionA: '',
+    optionB: '',
+    category: 'General IT',
+    date: new Date().toISOString().split('T')[0]
+  });
+
+  // System Broadcast Form State
+  const [broadcastModalOpen, setBroadcastModalOpen] = useState(false);
   const [isCreatingBroadcast, setIsCreatingBroadcast] = useState(false);
   const [editingBroadcast, setEditingBroadcast] = useState(null);
   const [previewBroadcast, setPreviewBroadcast] = useState(null);
@@ -168,15 +232,24 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
     id: '',
     title: '',
     message: '',
+    type: 'info',
+    targetAudience: 'all',
     bannerImageUrl: '',
     linkUrl: '',
-    linkLabel: 'Register Now 🚀',
+    linkLabel: 'View Details',
     isSkippable: true,
     autoCloseSeconds: 5,
-    isFestivalMode: true,
+    isFestivalMode: false,
     animationType: 'confetti',
     isActive: true
   });
+
+  // Doc Revision Upload State
+  const [docRevisionModalOpen, setDocRevisionModalOpen] = useState(false);
+  const [selectedDocItem, setSelectedDocItem] = useState(null);
+  const [docType, setDocType] = useState('material');
+  const [revisionNotes, setRevisionNotes] = useState('');
+  const [revisionFileUrl, setRevisionFileUrl] = useState('');
 
   // Activity Log Filter
   const [logFilter, setLogFilter] = useState('All');
@@ -215,22 +288,24 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
   const handleOpenSubjectModal = (subj = null) => {
     if (subj) {
       setEditingSubject(subj);
+      const semNum = Number(subj.semester) || 5;
       setSubjectForm({
         id: subj.id,
         name: subj.name || '',
         code: subj.code || '',
-        year: subj.year || '3rd Year',
-        semester: subj.semester || 5,
+        year: getYearFromSemester(semNum),
+        semester: semNum,
         type: subj.type || 'Theory'
       });
     } else {
       setEditingSubject(null);
+      const semNum = Number(subjectSemFilter) || 5;
       setSubjectForm({
         id: '',
         name: '',
         code: '',
-        year: '3rd Year',
-        semester: subjectSemFilter,
+        year: getYearFromSemester(semNum),
+        semester: semNum,
         type: 'Theory'
       });
     }
@@ -287,6 +362,119 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
 
     setFactModalOpen(false);
     setFactForm({ id: '', fact: '', category: 'CS History' });
+  };
+
+  // Mission Form Handler
+  const handleSaveWeeklyMission = (e) => {
+    e.preventDefault();
+    if (!missionForm.title) return;
+
+    addOrUpdateWeeklyMission({
+      id: missionForm.id || `m-${Date.now()}`,
+      title: missionForm.title,
+      target: Number(missionForm.target) || 3,
+      progress: 0,
+      reward: Number(missionForm.reward) || 75
+    });
+
+    setMissionModalOpen(false);
+    setMissionForm({ id: '', title: '', target: 3, reward: 75 });
+  };
+
+  // Badge Form Handler
+  const handleSaveBadge = (e) => {
+    e.preventDefault();
+    if (!badgeForm.title) return;
+
+    addOrUpdateBadge({
+      id: badgeForm.id || `bdg-${Date.now()}`,
+      title: badgeForm.title,
+      icon: badgeForm.icon || '🏆',
+      desc: badgeForm.desc || '',
+      target: Number(badgeForm.target) || 1,
+      reward: badgeForm.reward || '+100 XP'
+    });
+
+    setBadgeModalOpen(false);
+    setBadgeForm({ id: '', title: '', icon: '🏆', desc: '', target: 1, reward: '+100 XP' });
+  };
+
+  // Mystery Box Reward Form Handler
+  const handleSaveMysteryReward = (e) => {
+    e.preventDefault();
+    if (!mysteryForm.title) return;
+
+    addOrUpdateMysteryReward({
+      id: mysteryForm.id || `mr-${Date.now()}`,
+      title: mysteryForm.title,
+      icon: mysteryForm.icon || '🎁',
+      rewardType: mysteryForm.rewardType || 'xp',
+      value: mysteryForm.rewardType === 'xp' ? Number(mysteryForm.value) || 150 : mysteryForm.value,
+      rarity: mysteryForm.rarity || 'Rare',
+      desc: mysteryForm.desc || ''
+    });
+
+    setMysteryModalOpen(false);
+    setMysteryForm({ id: '', title: '', icon: '🎁', rewardType: 'xp', value: 150, rarity: 'Rare', desc: '' });
+  };
+
+  // Save Debate Poll Handler
+  const handleSavePoll = (e) => {
+    e.preventDefault();
+    if (!pollForm.question || !pollForm.optionA || !pollForm.optionB) return;
+
+    addThisOrThatPoll({
+      id: pollForm.id || `tot-${Date.now()}`,
+      question: pollForm.question,
+      optionA: pollForm.optionA,
+      optionB: pollForm.optionB,
+      category: pollForm.category || 'General IT',
+      date: pollForm.date || new Date().toISOString().split('T')[0],
+      votesA: 0,
+      votesB: 0
+    });
+
+    setPollModalOpen(false);
+    setPollForm({ id: '', question: '', optionA: '', optionB: '', category: 'General IT', date: new Date().toISOString().split('T')[0] });
+  };
+
+
+
+  // Save Document Revision Handler
+  const handleSaveDocRevision = (e) => {
+    e.preventDefault();
+    if (!selectedDocItem || !revisionNotes) return;
+
+    const newRev = {
+      version: `v${(selectedDocItem.versionHistory || []).length + 2}.0`,
+      date: new Date().toISOString().split('T')[0],
+      author: currentUser?.name || 'Admin',
+      notes: revisionNotes,
+      fileUrl: revisionFileUrl || selectedDocItem.fileUrl,
+      snapshot: { ...selectedDocItem }
+    };
+
+    const updatedHistory = [newRev, ...(selectedDocItem.versionHistory || [])];
+
+    if (docType === 'material') {
+      addOrUpdateMaterial({
+        ...selectedDocItem,
+        versionHistory: updatedHistory,
+        fileUrl: revisionFileUrl || selectedDocItem.fileUrl,
+        updatedDate: new Date().toISOString().split('T')[0]
+      });
+    } else if (docType === 'timetable') {
+      addOrUpdateTimetable({
+        ...selectedDocItem,
+        versionHistory: updatedHistory,
+        updatedDate: new Date().toISOString().split('T')[0]
+      });
+    }
+
+    setDocRevisionModalOpen(false);
+    setSelectedDocItem(null);
+    setRevisionNotes('');
+    setRevisionFileUrl('');
   };
 
   // CSV Exporters
@@ -1254,41 +1442,464 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
             )}
 
             {/* ================================================================= */}
-            {/* TAB 7: 🧠 BRAINZONE MANAGEMENT (Quiz, Missions, Facts, Polls) */}
+            {/* ================================================================= */}
+            {/* TAB 7: 🧠 BRAINZONE MANAGEMENT (Quiz, Missions, Badges, Polls, Facts, XP Settings) */}
             {/* ================================================================= */}
             {activeTab === 'brainzone_challenges' && (
+              <div className="space-y-6 animate-in fade-in">
+                
+                {/* Section A: Difficulty Level XP Multipliers & Points Settings */}
+                <div className="p-4 rounded-2xl bg-slate-950 border border-purple-500/30 space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-purple-300 flex items-center space-x-1.5">
+                      <Sliders className="w-4 h-4 text-purple-400" />
+                      <span>Custom XP Settings & Multipliers per Difficulty Level</span>
+                    </h4>
+                    <span className="text-[10px] text-slate-400">Controls XP payouts across all games</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/30 space-y-1.5">
+                      <div className="flex items-center justify-between text-xs font-bold text-emerald-300">
+                        <span>🟢 Easy / Beginner</span>
+                        <span className="text-[10px]">1.0x (Default)</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <label className="block text-[9px] text-slate-400">Multiplier</label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={siteConfig?.xpSettings?.beginnerMultiplier || 1.0}
+                            onChange={(e) => updateSiteConfig({
+                              xpSettings: { ...(siteConfig?.xpSettings || {}), beginnerMultiplier: Number(e.target.value) }
+                            })}
+                            className="w-full p-1.5 bg-slate-900 text-xs text-white rounded border border-slate-800"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] text-slate-400">Base XP</label>
+                          <input
+                            type="number"
+                            value={siteConfig?.xpSettings?.beginnerXP || 50}
+                            onChange={(e) => updateSiteConfig({
+                              xpSettings: { ...(siteConfig?.xpSettings || {}), beginnerXP: Number(e.target.value) }
+                            })}
+                            className="w-full p-1.5 bg-slate-900 text-xs text-white rounded border border-slate-800"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-500/30 space-y-1.5">
+                      <div className="flex items-center justify-between text-xs font-bold text-amber-300">
+                        <span>🟡 Intermediate</span>
+                        <span className="text-[10px]">1.5x (Default)</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <label className="block text-[9px] text-slate-400">Multiplier</label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={siteConfig?.xpSettings?.intermediateMultiplier || 1.5}
+                            onChange={(e) => updateSiteConfig({
+                              xpSettings: { ...(siteConfig?.xpSettings || {}), intermediateMultiplier: Number(e.target.value) }
+                            })}
+                            className="w-full p-1.5 bg-slate-900 text-xs text-white rounded border border-slate-800"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] text-slate-400">Base XP</label>
+                          <input
+                            type="number"
+                            value={siteConfig?.xpSettings?.intermediateXP || 100}
+                            onChange={(e) => updateSiteConfig({
+                              xpSettings: { ...(siteConfig?.xpSettings || {}), intermediateXP: Number(e.target.value) }
+                            })}
+                            className="w-full p-1.5 bg-slate-900 text-xs text-white rounded border border-slate-800"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-500/30 space-y-1.5">
+                      <div className="flex items-center justify-between text-xs font-bold text-rose-300">
+                        <span>🔴 Advanced / Hard</span>
+                        <span className="text-[10px]">2.0x (Default)</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <label className="block text-[9px] text-slate-400">Multiplier</label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={siteConfig?.xpSettings?.advancedMultiplier || 2.0}
+                            onChange={(e) => updateSiteConfig({
+                              xpSettings: { ...(siteConfig?.xpSettings || {}), advancedMultiplier: Number(e.target.value) }
+                            })}
+                            className="w-full p-1.5 bg-slate-900 text-xs text-white rounded border border-slate-800"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] text-slate-400">Base XP</label>
+                          <input
+                            type="number"
+                            value={siteConfig?.xpSettings?.advancedXP || 150}
+                            onChange={(e) => updateSiteConfig({
+                              xpSettings: { ...(siteConfig?.xpSettings || {}), advancedXP: Number(e.target.value) }
+                            })}
+                            className="w-full p-1.5 bg-slate-900 text-xs text-white rounded border border-slate-800"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dedicated ECG (Error Code Guessing) XP Customization Section */}
+                  <div className="p-4 rounded-2xl bg-slate-950 border border-emerald-500/40 space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                      <h4 className="text-xs font-black uppercase tracking-wider text-emerald-300 flex items-center space-x-1.5">
+                        <Zap className="w-4 h-4 text-emerald-400" />
+                        <span>⚡ Error Code Guessing (ECG) Custom XP Configuration</span>
+                      </h4>
+                      <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full font-bold border border-emerald-500/30">Brain Zone ECG Engine</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div className="p-3 bg-slate-900/90 rounded-xl border border-slate-800 space-y-1.5">
+                        <label className="block text-xs font-bold text-slate-200">Base XP per Correct Option</label>
+                        <p className="text-[10px] text-slate-400">XP awarded immediately every time a student guesses an error code correctly.</p>
+                        <input
+                          type="number"
+                          value={siteConfig?.xpSettings?.ecgQuestionXP ?? 15}
+                          onChange={(e) => updateSiteConfig({
+                            xpSettings: { ...(siteConfig?.xpSettings || {}), ecgQuestionXP: Number(e.target.value) }
+                          })}
+                          className="w-full p-2 bg-slate-950 text-xs text-emerald-300 font-bold rounded-lg border border-slate-800 focus:border-emerald-500 focus:outline-none"
+                          placeholder="15"
+                        />
+                      </div>
+
+                      <div className="p-3 bg-slate-900/90 rounded-xl border border-slate-800 space-y-1.5">
+                        <label className="block text-xs font-bold text-slate-200">Weekly Level Completion Bonus Base XP</label>
+                        <p className="text-[10px] text-slate-400">Bonus XP unlocked on the first completion of a level each week.</p>
+                        <input
+                          type="number"
+                          value={siteConfig?.xpSettings?.ecgWeeklyBonusXP ?? 50}
+                          onChange={(e) => updateSiteConfig({
+                            xpSettings: { ...(siteConfig?.xpSettings || {}), ecgWeeklyBonusXP: Number(e.target.value) }
+                          })}
+                          className="w-full p-2 bg-slate-950 text-xs text-amber-300 font-bold rounded-lg border border-slate-800 focus:border-emerald-500 focus:outline-none"
+                          placeholder="50"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Live XP Calculator Preview Table across Difficulty Levels */}
+                    <div className="p-3 bg-slate-900/50 rounded-xl border border-slate-800/80 space-y-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Live Payout Preview across Difficulties:</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center text-[11px] font-mono">
+                        <div className="p-2 bg-slate-950 rounded-lg border border-emerald-500/30">
+                          <span className="block text-emerald-400 font-bold">🟢 Beginner ({siteConfig?.xpSettings?.beginnerMultiplier || 1.0}x)</span>
+                          <span className="text-[10px] text-slate-300">
+                            +{Math.round((siteConfig?.xpSettings?.ecgQuestionXP ?? 15) * (siteConfig?.xpSettings?.beginnerMultiplier || 1.0))} XP/Q | +{Math.round((siteConfig?.xpSettings?.ecgWeeklyBonusXP ?? 50) * (siteConfig?.xpSettings?.beginnerMultiplier || 1.0))} Bonus
+                          </span>
+                        </div>
+                        <div className="p-2 bg-slate-950 rounded-lg border border-amber-500/30">
+                          <span className="block text-amber-400 font-bold">🟡 Intermediate ({siteConfig?.xpSettings?.intermediateMultiplier || 1.5}x)</span>
+                          <span className="text-[10px] text-slate-300">
+                            +{Math.round((siteConfig?.xpSettings?.ecgQuestionXP ?? 15) * (siteConfig?.xpSettings?.intermediateMultiplier || 1.5))} XP/Q | +{Math.round((siteConfig?.xpSettings?.ecgWeeklyBonusXP ?? 50) * (siteConfig?.xpSettings?.intermediateMultiplier || 1.5))} Bonus
+                          </span>
+                        </div>
+                        <div className="p-2 bg-slate-950 rounded-lg border border-rose-500/30">
+                          <span className="block text-rose-400 font-bold">🔴 Advanced ({siteConfig?.xpSettings?.advancedMultiplier || 2.0}x)</span>
+                          <span className="text-[10px] text-slate-300">
+                            +{Math.round((siteConfig?.xpSettings?.ecgQuestionXP ?? 15) * (siteConfig?.xpSettings?.advancedMultiplier || 2.0))} XP/Q | +{Math.round((siteConfig?.xpSettings?.ecgWeeklyBonusXP ?? 50) * (siteConfig?.xpSettings?.advancedMultiplier || 2.0))} Bonus
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section B: 60-Second Quiz Questions Pool with 3 Level Sub-Groups */}
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                    <div>
+                      <h3 className="text-base font-extrabold text-white flex items-center space-x-2">
+                        <Zap className="w-5 h-5 text-cyan-400" />
+                        <span>Daily Quiz Questions Pool</span>
+                      </h3>
+                      <p className="text-xs text-slate-400">Select a difficulty level sub-group to upload and manage questions</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const preDiff = challengeDiffSubTab === 'all' ? 'beginner' : challengeDiffSubTab;
+                        setQuizForm({ id: '', q: '', option0: '', option1: '', option2: '', option3: '', answer: 0, category: 'Web Dev', difficulty: preDiff });
+                        setQuizModalOpen(true);
+                      }}
+                      className="px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-gradient-to-r from-cyan-600 via-teal-600 to-emerald-600 hover:opacity-90 text-white shadow-lg shadow-cyan-600/30 flex items-center space-x-1.5 self-start sm:self-auto"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Upload {challengeDiffSubTab === 'all' ? '' : challengeDiffSubTab.toUpperCase()} Question</span>
+                    </button>
+                  </div>
+
+                  {/* 3 LEVEL SUB-GROUP TABS */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-900 p-1.5 rounded-2xl border border-slate-800">
+                    <button
+                      onClick={() => setChallengeDiffSubTab('all')}
+                      className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center space-x-1.5 ${
+                        challengeDiffSubTab === 'all' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <span>🌐 All Levels</span>
+                      <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-950/60 font-mono">{(quizQuestions || []).length}</span>
+                    </button>
+
+                    <button
+                      onClick={() => setChallengeDiffSubTab('beginner')}
+                      className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center space-x-1.5 ${
+                        challengeDiffSubTab === 'beginner' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <span>🟢 Beginner (Easy)</span>
+                      <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-950/60 font-mono">
+                        {(quizQuestions || []).filter(q => q.difficulty === 'beginner').length}
+                      </span>
+                    </button>
+
+                    <button
+                      onClick={() => setChallengeDiffSubTab('intermediate')}
+                      className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center space-x-1.5 ${
+                        challengeDiffSubTab === 'intermediate' ? 'bg-amber-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <span>🟡 Intermediate</span>
+                      <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-950/60 font-mono">
+                        {(quizQuestions || []).filter(q => !q.difficulty || q.difficulty === 'intermediate').length}
+                      </span>
+                    </button>
+
+                    <button
+                      onClick={() => setChallengeDiffSubTab('advanced')}
+                      className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center space-x-1.5 ${
+                        challengeDiffSubTab === 'advanced' ? 'bg-rose-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <span>🔴 Advanced (Hard)</span>
+                      <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-950/60 font-mono">
+                        {(quizQuestions || []).filter(q => q.difficulty === 'advanced').length}
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Filtered Question Cards */}
+                  <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+                    {(quizQuestions || [])
+                      .filter(q => {
+                        if (challengeDiffSubTab === 'beginner') return q.difficulty === 'beginner';
+                        if (challengeDiffSubTab === 'intermediate') return !q.difficulty || q.difficulty === 'intermediate';
+                        if (challengeDiffSubTab === 'advanced') return q.difficulty === 'advanced';
+                        return true;
+                      })
+                      .map(q => (
+                        <div key={q.id} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                          <div className="flex justify-between items-center">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs font-bold text-cyan-300 px-2 py-0.5 rounded bg-cyan-500/20 border border-cyan-500/30">{q.category || 'General CS'}</span>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${q.difficulty === 'advanced' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : q.difficulty === 'beginner' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'}`}>
+                                {q.difficulty ? q.difficulty.toUpperCase() : 'INTERMEDIATE'}
+                              </span>
+                              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                📅 {q.weekBatch || '2026-W31'}
+                              </span>
+                            </div>
+                            <button onClick={() => removeQuizQuestion(q.id)} className="p-1 text-rose-400 hover:bg-rose-500/10 rounded" title="Delete Question"><Trash2 className="w-4 h-4" /></button>
+                          </div>
+                          <p className="text-sm font-bold text-white">{q.q}</p>
+                          <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
+                            {q.options?.map((opt, i) => (
+                              <div key={i} className={`p-2 rounded-xl border ${i === q.answer ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300 font-bold' : 'border-slate-800 bg-slate-900'}`}>
+                                {opt} {i === q.answer ? '✓' : ''}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: WEEKLY MISSIONS */}
+            {activeTab === 'brainzone_missions' && (
               <div className="space-y-4 animate-in fade-in">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                   <div>
                     <h3 className="text-base font-extrabold text-white flex items-center space-x-2">
-                      <Zap className="w-5 h-5 text-cyan-400" />
-                      <span>60-Second Quiz Questions Pool</span>
+                      <Target className="w-5 h-5 text-emerald-400" />
+                      <span>Weekly Student Missions ({(weeklyMissions || []).length})</span>
                     </h3>
-                    <p className="text-xs text-slate-400">Add or edit rapid-fire IT trivia questions</p>
+                    <p className="text-xs text-slate-400">Set weekly activity targets & XP rewards for students</p>
                   </div>
                   <button
-                    onClick={() => setQuizModalOpen(true)}
-                    className="px-3.5 py-2 rounded-xl text-xs font-bold bg-cyan-600 text-white flex items-center space-x-1"
+                    onClick={() => setMissionModalOpen(true)}
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center space-x-1 shadow-md"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>Add Question</span>
+                    <span>Add Weekly Mission</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {(weeklyMissions || []).map(m => (
+                    <div key={m.id} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2 flex justify-between items-center">
+                      <div>
+                        <h4 className="text-sm font-bold text-white">{m.title}</h4>
+                        <p className="text-xs text-slate-400">Target: {m.target} completions • Reward: +{m.reward} XP</p>
+                      </div>
+                      <button onClick={() => removeWeeklyMission(m.id)} className="p-1.5 text-rose-400 hover:bg-rose-500/10 rounded-lg">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB: BADGES & ACHIEVEMENTS */}
+            {activeTab === 'brainzone_badges' && (
+              <div className="space-y-4 animate-in fade-in">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div>
+                    <h3 className="text-base font-extrabold text-white flex items-center space-x-2">
+                      <Award className="w-5 h-5 text-amber-400" />
+                      <span>Achievement Badges & Collectibles ({(badges || []).length})</span>
+                    </h3>
+                    <p className="text-xs text-slate-400">Manage unlockable student badges and milestone rewards</p>
+                  </div>
+                  <button
+                    onClick={() => setBadgeModalOpen(true)}
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white flex items-center space-x-1 shadow-md"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Badge</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {(badges || []).map(b => (
+                    <div key={b.id} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2 flex flex-col justify-between">
+                      <div className="flex items-start space-x-3">
+                        <div className="text-2xl p-2 bg-slate-900 rounded-xl border border-slate-800">{b.icon || '🏆'}</div>
+                        <div>
+                          <h4 className="text-sm font-bold text-white">{b.title}</h4>
+                          <p className="text-xs text-slate-400">{b.desc}</p>
+                          <p className="text-xs font-bold text-amber-300 mt-1">Reward: {b.reward}</p>
+                        </div>
+                      </div>
+                      <div className="flex justify-end pt-2 border-t border-slate-800">
+                        <button onClick={() => removeBadge(b.id)} className="p-1 text-rose-400 hover:bg-rose-500/10 rounded">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB: THIS OR THAT POLLS */}
+            {activeTab === 'brainzone_polls' && (
+              <div className="space-y-4 animate-in fade-in">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div>
+                    <h3 className="text-base font-extrabold text-white flex items-center space-x-2">
+                      <Sparkles className="w-5 h-5 text-purple-400" />
+                      <span>This or That Daily Debate Polls ({(thisOrThatPolls || []).length})</span>
+                    </h3>
+                    <p className="text-xs text-slate-400">Manage daily tech stack poll questions</p>
+                  </div>
+                  <button
+                    onClick={() => setPollModalOpen(true)}
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white flex items-center space-x-1 shadow-md"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Create Debate Poll</span>
                   </button>
                 </div>
 
                 <div className="space-y-3">
-                  {(quizQuestions || []).map(q => (
-                    <div key={q.id} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                  {(thisOrThatPolls || []).map(p => (
+                    <div key={p.id} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold text-cyan-300">{q.category}</span>
-                        <button onClick={() => removeQuizQuestion(q.id)} className="p-1 text-rose-400"><Trash2 className="w-4 h-4" /></button>
+                        <span className="text-xs font-bold text-purple-300">{p.category || 'General IT'} • {p.date}</span>
+                        <button onClick={() => deleteThisOrThatPoll && deleteThisOrThatPoll(p.id)} className="p-1 text-rose-400 hover:bg-rose-500/10 rounded" title="Delete Poll"><Trash2 className="w-4 h-4" /></button>
                       </div>
-                      <p className="text-sm font-bold text-white">{q.q}</p>
-                      <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
-                        {q.options?.map((opt, i) => (
-                          <div key={i} className={`p-2 rounded-xl border ${i === q.answer ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300' : 'border-slate-800 bg-slate-900'}`}>
-                            {opt} {i === q.answer ? '✓' : ''}
+                      <h4 className="text-sm font-bold text-white">{p.question}</h4>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 font-bold">
+                          Option A: {p.optionA} ({p.votesA || 0} votes)
+                        </div>
+                        <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 font-bold">
+                          Option B: {p.optionB} ({p.votesB || 0} votes)
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB: MYSTERY BOX REWARDS */}
+            {activeTab === 'brainzone_mystery' && (
+              <div className="space-y-4 animate-in fade-in">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div>
+                    <h3 className="text-base font-extrabold text-white flex items-center space-x-2">
+                      <Gift className="w-5 h-5 text-pink-400" />
+                      <span>Mystery Box Loot & Rewards ({(mysteryRewards || []).length})</span>
+                    </h3>
+                    <p className="text-xs text-slate-400">Configure mystery prizes, XP bonuses, and cosmetic drops</p>
+                  </div>
+                  <button
+                    onClick={() => setMysteryModalOpen(true)}
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold bg-pink-600 hover:bg-pink-500 text-white flex items-center space-x-1 shadow-md"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Mystery Reward</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {(mysteryRewards || []).map(r => (
+                    <div key={r.id} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2 flex flex-col justify-between">
+                      <div className="flex items-start space-x-3">
+                        <div className="text-2xl p-2 bg-slate-900 rounded-xl border border-slate-800">{r.icon || '🎁'}</div>
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-2">
+                            <h4 className="text-sm font-bold text-white">{r.title}</h4>
+                            <span className={`px-1.5 py-0.2 rounded text-[9px] font-black uppercase ${
+                              r.rarity === 'Legendary' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
+                              r.rarity === 'Rare' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' :
+                              'bg-slate-800 text-slate-400'
+                            }`}>
+                              {r.rarity || 'Common'}
+                            </span>
                           </div>
-                        ))}
+                          <p className="text-xs text-slate-400">{r.desc}</p>
+                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-pink-500/20 text-pink-300 border border-pink-500/30">
+                            Type: {r.rewardType.toUpperCase()} ({r.value})
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end pt-2 border-t border-slate-800">
+                        <button onClick={() => removeMysteryReward(r.id)} className="p-1 text-rose-400 hover:bg-rose-500/10 rounded" title="Delete Mystery Reward">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -1302,13 +1913,13 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
                   <div>
                     <h3 className="text-base font-extrabold text-white flex items-center space-x-2">
                       <Lightbulb className="w-5 h-5 text-amber-400" />
-                      <span>Daily IT Facts & Tech Trivia</span>
+                      <span>Daily IT Facts & Tech Trivia ({(itFacts || []).length})</span>
                     </h3>
                     <p className="text-xs text-slate-400">Add daily facts displayed on the BrainZone Arcade</p>
                   </div>
                   <button
                     onClick={() => setFactModalOpen(true)}
-                    className="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-600 text-white flex items-center space-x-1"
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white flex items-center space-x-1 shadow-md"
                   >
                     <Plus className="w-4 h-4" />
                     <span>Add Fact</span>
@@ -1407,72 +2018,7 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
             {/* ================================================================= */}
             {activeTab === 'user_directory' && (
               <div className="space-y-4 animate-in fade-in">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
-                  <div>
-                    <h3 className="text-base font-extrabold text-white flex items-center space-x-2">
-                      <Users className="w-5 h-5 text-cyan-400" />
-                      <span>Registered User Directory ({filteredUsers.length})</span>
-                    </h3>
-                    <p className="text-xs text-slate-400">Manage student and faculty account roles & permissions</p>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <div className="relative">
-                      <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
-                      <input
-                        type="text"
-                        placeholder="Search name/email..."
-                        value={userSearchTerm}
-                        onChange={(e) => setUserSearchTerm(e.target.value)}
-                        className="pl-8 pr-3 py-1.5 bg-slate-950 text-xs text-slate-100 rounded-xl border border-slate-800 focus:outline-none focus:border-cyan-500"
-                      />
-                    </div>
-                    <button onClick={handleExportUsers} className="px-3 py-1.5 rounded-xl bg-cyan-600 text-white text-xs font-bold flex items-center space-x-1">
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Export CSV</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  {filteredUsers.map(u => (
-                    <div key={u.uid || u.id} className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs gap-3">
-                      <div>
-                        <p className="font-bold text-white flex items-center gap-2">
-                          <span>{u.name}</span>
-                          <span className={`px-2 py-0.2 rounded text-[10px] font-bold ${
-                            u.role === 'admin' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-300'
-                          }`}>
-                            {u.role || 'student'}
-                          </span>
-                        </p>
-                        <p className="text-slate-400 text-[11px]">{u.email} • {u.year || '3rd Year'} ({u.classSection || 'IT-A'})</p>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => {
-                            const newRole = u.role === 'admin' ? 'student' : 'admin';
-                            updateUserRole(u.uid || u.id, newRole);
-                          }}
-                          className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold"
-                        >
-                          Toggle {u.role === 'admin' ? 'Student' : 'Admin'} Role
-                        </button>
-                        <button
-                          onClick={() => {
-                            removeRegisteredUser(u.uid || u.id);
-                            logAdminActivity(`Deleted user account '${u.name}'`, 'User');
-                          }}
-                          className="p-1.5 text-rose-400 hover:bg-rose-500/10 rounded-xl"
-                          title="Delete User"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <UserDirectoryManager isModal={false} />
               </div>
             )}
 
@@ -1625,7 +2171,120 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
               </div>
             )}
 
-            {/* DEFAULT FALLBACK FOR TIMETABLES & OTHER SPECIFIC TABS */}
+            {/* TAB: SYSTEM BROADCASTS */}
+            {activeTab === 'broadcasts' && (
+              <div className="space-y-4 animate-in fade-in">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div>
+                    <h3 className="text-base font-extrabold text-white flex items-center space-x-2">
+                      <Megaphone className="w-5 h-5 text-amber-400" />
+                      <span>System Broadcast Overlays ({(broadcasts || []).length})</span>
+                    </h3>
+                    <p className="text-xs text-slate-400">Broadcast important announcements & pop-up banners to users</p>
+                  </div>
+                  <button
+                    onClick={() => setBroadcastModalOpen(true)}
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white flex items-center space-x-1 shadow-md"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Create System Broadcast</span>
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {(broadcasts || []).map(b => (
+                    <div key={b.id} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-2">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                              b.type === 'emergency' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' :
+                              b.type === 'warning' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
+                              'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                            }`}>
+                              {b.type || 'info'}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-mono">Target: {b.targetAudience?.toUpperCase() || 'ALL'}</span>
+                          </div>
+                          <h4 className="text-sm font-bold text-white">{b.title}</h4>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => toggleBroadcastStatus(b.id, b.isActive)}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                              b.isActive ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-slate-800 text-slate-400'
+                            }`}
+                          >
+                            {b.isActive ? 'Active' : 'Disabled'}
+                          </button>
+                          <button onClick={() => removeBroadcast(b.id)} className="p-1.5 text-rose-400 hover:bg-rose-500/10 rounded-lg">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-slate-300">{b.message}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB: DOC & SYLLABUS VERSIONS */}
+            {activeTab === 'versions' && (
+              <div className="space-y-4 animate-in fade-in">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div>
+                    <h3 className="text-base font-extrabold text-white flex items-center space-x-2">
+                      <History className="w-5 h-5 text-indigo-400" />
+                      <span>Document & Syllabus Version Control</span>
+                    </h3>
+                    <p className="text-xs text-slate-400">Track and publish new revisions for study materials and syllabus regulations</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {(materials || []).map(mat => (
+                    <div key={mat.id} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                            {mat.subjectCode || 'IT-DOC'}
+                          </span>
+                          <span className="text-[10px] text-slate-400">{mat.category} • Sem {mat.semester}</span>
+                        </div>
+                        <h4 className="text-sm font-bold text-white mt-1">{mat.title}</h4>
+                        <p className="text-xs text-slate-400">
+                          Revisions: {(mat.versionHistory || []).length + 1} version(s) • Last Updated: {mat.updatedDate || mat.uploadDate || 'Recent'}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center space-x-2 self-end sm:self-auto">
+                        <button
+                          onClick={() => onOpenVersionHistory && onOpenVersionHistory('material', mat)}
+                          className="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center space-x-1"
+                        >
+                          <History className="w-3.5 h-3.5 text-indigo-400" />
+                          <span>View History</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedDocItem(mat);
+                            setDocType('material');
+                            setDocRevisionModalOpen(true);
+                          }}
+                          className="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white flex items-center space-x-1 shadow-md"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>New Revision</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {activeTab === 'timetables' && (
               <div className="space-y-4 animate-in fade-in">
                 <div className="flex justify-between items-center border-b border-slate-800 pb-3">
@@ -1646,6 +2305,13 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
                         <p className="text-slate-400 text-[11px]">{t.year} • Sem {t.semester}</p>
                       </div>
                       <div className="flex space-x-2">
+                        <button 
+                          onClick={() => onOpenAdminForm && onOpenAdminForm('timetable', t)} 
+                          className="px-2 py-1 bg-brand-600 hover:bg-brand-500 rounded text-[10px] text-white font-bold flex items-center space-x-1"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                          <span>Edit</span>
+                        </button>
                         <button onClick={() => toggleTimetableStatus(t.id)} className="px-2 py-1 bg-slate-800 rounded text-[10px] text-slate-200">
                           {t.status === 'archived' ? 'Unarchive' : 'Archive'}
                         </button>
@@ -1705,7 +2371,14 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
                   <label className="block text-xs font-semibold text-slate-300 mb-1">Semester</label>
                   <select
                     value={subjectForm.semester}
-                    onChange={(e) => setSubjectForm({ ...subjectForm, semester: Number(e.target.value) })}
+                    onChange={(e) => {
+                      const semNum = Number(e.target.value);
+                      setSubjectForm({ 
+                        ...subjectForm, 
+                        semester: semNum,
+                        year: getYearFromSemester(semNum)
+                      });
+                    }}
                     className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800 focus:outline-none focus:border-indigo-500"
                   >
                     {[1, 2, 3, 4, 5, 6, 7, 8].map(s => (
@@ -1814,6 +2487,36 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
                 </select>
               </div>
 
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Target Week Batch (Weekly Rotation)</label>
+                <div className="flex space-x-2">
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 2026-W31"
+                    value={quizForm.weekBatch || ''}
+                    onChange={(e) => setQuizForm({ ...quizForm, weekBatch: e.target.value })}
+                    className="flex-1 p-2 bg-slate-950 text-xs text-cyan-300 font-mono font-bold rounded-xl border border-slate-800"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+                      const dayNum = date.getUTCDay() || 7;
+                      date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+                      const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+                      const weekNo = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+                      const currentWeek = `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+                      setQuizForm({ ...quizForm, weekBatch: currentWeek });
+                    }}
+                    className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 font-bold"
+                  >
+                    Current Week
+                  </button>
+                </div>
+              </div>
+
               <button type="submit" className="w-full py-2.5 rounded-xl text-xs font-bold bg-cyan-600 text-white shadow-md">
                 Save Question
               </button>
@@ -1859,6 +2562,441 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
 
               <button type="submit" className="w-full py-2.5 rounded-xl text-xs font-bold bg-amber-600 text-white shadow-md">
                 Add IT Fact
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* WEEKLY MISSION ADD MODAL */}
+      {missionModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+          <div className="glass-panel rounded-3xl max-w-md w-full p-6 border border-slate-700 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-white">Add Weekly Student Mission</h3>
+              <button onClick={() => setMissionModalOpen(false)} className="p-1 text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveWeeklyMission} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Mission Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Complete 3 Quick Quizzes"
+                  value={missionForm.title}
+                  onChange={(e) => setMissionForm({ ...missionForm, title: e.target.value })}
+                  className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Target Count</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={missionForm.target}
+                    onChange={(e) => setMissionForm({ ...missionForm, target: e.target.value })}
+                    className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Reward XP</label>
+                  <input
+                    type="number"
+                    required
+                    min="10"
+                    value={missionForm.reward}
+                    onChange={(e) => setMissionForm({ ...missionForm, reward: e.target.value })}
+                    className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                  />
+                </div>
+              </div>
+
+              <button type="submit" className="w-full py-2.5 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-md">
+                Add Weekly Mission
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* BADGE ADD MODAL */}
+      {badgeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+          <div className="glass-panel rounded-3xl max-w-md w-full p-6 border border-slate-700 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-white">Add Achievement Badge</h3>
+              <button onClick={() => setBadgeModalOpen(false)} className="p-1 text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveBadge} className="space-y-3">
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Badge Icon</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 🏆"
+                    value={badgeForm.icon}
+                    onChange={(e) => setBadgeForm({ ...badgeForm, icon: e.target.value })}
+                    className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800 text-center text-lg"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Badge Title</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Speed Demon"
+                    value={badgeForm.title}
+                    onChange={(e) => setBadgeForm({ ...badgeForm, title: e.target.value })}
+                    className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Description / How to Unlock</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Complete 60-Second Challenge with >80% score"
+                  value={badgeForm.desc}
+                  onChange={(e) => setBadgeForm({ ...badgeForm, desc: e.target.value })}
+                  className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Target Count</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={badgeForm.target}
+                    onChange={(e) => setBadgeForm({ ...badgeForm, target: e.target.value })}
+                    className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Reward Text</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. +100 XP"
+                    value={badgeForm.reward}
+                    onChange={(e) => setBadgeForm({ ...badgeForm, reward: e.target.value })}
+                    className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                  />
+                </div>
+              </div>
+
+              <button type="submit" className="w-full py-2.5 rounded-xl text-xs font-bold bg-amber-600 text-white shadow-md">
+                Add Achievement Badge
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MYSTERY REWARD ADD MODAL */}
+      {mysteryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+          <div className="glass-panel rounded-3xl max-w-md w-full p-6 border border-slate-700 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-white">Add Mystery Box Reward</h3>
+              <button onClick={() => setMysteryModalOpen(false)} className="p-1 text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveMysteryReward} className="space-y-3">
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Icon Emoji</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 🎁"
+                    value={mysteryForm.icon}
+                    onChange={(e) => setMysteryForm({ ...mysteryForm, icon: e.target.value })}
+                    className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800 text-center text-lg"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Reward Title</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. +150 Super XP Bonus"
+                    value={mysteryForm.title}
+                    onChange={(e) => setMysteryForm({ ...mysteryForm, title: e.target.value })}
+                    className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Reward Type</label>
+                  <select
+                    value={mysteryForm.rewardType}
+                    onChange={(e) => setMysteryForm({ ...mysteryForm, rewardType: e.target.value })}
+                    className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                  >
+                    <option value="xp">⚡ XP Payout</option>
+                    <option value="cosmetic">🎁 Cosmetic Unlock</option>
+                    <option value="shield">🛡️ Streak Shield</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Rarity Tier</label>
+                  <select
+                    value={mysteryForm.rarity}
+                    onChange={(e) => setMysteryForm({ ...mysteryForm, rarity: e.target.value })}
+                    className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                  >
+                    <option value="Common">⚪ Common</option>
+                    <option value="Rare">🔵 Rare</option>
+                    <option value="Legendary">🟡 Legendary</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Reward Value (XP amount or Cosmetic ID)</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 150 or golden_legend"
+                  value={mysteryForm.value}
+                  onChange={(e) => setMysteryForm({ ...mysteryForm, value: e.target.value })}
+                  className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Description</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Instant +150 XP added to student profile"
+                  value={mysteryForm.desc}
+                  onChange={(e) => setMysteryForm({ ...mysteryForm, desc: e.target.value })}
+                  className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                />
+              </div>
+
+              <button type="submit" className="w-full py-2.5 rounded-xl text-xs font-bold bg-pink-600 text-white shadow-md">
+                Add Mystery Reward
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* POLL ADD MODAL */}
+      {pollModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+          <div className="glass-panel rounded-3xl max-w-md w-full p-6 border border-slate-700 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-white">Create This or That Debate Poll</h3>
+              <button onClick={() => setPollModalOpen(false)} className="p-1 text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePoll} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Debate Topic / Question</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Which backend tech stack do you prefer for high-scale web apps?"
+                  value={pollForm.question}
+                  onChange={(e) => setPollForm({ ...pollForm, question: e.target.value })}
+                  className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-amber-400 mb-1">Option A</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Node.js / Express 🚀"
+                    value={pollForm.optionA}
+                    onChange={(e) => setPollForm({ ...pollForm, optionA: e.target.value })}
+                    className="w-full p-2.5 bg-slate-950 text-xs text-amber-300 rounded-xl border border-amber-500/40"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-indigo-400 mb-1">Option B</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Python / FastAPI 🐍"
+                    value={pollForm.optionB}
+                    onChange={(e) => setPollForm({ ...pollForm, optionB: e.target.value })}
+                    className="w-full p-2.5 bg-slate-950 text-xs text-indigo-300 rounded-xl border border-indigo-500/40"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Category</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Backend Dev"
+                    value={pollForm.category}
+                    onChange={(e) => setPollForm({ ...pollForm, category: e.target.value })}
+                    className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Active Date</label>
+                  <input
+                    type="date"
+                    value={pollForm.date}
+                    onChange={(e) => setPollForm({ ...pollForm, date: e.target.value })}
+                    className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                  />
+                </div>
+              </div>
+
+              <button type="submit" className="w-full py-2.5 rounded-xl text-xs font-bold bg-purple-600 text-white shadow-md">
+                Publish Debate Poll
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* BROADCAST ADD MODAL */}
+      {broadcastModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+          <div className="glass-panel rounded-3xl max-w-md w-full p-6 border border-slate-700 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-white">Create System Overlay Broadcast</h3>
+              <button onClick={() => setBroadcastModalOpen(false)} className="p-1 text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveBroadcast} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Broadcast Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 🎉 Mid-Term Exam Timetable Published!"
+                  value={broadcastForm.title}
+                  onChange={(e) => setBroadcastForm({ ...broadcastForm, title: e.target.value })}
+                  className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Message Body</label>
+                <textarea
+                  required
+                  rows="3"
+                  placeholder="Enter broadcast announcement text..."
+                  value={broadcastForm.message}
+                  onChange={(e) => setBroadcastForm({ ...broadcastForm, message: e.target.value })}
+                  className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Severity Type</label>
+                  <select
+                    value={broadcastForm.type}
+                    onChange={(e) => setBroadcastForm({ ...broadcastForm, type: e.target.value })}
+                    className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                  >
+                    <option value="info">🔵 Information</option>
+                    <option value="warning">🟡 Warning / Alert</option>
+                    <option value="emergency">🔴 Emergency</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Audience</label>
+                  <select
+                    value={broadcastForm.targetAudience}
+                    onChange={(e) => setBroadcastForm({ ...broadcastForm, targetAudience: e.target.value })}
+                    className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                  >
+                    <option value="all">🌐 Everyone</option>
+                    <option value="student">🎓 Students Only</option>
+                    <option value="faculty">👨‍🏫 Faculty / Admin Only</option>
+                  </select>
+                </div>
+              </div>
+
+              <button type="submit" className="w-full py-2.5 rounded-xl text-xs font-bold bg-amber-600 text-white shadow-md">
+                Publish System Broadcast
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DOC REVISION UPLOAD MODAL */}
+      {docRevisionModalOpen && selectedDocItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+          <div className="glass-panel rounded-3xl max-w-md w-full p-6 border border-slate-700 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-white">Upload New Revision</h3>
+              <button onClick={() => setDocRevisionModalOpen(false)} className="p-1 text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveDocRevision} className="space-y-3">
+              <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
+                <p className="text-xs font-bold text-indigo-300">{selectedDocItem.title || selectedDocItem.name}</p>
+                <p className="text-[10px] text-slate-400">Subject Code: {selectedDocItem.subjectCode || 'N/A'}</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Revision Release Notes / Changelog</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Updated Unit 3 Distributed Consensus notes for Anna University 2023 syllabus"
+                  value={revisionNotes}
+                  onChange={(e) => setRevisionNotes(e.target.value)}
+                  className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Updated Document File Link / URL</label>
+                <input
+                  type="text"
+                  placeholder="https://drive.google.com/..."
+                  value={revisionFileUrl}
+                  onChange={(e) => setRevisionFileUrl(e.target.value)}
+                  className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800 font-mono"
+                />
+              </div>
+
+              <button type="submit" className="w-full py-2.5 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-md">
+                Publish Revision Snapshot
               </button>
             </form>
           </div>

@@ -9,6 +9,16 @@ export const getSemestersForYear = (year) => {
   return YEAR_SEMESTERS[year] || [1, 2, 3, 4, 5, 6, 7, 8];
 };
 
+export const getYearFromSemester = (sem) => {
+  const semNum = Number(sem);
+  if (semNum === 1 || semNum === 2) return '1st Year';
+  if (semNum === 3 || semNum === 4) return '2nd Year';
+  if (semNum === 5 || semNum === 6) return '3rd Year';
+  if (semNum === 7 || semNum === 8) return '4th Year';
+  return '1st Year';
+};
+
+
 export const INITIAL_SUBJECTS = [
   { id: 'sub-1', year: '1st Year', semester: 1, name: 'Programming in C' },
   { id: 'sub-2', year: '1st Year', semester: 1, name: 'Engineering Mathematics-I' },
@@ -188,123 +198,352 @@ export const INITIAL_MATERIALS = [
 ];
 
 export const INITIAL_AI_TOOLS = [
+  // CODING
   {
-    id: 'tool-1',
-    name: 'GitHub Copilot',
+    id: 'tool-github-copilot',
+    name: 'GitHub Copilot Free',
     category: 'Coding',
     pricing: 'Freemium',
-    description: 'AI pair programmer that auto-completes code, writes unit tests, and explains complex algorithms right inside your IDE.',
+    description: 'AI pair programmer with 2,000 free completions and 50 AI chats/month, access to GPT-4o and Claude models.',
     logoUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=600&q=80',
     websiteUrl: 'https://github.com/features/copilot',
     featured: true,
-    addedDate: '2026-07-20',
-    addedTime: '09:30 AM',
-    tags: ['IDE', 'Code Generation', 'Autocomplete']
+    tags: ['Autocomplete', 'Beginner-Friendly'],
+    bestFor: 'In-editor pair programming and multi-model AI chat',
+    lastVerified: '2026-07-25'
   },
   {
-    id: 'tool-2',
+    id: 'tool-codeium',
+    name: 'Codeium',
+    category: 'Coding',
+    pricing: 'Free',
+    description: 'Unlimited free AI code completions across 70+ languages and 40+ code editors — most generous free tier available.',
+    logoUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vscode/vscode-original.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=600&q=80',
+    websiteUrl: 'https://codeium.com',
+    featured: true,
+    tags: ['Unlimited', 'MultiLanguage'],
+    bestFor: 'Unlimited free code completions in VS Code & JetBrains',
+    lastVerified: '2026-07-28'
+  },
+  {
+    id: 'tool-cursor',
+    name: 'Cursor',
+    category: 'Coding',
+    pricing: 'Freemium',
+    description: 'AI-first code editor with agent mode for multi-file changes; free tier includes 2,000 completions + 50 premium requests.',
+    logoUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=600&q=80',
+    websiteUrl: 'https://www.cursor.com',
+    featured: true,
+    tags: ['AIEditor', 'AgentMode'],
+    bestFor: 'Multi-file autonomous refactoring & AI agent edits',
+    lastVerified: '2026-07-29'
+  },
+  {
+    id: 'tool-gemini-code-assist',
+    name: 'Gemini Code Assist',
+    category: 'Coding',
+    pricing: 'Free',
+    description: "Google's AI coding assistant with 180,000 free completions per month in VS Code and JetBrains.",
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/8/8a/Google_Gemini_logo.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1573164713988-8665fc963095?auto=format&fit=crop&w=600&q=80',
+    websiteUrl: 'https://cloud.google.com/products/gemini/code-assist',
+    featured: true,
+    tags: ['Google', 'HighLimit'],
+    bestFor: 'Massive monthly completion limits for IDE coding',
+    lastVerified: '2026-07-30'
+  },
+  {
+    id: 'tool-chatgpt',
     name: 'ChatGPT',
     category: 'Coding',
     pricing: 'Free',
     description: 'Versatile conversational AI for code debugging, conceptual explanations, math derivation, and study planning.',
     logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&w=600&q=80',
     websiteUrl: 'https://chatgpt.com',
     featured: true,
-    addedDate: '2026-07-18',
-    addedTime: '11:15 AM',
-    tags: ['General AI', 'Debugging', 'Tutoring']
+    tags: ['General AI', 'Debugging', 'Tutoring'],
+    bestFor: 'Interactive debugging & step-by-step problem explanations',
+    lastVerified: '2026-07-25'
   },
   {
-    id: 'tool-3',
+    id: 'tool-claude',
     name: 'Claude 3.5 Sonnet',
     category: 'Writing',
     pricing: 'Freemium',
     description: 'Advanced AI with exceptional technical writing, code generation, and deep PDF document synthesis capability.',
     logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/7/70/Anthropic_logo.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80',
     websiteUrl: 'https://claude.ai',
     featured: true,
-    addedDate: '2026-07-19',
-    addedTime: '02:40 PM',
-    tags: ['Document Synthesis', 'Writing', 'Code']
+    tags: ['Document Synthesis', 'Writing', 'Code'],
+    bestFor: 'Analyzing long PDF research papers & technical essays',
+    lastVerified: '2026-07-27'
   },
+
+  // RESEARCH & PRODUCTIVITY
   {
-    id: 'tool-4',
+    id: 'tool-perplexity',
     name: 'Perplexity AI',
     category: 'Research',
     pricing: 'Free',
     description: 'Conversational answer engine with direct citations and real-time academic source tracking for research papers.',
     logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/1/1d/Perplexity_AI_logo.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=600&q=80',
     websiteUrl: 'https://perplexity.ai',
     featured: true,
-    addedDate: '2026-07-15',
-    addedTime: '04:10 PM',
-    tags: ['Citations', 'Academic Search', 'Fact-checking']
+    tags: ['Citations', 'Academic Search', 'Fact-checking'],
+    bestFor: 'Real-time web search with verified academic citations',
+    lastVerified: '2026-07-28'
   },
   {
-    id: 'tool-5',
+    id: 'tool-overleaf',
     name: 'Overleaf + Writefull AI',
     category: 'Research',
     pricing: 'Freemium',
     description: 'Collaborative LaTeX editor integrated with automated language checking and reference formatting for academic papers.',
     logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/e/ed/Overleaf_logo.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&w=600&q=80',
     websiteUrl: 'https://www.overleaf.com',
     featured: false,
-    tags: ['LaTeX', 'Research Papers', 'Publishing']
+    tags: ['LaTeX', 'Research Papers', 'Publishing'],
+    bestFor: 'Writing LaTeX journal papers and conference reports',
+    lastVerified: '2026-07-26'
   },
+
+  // DESIGN (PHOTO & VIDEO)
   {
-    id: 'tool-6',
-    name: 'Phind',
-    category: 'Coding',
-    pricing: 'Free',
-    description: 'Search engine optimized specifically for developers, providing immediate code examples and documentation answers.',
-    logoUrl: 'https://www.phind.com/favicon.ico',
-    websiteUrl: 'https://www.phind.com',
-    featured: false,
-    tags: ['Search Engine', 'Developer Q&A']
-  },
-  {
-    id: 'tool-7',
-    name: 'Resume.io',
-    category: 'Resume/Career',
+    id: 'tool-remove-bg',
+    name: 'remove.bg',
+    category: 'Design',
     pricing: 'Freemium',
-    description: 'ATS-friendly resume builder with AI suggestions tailored for IT internships, software development, and tech roles.',
-    logoUrl: 'https://resume.io/favicon.ico',
-    websiteUrl: 'https://resume.io',
-    featured: true,
-    tags: ['ATS Resume', 'Portfolio', 'Internship']
+    description: 'AI background remover; unlimited low-res downloads free, one free high-res download, then credit-based.',
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png',
+    photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
+    websiteUrl: 'https://www.remove.bg',
+    featured: false,
+    tags: ['BackgroundRemoval', 'QuickEdit'],
+    bestFor: 'Instant transparent background removal for project photos',
+    lastVerified: '2026-07-26'
   },
   {
-    id: 'tool-8',
+    id: 'tool-canva-magic',
     name: 'Canva Magic Studio',
     category: 'Design',
     pricing: 'Freemium',
-    description: 'Create presentation slides, project posters, diagrams, and UI wireframes effortlessly with generative AI tools.',
+    description: 'Generate slides, posters, diagrams, and social visuals with AI; free tier hits export limits quickly.',
     logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/08/Canva_icon_2021.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?auto=format&fit=crop&w=600&q=80',
     websiteUrl: 'https://www.canva.com',
     featured: false,
-    tags: ['Slides', 'Diagrams', 'UI Design']
+    tags: ['Templates', 'QuickDesign'],
+    bestFor: 'Designing presentation slides and symposium posters',
+    lastVerified: '2026-07-27'
   },
   {
-    id: 'tool-9',
-    name: 'Notion AI',
-    category: 'Productivity',
-    pricing: 'Paid',
-    description: 'Connected workspace tool for organizing lecture notes, task boards, syllabus tracking, and automated summaries.',
-    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/e/e9/Notion-logo.svg',
-    websiteUrl: 'https://www.notion.so',
-    featured: false,
-    tags: ['Note Taking', 'Task Planner', 'Database']
-  },
-  {
-    id: 'tool-10',
-    name: 'Consensus',
-    category: 'Research',
+    id: 'tool-gemini-nano-banana',
+    name: 'Google Gemini (Nano Banana)',
+    category: 'Design',
     pricing: 'Free',
-    description: 'AI search engine that extracts insights directly from peer-reviewed scientific literature to support technical writing.',
-    logoUrl: 'https://consensus.app/favicon.ico',
-    websiteUrl: 'https://consensus.app',
+    description: 'Free image generation and editing, up to 20 images/day, quota resets daily.',
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/8/8a/Google_Gemini_logo.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80',
+    websiteUrl: 'https://gemini.google.com',
+    featured: true,
+    tags: ['ImageGen', 'DailyFree'],
+    bestFor: 'Free daily AI image generation and graphics creation',
+    lastVerified: '2026-07-30'
+  },
+  {
+    id: 'tool-runway',
+    name: 'Runway',
+    category: 'Design',
+    pricing: 'Freemium',
+    description: 'Industry-standard AI video generation tool for cinematic-quality clips.',
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1536240478700-b869070f9279?auto=format&fit=crop&w=600&q=80',
+    websiteUrl: 'https://runwayml.com',
     featured: false,
-    tags: ['Scientific Papers', 'Peer-Reviewed']
+    tags: ['VideoGen', 'Cinematic'],
+    bestFor: 'Cinematic AI video generation and video-to-video FX',
+    lastVerified: '2026-07-25'
+  },
+  {
+    id: 'tool-pika',
+    name: 'Pika',
+    category: 'Design',
+    pricing: 'Freemium',
+    description: 'Popular free tool for generating simple short AI video clips.',
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/e/ed/Overleaf_logo.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=600&q=80',
+    websiteUrl: 'https://pika.art',
+    featured: false,
+    tags: ['ShortVideo', 'Beginner'],
+    bestFor: 'Generating short 3D/2D AI video animations',
+    lastVerified: '2026-07-28'
+  },
+  {
+    id: 'tool-capcut',
+    name: 'CapCut',
+    category: 'Design',
+    pricing: 'Free',
+    description: 'Free video editor with AI auto-captions, transitions, and quick reel editing.',
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/e/e8/Svg_file.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=600&q=80',
+    websiteUrl: 'https://www.capcut.com',
+    featured: true,
+    tags: ['VideoEditing', 'Reels', 'Captions'],
+    bestFor: 'Auto-captioning and fast video editing for presentations',
+    lastVerified: '2026-07-30'
+  },
+
+  // RESUME / CAREER
+  {
+    id: 'tool-wobo',
+    name: 'Wobo',
+    category: 'Resume/Career',
+    pricing: 'Free',
+    description: 'Free unlimited resume creation with 24-point ATS compatibility analysis and AI suggestions using STAR/CAR frameworks.',
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/e/e8/Svg_file.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?auto=format&fit=crop&w=600&q=80',
+    websiteUrl: 'https://wobo.ai',
+    featured: true,
+    tags: ['ATS', 'Unlimited'],
+    bestFor: 'Free unlimited ATS resume building with STAR frameworks',
+    lastVerified: '2026-07-29'
+  },
+  {
+    id: 'tool-teal',
+    name: 'Teal',
+    category: 'Resume/Career',
+    pricing: 'Freemium',
+    description: 'AI-generated bullet points, resume-to-job match scoring, and application tracking pipeline; free plan includes unlimited resumes.',
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/e/e8/Svg_file.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=600&q=80',
+    websiteUrl: 'https://www.tealhq.com',
+    featured: true,
+    tags: ['JobTracking', 'ATS'],
+    bestFor: 'Tracking job applications and resume match scoring',
+    lastVerified: '2026-07-28'
+  },
+  {
+    id: 'tool-rezi',
+    name: 'Rezi',
+    category: 'Resume/Career',
+    pricing: 'Freemium',
+    description: 'ATS-focused resume builder with keyword analysis scored against specific job descriptions.',
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/e/e8/Svg_file.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=600&q=80',
+    websiteUrl: 'https://www.rezi.ai',
+    featured: false,
+    tags: ['ATS', 'KeywordMatch'],
+    bestFor: 'Scoring resume keywords against target job descriptions',
+    lastVerified: '2026-07-27'
+  },
+  {
+    id: 'tool-kickresume',
+    name: 'Kickresume',
+    category: 'Resume/Career',
+    pricing: 'Freemium',
+    description: 'Design-focused resume builder with polished, modern templates and flexible visual control.',
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/e/e8/Svg_file.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?auto=format&fit=crop&w=600&q=80',
+    websiteUrl: 'https://www.kickresume.com',
+    featured: false,
+    tags: ['Design', 'Templates'],
+    bestFor: 'Creating visually stunning, modern resume templates',
+    lastVerified: '2026-07-26'
+  },
+
+  // APP BUILDING
+  {
+    id: 'tool-base44',
+    name: 'Base44',
+    category: 'App Building',
+    pricing: 'Freemium',
+    description: 'All-in-one AI app builder with built-in database, authentication, and code generation — describe your app, get a working MVP.',
+    logoUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=600&q=80',
+    websiteUrl: 'https://base44.io',
+    featured: true,
+    tags: ['NoCode', 'MVP', 'FullStack'],
+    bestFor: 'Generating full-stack web MVPs from prompt descriptions',
+    lastVerified: '2026-07-30'
+  },
+  {
+    id: 'tool-bubble',
+    name: 'Bubble',
+    category: 'App Building',
+    pricing: 'Freemium',
+    description: 'Industry-standard no-code platform for building sophisticated web applications with visual logic.',
+    logoUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/javascript/javascript-original.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=600&q=80',
+    websiteUrl: 'https://bubble.io',
+    featured: true,
+    tags: ['NoCode', 'Advanced'],
+    bestFor: 'Building complex web applications without writing code',
+    lastVerified: '2026-07-28'
+  },
+  {
+    id: 'tool-softr',
+    name: 'Softr',
+    category: 'App Building',
+    pricing: 'Freemium',
+    description: 'AI Co-Builder generates database, app, and business logic from a description; generous free tier with custom domains and unlimited apps.',
+    logoUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/html5/html5-original.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=600&q=80',
+    websiteUrl: 'https://www.softr.io',
+    featured: false,
+    tags: ['NoCode', 'BusinessApps'],
+    bestFor: 'Building client portals & internal tool apps on free tier',
+    lastVerified: '2026-07-29'
+  },
+  {
+    id: 'tool-flutterflow',
+    name: 'FlutterFlow',
+    category: 'App Building',
+    pricing: 'Freemium',
+    description: 'Best for native iOS/Android apps — generates exportable Flutter code, not just web-only apps.',
+    logoUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/flutter/flutter-original.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=600&q=80',
+    websiteUrl: 'https://flutterflow.io',
+    featured: true,
+    tags: ['Mobile', 'Flutter', 'CodeExport'],
+    bestFor: 'Building native iOS/Android apps with Flutter code export',
+    lastVerified: '2026-07-30'
+  },
+
+  // WEBSITE BUILDING
+  {
+    id: 'tool-framer-ai',
+    name: 'Framer AI',
+    category: 'Website Building',
+    pricing: 'Freemium',
+    description: 'Generates a full, polished website from a text prompt; great for portfolios and landing pages.',
+    logoUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/figma/figma-original.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=600&q=80',
+    websiteUrl: 'https://www.framer.com',
+    featured: true,
+    tags: ['WebsiteGen', 'Portfolio'],
+    bestFor: 'Building your portfolio site before placements',
+    lastVerified: '2026-07-30'
+  },
+  {
+    id: 'tool-10web',
+    name: '10Web',
+    category: 'Website Building',
+    pricing: 'Freemium',
+    description: 'AI website builder with integrated hosting — describe your site, get a live WordPress site built automatically.',
+    logoUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/wordpress/wordpress-plain.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=600&q=80',
+    websiteUrl: 'https://10web.io',
+    featured: false,
+    tags: ['WordPress', 'Hosting'],
+    bestFor: 'Automated WordPress site generation with integrated hosting',
+    lastVerified: '2026-07-28'
   }
 ];
 
@@ -769,98 +1008,200 @@ export const INITIAL_REPORTS = [
 
 export const INITIAL_PLACEMENT_COMPANIES = [
   {
-    id: 'comp-1',
-    companyName: 'Google',
-    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg',
-    eligibilityCriteria: 'B.Tech IT / CSE with no active backlogs',
-    cgpaCutoff: 8.5,
-    driveDate: '2026-09-15',
-    description: 'Software Engineering & Cloud Systems hiring drive for 2027 graduating batch.'
-  },
-  {
-    id: 'comp-2',
-    companyName: 'TCS Digital / Ninja',
+    id: 'comp-tcs',
+    companyName: 'TCS (Tata Consultancy Services)',
     logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/b/b1/Tata_Consultancy_Services_Logo.svg',
-    eligibilityCriteria: 'All IT & Circuit branches, >60% in X/XII/Graduation',
-    cgpaCutoff: 6.5,
+    photoUrl: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80',
+    eligibilityCriteria: 'Minimum 60% aggregate in 10th, 12th, and graduation, no active backlogs at time of joining.',
+    cgpaCutoff: 6.0,
     driveDate: '2026-08-28',
-    description: 'Mass recruitment drive offering System Engineer and Digital Innovator roles.'
+    roles: 'Systems Engineer (via TCS NQT)',
+    packageRange: 'TCS Prime up to ₹11 LPA (regular track lower)',
+    description: 'National Qualifier Test (NQT) campus drive for 2026 batch hiring Ninja, Digital, and TCS Prime engineering roles.'
   },
   {
-    id: 'comp-3',
-    companyName: 'Amazon',
-    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg',
-    eligibilityCriteria: 'Strong Data Structures, Algorithms & System Design fundamentals',
-    cgpaCutoff: 7.5,
-    driveDate: '2026-10-02',
-    description: 'Software Development Engineer (SDE-1) campus recruitment.'
-  },
-  {
-    id: 'comp-4',
-    companyName: 'Infosys (Specialist Programmer)',
+    id: 'comp-infosys',
+    companyName: 'Infosys',
     logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/9/95/Infosys_logo.svg',
-    eligibilityCriteria: 'B.Tech IT/CSE/ECE with hands-on Competitive Programming skills',
-    cgpaCutoff: 7.0,
-    driveDate: '2026-09-01',
-    description: 'Power Programmer & Specialist Software Engineer drive.'
+    photoUrl: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80',
+    eligibilityCriteria: 'Minimum 60% aggregate in graduation, 10th & 12th, no active backlogs.',
+    cgpaCutoff: 6.0,
+    driveDate: '2026-09-05',
+    roles: 'Systems Engineer, Digital Specialist Engineer',
+    packageRange: '₹3.6–8 LPA depending on role; Power Programmer track ₹9.5 LPA',
+    description: 'Off-campus and on-campus recruitment for Systems Engineer, Digital Specialist Engineer (DSE), and Specialist Programmer roles.'
+  },
+  {
+    id: 'comp-accenture',
+    companyName: 'Accenture',
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/c/cd/Accenture.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80',
+    eligibilityCriteria: 'B.E/B.Tech/MCA/M.Sc (CS/IT), any stream accepted, no active backlogs, up to 23 months prior full-time experience allowed.',
+    cgpaCutoff: 6.0,
+    driveDate: '2026-09-20',
+    roles: 'Associate Software Engineer (ASE)',
+    packageRange: 'Standard track ~₹4.5–6 LPA',
+    description: 'National recruitment drive for Associate Software Engineer (ASE) and Advanced Application Engineering Associate roles.'
+  },
+  {
+    id: 'comp-hcl',
+    companyName: 'HCLTech',
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/a/a4/HCL_Technologies_logo.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80',
+    eligibilityCriteria: '60% aggregate baseline; elite track requires stronger technical/AI skills.',
+    cgpaCutoff: 6.0,
+    driveDate: '2026-10-10',
+    roles: 'Elite AI-Skilled Fresher Program',
+    packageRange: '₹18–22 LPA for elite track (highest publicly disclosed IT-services package for freshers in 2026), standard track significantly lower',
+    description: 'Campus hiring initiative for AI Engineers and Cloud Infrastructure Associates with elite high-package tracks.'
+  },
+  {
+    id: 'comp-cognizant',
+    companyName: 'Cognizant',
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/2/29/Cognizant_logo_2022.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=800&q=80',
+    eligibilityCriteria: '60% aggregate, B.E/B.Tech/MCA, batch-specific eligibility.',
+    cgpaCutoff: 6.0,
+    driveDate: '2026-09-12',
+    roles: 'GenC (standard) / GenC Elevate (stronger coding profile)',
+    packageRange: 'GenC Elevate pays notably higher than standard GenC',
+    description: 'GenC & GenC Elevate campus recruitment for fresh IT graduates specializing in Full Stack, Cloud, and Data Engineering.'
+  },
+  {
+    id: 'comp-wipro',
+    companyName: 'Wipro',
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/a/a0/Wipro_Primary_Logo_Color_RGB.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=800&q=80',
+    eligibilityCriteria: '60%+ in graduation and class X & XII, maximum one active backlog clearable before joining.',
+    cgpaCutoff: 6.0,
+    driveDate: '2026-09-25',
+    roles: 'Project Engineer / Turbo track',
+    packageRange: '₹3.5–6.5 LPA depending on track',
+    description: 'Elite National Talent Hunt (NTH) hiring Project Engineers for enterprise digital transformation projects.'
   }
 ];
 
 export const INITIAL_INTERVIEW_EXPERIENCES = [
   {
     id: 'exp-1',
-    companyId: 'comp-1',
-    companyName: 'Google',
+    companyId: 'comp-tcs',
+    companyName: 'TCS (Tata Consultancy Services)',
     studentName: 'Alex Morgan',
     isAnonymous: false,
-    role: 'Software Engineering Intern',
+    role: 'TCS Prime / Digital Engineer',
     rounds: [
-      { roundName: 'Online Coding Round', description: '2 LeetCode Medium/Hard questions on Graphs (DFS) and Dynamic Programming.' },
-      { roundName: 'Technical Round 1', description: 'Deep dive into Binary Trees, HashMaps, and Space Complexity optimization.' },
-      { roundName: 'Technical Round 2 + Googleness', description: 'System design for URL Shortener + Behavioral scenario questions.' }
+      { roundName: 'TCS NQT Cognitive & Coding', description: 'Foundation aptitude test + 2 Hands-on Coding Questions (Strings & Array Manipulation).' },
+      { roundName: 'Technical Interview', description: 'Questions on SQL Joins, DBMS Indexing, OOPs principles in Java, and B.Tech Capstone Project.' },
+      { roundName: 'HR & Managerial Round', description: 'Relocation willingness, shift flexibility, and situational problem solving.' }
     ],
-    overallTips: 'Focus heavily on writing clean code and talking out loud while solving algorithmic problems.',
+    overallTips: 'Focus heavily on writing clean code in NQT round and speak clearly during the technical interview.',
     submittedAt: '2026-07-20',
     approved: true
   },
   {
     id: 'exp-2',
-    companyId: 'comp-2',
-    companyName: 'TCS Digital / Ninja',
+    companyId: 'comp-infosys',
+    companyName: 'Infosys',
     studentName: 'Anonymous IT Student',
     isAnonymous: true,
-    role: 'Digital System Engineer',
+    role: 'Digital Specialist Engineer (DSE)',
     rounds: [
-      { roundName: 'Aptitude & Coding Test', description: 'Quantitative aptitude, verbal reasoning, and 2 SQL + Array coding questions.' },
-      { roundName: 'TR + HR Combined', description: 'Questions on DBMS indexing, OOPs concepts in Java/C++, and final year project architecture.' }
+      { roundName: 'HackWithInfy / Online Test', description: '3 Algorithmic problems on Dynamic Programming, Trees, and Graph Traversal.' },
+      { roundName: 'Combined TR + HR Interview', description: 'Deep dive into Data Structures, OS Memory Management, and REST API concepts.' }
     ],
-    overallTips: 'Revise SQL queries, normalization, and basic OOP principles thoroughly.',
+    overallTips: 'Practice LeetCode Medium problem sets and revise SQL normalization rules thoroughly.',
     submittedAt: '2026-07-22',
     approved: true
   }
 ];
 
 export const INITIAL_PLACEMENT_RESOURCES = [
+  // DSA & CODING
   {
-    id: 'res-1',
-    title: 'Striver 75 Blind DSA Sheet',
-    category: 'Aptitude & DSA',
+    id: 'res-dsa-1',
+    title: "Striver's A2Z DSA Sheet",
+    category: 'DSA & Coding',
+    subcategory: 'DSA & Coding',
     url: 'https://takeuforward.org/strivers-a2zdsa-setter/',
-    description: 'Curated list of 75 essential Data Structures & Algorithms problems for tech interviews.'
+    description: 'Structured 450+ problem roadmap from basics to advanced, completely free.'
   },
   {
-    id: 'res-2',
-    title: 'IndiaBIX Quantitative Aptitude Practice',
-    category: 'Aptitude & DSA',
+    id: 'res-dsa-2',
+    title: 'LeetCode Problem Archive',
+    category: 'DSA & Coding',
+    subcategory: 'DSA & Coding',
+    url: 'https://leetcode.com/problemset/all/',
+    description: 'Industry-standard practice platform with company-tagged questions and mock contests.'
+  },
+  {
+    id: 'res-dsa-3',
+    title: 'GeeksforGeeks Data Structures & Algorithms',
+    category: 'DSA & Coding',
+    subcategory: 'DSA & Coding',
+    url: 'https://www.geeksforgeeks.org/data-structures/',
+    description: 'DSA theory, practice problems, and real company interview experiences.'
+  },
+  {
+    id: 'res-dsa-4',
+    title: 'InterviewBit Placement Prep',
+    category: 'DSA & Coding',
+    subcategory: 'DSA & Coding',
+    url: 'https://www.interviewbit.com/',
+    description: 'Structured interview prep with curated real interview questions and time limits.'
+  },
+
+  // APTITUDE & REASONING
+  {
+    id: 'res-apti-1',
+    title: 'IndiaBIX Quantitative Aptitude & Reasoning',
+    category: 'Aptitude & Reasoning',
+    subcategory: 'Aptitude & Reasoning',
     url: 'https://www.indiabix.com/',
-    description: 'Topic-wise practice questions for campus placement aptitude screening tests.'
+    description: 'Topic-wise quantitative aptitude, logical reasoning, and verbal ability — most widely used for Indian campus placements.'
   },
   {
-    id: 'res-3',
-    title: 'CS Primer: Operating Systems & Computer Networks Cheatsheet',
-    category: 'Core CS Prep',
-    url: 'https://roadmap.sh/computer-science',
-    description: 'Quick revision cards covering process scheduling, TCP/IP, and SQL queries.'
+    id: 'res-apti-2',
+    title: 'PrepInsta Placement Papers & Mock Tests',
+    category: 'Aptitude & Reasoning',
+    subcategory: 'Aptitude & Reasoning',
+    url: 'https://prepinsta.com/',
+    description: 'Company-specific placement papers and mock tests matching real exam patterns (TCS NQT, Infosys, Wipro).'
+  },
+
+  // CORE CS SUBJECTS
+  {
+    id: 'res-cs-1',
+    title: 'GeeksforGeeks CS Fundamentals Revision Notes',
+    category: 'Core CS Subjects',
+    subcategory: 'Core CS Subjects',
+    url: 'https://www.geeksforgeeks.org/computer-science-projects-and-notes/',
+    description: 'OS, DBMS, Computer Networks, and OOPs revision notes for technical interviews.'
+  },
+  {
+    id: 'res-cs-2',
+    title: 'Javatpoint Core CS & Language Cheat Sheets',
+    category: 'Core CS Subjects',
+    subcategory: 'Core CS Subjects',
+    url: 'https://www.javatpoint.com/',
+    description: 'Quick-reference cheat sheets for core CS subjects and Java.'
+  },
+
+  // LANGUAGE-SPECIFIC
+  {
+    id: 'res-lang-1',
+    title: 'W3Schools Programming References',
+    category: 'Language-Specific',
+    subcategory: 'Language-Specific',
+    url: 'https://www.w3schools.com/',
+    description: 'Quick syntax reference for any programming language.'
+  },
+  {
+    id: 'res-lang-2',
+    title: 'HackerRank Language Skills & Certifications',
+    category: 'Language-Specific',
+    subcategory: 'Language-Specific',
+    url: 'https://www.hackerrank.com/domains/python',
+    description: 'Language-specific practice tracks with certifications recognized by recruiters.'
   }
 ];
 

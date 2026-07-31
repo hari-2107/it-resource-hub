@@ -34,7 +34,8 @@ import {
   X,
   Sliders,
   CheckCircle,
-  Lock
+  Lock,
+  ShieldAlert
 } from 'lucide-react';
 
 import { 
@@ -65,14 +66,701 @@ const getTimerSecondsForDiff = (diff) => {
   return 40;
 };
 
+const getISOWeekId = (date = new Date()) => {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+};
+
+const getFilteredContentForCurrentWeek = (contentList = [], currentWeekBatch = getISOWeekId()) => {
+  if (!Array.isArray(contentList) || contentList.length === 0) return [];
+  
+  const exactMatches = contentList.filter(item => item.weekBatch === currentWeekBatch);
+  if (exactMatches.length > 0) return exactMatches;
+
+  const pastMatches = contentList
+    .filter(item => item.weekBatch && item.weekBatch <= currentWeekBatch)
+    .sort((a, b) => b.weekBatch.localeCompare(a.weekBatch));
+
+  if (pastMatches.length > 0) {
+    const mostRecentWeek = pastMatches[0].weekBatch;
+    return pastMatches.filter(item => item.weekBatch === mostRecentWeek);
+  }
+
+  return contentList;
+};
+
+const isGameLevelCompletedThisWeek = (userDoc, gameId, level, weekBatch = getISOWeekId()) => {
+  if (!userDoc) return false;
+  
+  const newStructureVal = userDoc?.completedGameLevels?.[gameId]?.[weekBatch]?.[level];
+  if (typeof newStructureVal === 'boolean') {
+    return newStructureVal;
+  }
+
+  const legacyMaps = {
+    ecg: userDoc?.ecgWeeklyCompletions,
+    guess: userDoc?.guessWeeklyCompletions,
+    bug: userDoc?.bugWeeklyCompletions,
+    tango: userDoc?.tangoWeeklyCompletions,
+    type: userDoc?.typeWeeklyCompletions,
+    sprint: userDoc?.sprintWeeklyCompletions,
+    quiz: userDoc?.quizWeeklyCompletions
+  };
+
+  if (legacyMaps[gameId] && legacyMaps[gameId][level] === weekBatch) {
+    return true;
+  }
+
+  return false;
+};
+
+const markGameLevelCompleted = (userDoc, gameId, level, weekBatch = getISOWeekId()) => {
+  const currentMap = userDoc?.completedGameLevels || {};
+  const gameMap = currentMap[gameId] || {};
+  const weekMap = gameMap[weekBatch] || {};
+
+  return {
+    ...currentMap,
+    [gameId]: {
+      ...gameMap,
+      [weekBatch]: {
+        ...weekMap,
+        [level]: true
+      }
+    }
+  };
+};
+
 const ECG_CHALLENGES = [
-  { id: 'ecg-1', code: '401', difficulty: 'beginner', name: 'HTTP 401 Unauthorized', desc: 'Request requires authentication headers', options: ['Bad Request', 'Unauthorized', 'Forbidden', 'Internal Server Error'], answer: 1 },
-  { id: 'ecg-2', code: '404', difficulty: 'beginner', name: 'HTTP 404 Not Found', desc: 'Requested endpoint or page does not exist', options: ['Not Found', 'Unauthorized', 'Forbidden', 'Server Error'], answer: 0 },
-  { id: 'ecg-3', code: '503', difficulty: 'intermediate', name: 'HTTP 503 Service Unavailable', desc: 'Server is overloaded or down for maintenance', options: ['Gateway Timeout', 'Service Unavailable', 'Bad Gateway', 'Method Not Allowed'], answer: 1 },
-  { id: 'ecg-4', code: '403', difficulty: 'intermediate', name: 'HTTP 403 Forbidden', desc: 'Server refuses to authorize access to resource', options: ['Forbidden', 'Unauthorized', 'Not Found', 'Bad Request'], answer: 0 },
-  { id: 'ecg-5', code: '504', difficulty: 'advanced', name: 'HTTP 504 Gateway Timeout', desc: 'Upstream proxy server failed to respond in time', options: ['Gateway Timeout', 'Service Unavailable', 'Conflict', 'Precondition Failed'], answer: 0 },
-  { id: 'ecg-6', code: '409', difficulty: 'advanced', name: 'HTTP 409 Conflict', desc: 'Request conflicts with current state of server resource', options: ['Conflict', 'Locked', 'Payload Too Large', 'Unprocessable Entity'], answer: 0 }
+  // BEGINNER LEVEL (5 Questions)
+  { id: 'ecg-b1', code: '404', difficulty: 'beginner', name: 'HTTP 404 Not Found', desc: 'Requested URL or resource does not exist on server', options: ['Not Found', 'Unauthorized', 'Forbidden', 'Server Error'], answer: 0 },
+  { id: 'ecg-b2', code: '401', difficulty: 'beginner', name: 'HTTP 401 Unauthorized', desc: 'Request requires valid authentication credentials', options: ['Bad Request', 'Unauthorized', 'Forbidden', 'Internal Server Error'], answer: 1 },
+  { id: 'ecg-b3', code: '400', difficulty: 'beginner', name: 'HTTP 400 Bad Request', desc: 'Server cannot process request due to client syntax error', options: ['Forbidden', 'Not Found', 'Bad Request', 'Service Unavailable'], answer: 2 },
+  { id: 'ecg-b4', code: '500', difficulty: 'beginner', name: 'HTTP 500 Internal Server Error', desc: 'Unexpected condition encountered on server', options: ['Gateway Timeout', 'Bad Gateway', 'Unauthorized', 'Internal Server Error'], answer: 3 },
+  { id: 'ecg-b5', code: '200', difficulty: 'beginner', name: 'HTTP 200 OK', desc: 'Standard response for successful HTTP requests', options: ['OK', 'Created', 'Accepted', 'No Content'], answer: 0 },
+
+  // INTERMEDIATE LEVEL (8 Questions)
+  { id: 'ecg-i1', code: '403', difficulty: 'intermediate', name: 'HTTP 403 Forbidden', desc: 'Server understands request but refuses to authorize access', options: ['Forbidden', 'Unauthorized', 'Not Found', 'Bad Request'], answer: 0 },
+  { id: 'ecg-i2', code: '503', difficulty: 'intermediate', name: 'HTTP 503 Service Unavailable', desc: 'Server is currently unable to handle request (maintenance/overload)', options: ['Gateway Timeout', 'Service Unavailable', 'Bad Gateway', 'Method Not Allowed'], answer: 1 },
+  { id: 'ecg-i3', code: '502', difficulty: 'intermediate', name: 'HTTP 502 Bad Gateway', desc: 'Upstream server returned an invalid response to proxy', options: ['Gateway Timeout', 'Bad Gateway', 'Service Unavailable', 'Conflict'], answer: 1 },
+  { id: 'ecg-i4', code: '405', difficulty: 'intermediate', name: 'HTTP 405 Method Not Allowed', desc: 'Request method is known by server but not supported by target resource', options: ['Not Acceptable', 'Unsupported Media Type', 'Method Not Allowed', 'Bad Request'], answer: 2 },
+  { id: 'ecg-i5', code: '301', difficulty: 'intermediate', name: 'HTTP 301 Moved Permanently', desc: 'Target resource has been assigned a new permanent URI', options: ['Found', 'Moved Permanently', 'Temporary Redirect', 'See Other'], answer: 1 },
+  { id: 'ecg-i6', code: '429', difficulty: 'intermediate', name: 'HTTP 429 Too Many Requests', desc: 'User has sent too many requests in a given amount of time (Rate limit)', options: ['Request Timeout', 'Payload Too Large', 'Too Many Requests', 'Locked'], answer: 2 },
+  { id: 'ecg-i7', code: '408', difficulty: 'intermediate', name: 'HTTP 408 Request Timeout', desc: 'Server timed out waiting for client to complete request', options: ['Gateway Timeout', 'Request Timeout', 'Service Unavailable', 'Conflict'], answer: 1 },
+  { id: 'ecg-i8', code: '504', difficulty: 'intermediate', name: 'HTTP 504 Gateway Timeout', desc: 'Proxy server did not receive timely response from upstream server', options: ['Bad Gateway', 'Gateway Timeout', 'Service Unavailable', 'Internal Server Error'], answer: 1 },
+
+  // ADVANCED LEVEL (10 Questions)
+  { id: 'ecg-a1', code: '409', difficulty: 'advanced', name: 'HTTP 409 Conflict', desc: 'Request conflicts with current state of target resource', options: ['Conflict', 'Locked', 'Payload Too Large', 'Unprocessable Entity'], answer: 0 },
+  { id: 'ecg-a2', code: '422', difficulty: 'advanced', name: 'HTTP 422 Unprocessable Entity', desc: 'Request syntax is correct but semantic instructions are invalid', options: ['Precondition Failed', 'Unprocessable Entity', 'Bad Request', 'Conflict'], answer: 1 },
+  { id: 'ecg-a3', code: '418', difficulty: 'advanced', name: "HTTP 418 I'm a teapot", desc: 'HTCPCP server refuses to brew coffee because it is a teapot', options: ['Bad Request', 'Precondition Failed', "I'm a teapot", 'Unsupported Media Type'], answer: 2 },
+  { id: 'ecg-a4', code: '413', difficulty: 'advanced', name: 'HTTP 413 Payload Too Large', desc: 'Request entity body is larger than limits defined by server', options: ['Payload Too Large', 'URI Too Long', 'Range Not Satisfiable', 'Expectation Failed'], answer: 0 },
+  { id: 'ecg-a5', code: '415', difficulty: 'advanced', name: 'HTTP 415 Unsupported Media Type', desc: 'Media format of requested data is not supported by server', options: ['Not Acceptable', 'Unsupported Media Type', 'Bad Request', 'Unprocessable Entity'], answer: 1 },
+  { id: 'ecg-a6', code: '451', difficulty: 'advanced', name: 'HTTP 451 Unavailable For Legal Reasons', desc: 'Access to resource is denied due to legal demand or censorship', options: ['Forbidden', 'Unavailable For Legal Reasons', 'Payment Required', 'Gone'], answer: 1 },
+  { id: 'ecg-a7', code: '507', difficulty: 'advanced', name: 'HTTP 507 Insufficient Storage', desc: 'Server cannot store representation needed to complete request', options: ['Insufficient Storage', 'Loop Detected', 'Not Extended', 'Variant Also Negotiates'], answer: 0 },
+  { id: 'ecg-a8', code: '508', difficulty: 'advanced', name: 'HTTP 508 Loop Detected', desc: 'Server detected an infinite loop while processing request', options: ['Loop Detected', 'Insufficient Storage', 'Network Authentication Required', 'Bandwidth Limit Exceeded'], answer: 0 },
+  { id: 'ecg-a9', code: '304', difficulty: 'advanced', name: 'HTTP 304 Not Modified', desc: 'Cached copy is still valid and does not need re-transmission', options: ['Not Modified', 'Use Proxy', 'Temporary Redirect', 'Permanent Redirect'], answer: 0 },
+  { id: 'ecg-a10', code: '505', difficulty: 'advanced', name: 'HTTP 505 HTTP Version Not Supported', desc: 'HTTP protocol version used in request is not supported by server', options: ['HTTP Version Not Supported', 'Bad Gateway', 'Service Unavailable', 'Variant Also Negotiates'], answer: 0 }
 ];
+
+const getFunnyEcgResult = (score, total) => {
+  const ratio = total > 0 ? score / total : 0;
+  if (ratio === 1) {
+    return {
+      title: "🤖 Server Whisperer / Senior DevOps God",
+      emoji: "🏆",
+      message: "Holy 200 OK! You know HTTP status codes better than Chrome DevTools. Are you secretly an NGINX reverse proxy in disguise?",
+      suggestion: "💡 Recommendation: Apply for AWS Principal Architect today, or go outside and touch some grass, you 404-fixing legend!"
+    };
+  } else if (ratio >= 0.75) {
+    return {
+      title: "🌐 StackOverflow Copy-Paste Ninja",
+      emoji: "⚡",
+      message: "Solid performance! You only got 502 Bad Gateway-ed once or twice. Your browser console is quietly weeping with joy.",
+      suggestion: "💡 Recommendation: Keep drinking coffee ☕. You are only 1 Google search away from a $120k Remote Senior Dev job!"
+    };
+  } else if (ratio >= 0.5) {
+    return {
+      title: "🐛 Junior Dev on Friday at 4:59 PM",
+      emoji: "☕",
+      message: "Not bad, but you mixed up HTTP 403 Forbidden with 401 Unauthorized... Your security team is currently crying in the server closet.",
+      suggestion: "💡 Recommendation: Pro tip: Restarting your Wi-Fi router won't fix HTTP 422. Read the backend docs or blame QA!"
+    };
+  } else if (ratio >= 0.25) {
+    return {
+      title: "🫖 HTTP 418: I'm a Teapot",
+      emoji: "🍵",
+      message: "Oops! You guessed 500 Internal Server Error for almost everything. To be fair, most production backend servers DO crash like that...",
+      suggestion: "💡 Recommendation: Sip some chamomile tea, close your 94 open Chrome tabs, and review basic codes before git push master!"
+    };
+  } else {
+    return {
+      title: "💀 HTTP 503: Service Completely Broken",
+      emoji: "💥",
+      message: "Yikes! Your answers caused a cascading cluster outage across 4 global cloud data centers. AWS us-east-1 crashed because of you!",
+      suggestion: "💡 Recommendation: Uninstall your code editor, call your internet provider, and ask if Wi-Fi causes 404 errors. Try Beginner mode!"
+    };
+  }
+};
+
+const GUESS_OUTPUT_CHALLENGES = [
+  // BEGINNER LEVEL (5 Questions)
+  {
+    id: 'go-b1',
+    difficulty: 'beginner',
+    title: 'JavaScript String Coercion',
+    language: 'javascript',
+    code: 'console.log(1 + "2" + 3);',
+    options: ['"123"', '"6"', '"15"', 'NaN'],
+    answer: 0,
+    explanation: 'Numbers added to strings are converted to strings: 1 + "2" = "12", then "12" + 3 = "123".'
+  },
+  {
+    id: 'go-b2',
+    difficulty: 'beginner',
+    title: 'Typeof NaN Operator',
+    language: 'javascript',
+    code: 'console.log(typeof NaN);',
+    options: ['"number"', '"nan"', '"undefined"', '"object"'],
+    answer: 0,
+    explanation: 'In JavaScript, NaN stands for "Not a Number" but its typeof evaluation is surprisingly "number".'
+  },
+  {
+    id: 'go-b3',
+    difficulty: 'beginner',
+    title: 'Array Length Property',
+    language: 'javascript',
+    code: 'const arr = [10, 20, 30];\narr.length = 0;\nconsole.log(arr[0]);',
+    options: ['undefined', '10', 'null', 'ReferenceError'],
+    answer: 0,
+    explanation: 'Setting array length to 0 empties all elements from the array, making arr[0] evaluate to undefined.'
+  },
+  {
+    id: 'go-b4',
+    difficulty: 'beginner',
+    title: 'Boolean Double Negation',
+    language: 'javascript',
+    code: 'console.log(!!"Code");',
+    options: ['true', 'false', '"Code"', 'undefined'],
+    answer: 0,
+    explanation: 'Double negation !! coerces truthy values (like non-empty strings) into true boolean.'
+  },
+  {
+    id: 'go-b5',
+    difficulty: 'beginner',
+    title: 'Loose vs Strict Equality',
+    language: 'javascript',
+    code: 'console.log(0 == "0", 0 === "0");',
+    options: ['true false', 'true true', 'false false', 'false true'],
+    answer: 0,
+    explanation: 'Loose equality (==) coerces string "0" to number 0 (true), but strict equality (===) checks types (false).'
+  },
+
+  // INTERMEDIATE LEVEL (8 Questions)
+  {
+    id: 'go-i1',
+    difficulty: 'intermediate',
+    title: 'Array Map & parseInt Trick',
+    language: 'javascript',
+    code: 'console.log(["10", "10", "10"].map(parseInt));',
+    options: ['[10, NaN, 2]', '[10, 10, 10]', '[NaN, NaN, NaN]', '[10, 0, 1]'],
+    answer: 0,
+    explanation: 'map passes (element, index). parseInt("10", 0)=10, parseInt("10", 1)=NaN, parseInt("10", 2)=2 (binary).'
+  },
+  {
+    id: 'go-i2',
+    difficulty: 'intermediate',
+    title: 'Variable Hoisting with var',
+    language: 'javascript',
+    code: 'console.log(a);\nvar a = 5;',
+    options: ['undefined', '5', 'ReferenceError', 'null'],
+    answer: 0,
+    explanation: 'var declarations are hoisted to the top with an initial value of undefined.'
+  },
+  {
+    id: 'go-i3',
+    difficulty: 'intermediate',
+    title: 'Object Key Stringification',
+    language: 'javascript',
+    code: 'const a = {}, b = { key: "b" }, c = { key: "c" };\na[b] = 123;\na[c] = 456;\nconsole.log(a[b]);',
+    options: ['456', '123', 'undefined', 'TypeError'],
+    answer: 0,
+    explanation: 'Object keys are stringified to "[object Object]". So a[b] and a[c] both reference key "[object Object]".'
+  },
+  {
+    id: 'go-i4',
+    difficulty: 'intermediate',
+    title: 'Closure State Retention',
+    language: 'javascript',
+    code: 'function outer() {\n  let count = 0;\n  return () => ++count;\n}\nconst fn = outer();\nfn();\nconsole.log(fn());',
+    options: ['2', '1', '0', 'undefined'],
+    answer: 0,
+    explanation: 'The returned inner arrow function forms a closure over count. First call makes count=1, second call returns 2.'
+  },
+  {
+    id: 'go-i5',
+    difficulty: 'intermediate',
+    title: 'Promise Microtask Execution',
+    language: 'javascript',
+    code: 'console.log("A");\nPromise.resolve().then(() => console.log("B"));\nconsole.log("C");',
+    options: ['A C B', 'A B C', 'B A C', 'C A B'],
+    answer: 0,
+    explanation: 'Synchronous code prints "A" and "C" first. Promise callback is queued in microtask queue and runs next ("B").'
+  },
+  {
+    id: 'go-i6',
+    difficulty: 'intermediate',
+    title: 'Array Spread Shallow Copy',
+    language: 'javascript',
+    code: 'const a = [1, [2]];\nconst b = [...a];\nb[1][0] = 99;\nconsole.log(a[1][0]);',
+    options: ['99', '2', 'undefined', 'TypeError'],
+    answer: 0,
+    explanation: 'Spread operator perform shallow copies. Nested array references remain shared, so mutating b[1] mutates a[1].'
+  },
+  {
+    id: 'go-i7',
+    difficulty: 'intermediate',
+    title: 'Function Default Parameters',
+    language: 'javascript',
+    code: 'const f = (x = 1, y = x + 2) => x + y;\nconsole.log(f(5));',
+    options: ['12', '8', 'NaN', 'undefined'],
+    answer: 0,
+    explanation: 'x is passed as 5, so default for y evaluates to x + 2 = 7. Returning 5 + 7 = 12.'
+  },
+  {
+    id: 'go-i8',
+    difficulty: 'intermediate',
+    title: 'Logical OR Assignment Operator',
+    language: 'javascript',
+    code: 'let name = "";\nname ||= "Default";\nconsole.log(name);',
+    options: ['"Default"', '""', 'true', 'null'],
+    answer: 0,
+    explanation: 'Empty string "" is falsy, so Logical OR assignment name ||= "Default" assigns "Default".'
+  },
+
+  // ADVANCED LEVEL (10 Questions)
+  {
+    id: 'go-a1',
+    difficulty: 'advanced',
+    title: 'Event Loop Microtask vs Macrotask',
+    language: 'javascript',
+    code: 'setTimeout(() => console.log("Timeout"), 0);\nPromise.resolve().then(() => console.log("Promise"));\nconsole.log("Sync");',
+    options: ['Sync Promise Timeout', 'Sync Timeout Promise', 'Promise Sync Timeout', 'Timeout Sync Promise'],
+    answer: 0,
+    explanation: 'Synchronous code runs first ("Sync"), then microtasks run ("Promise"), then macrotasks run ("Timeout").'
+  },
+  {
+    id: 'go-a2',
+    difficulty: 'advanced',
+    title: 'Arrow Function this Context',
+    language: 'javascript',
+    code: 'const obj = {\n  val: 42,\n  getVal: () => this.val\n};\nconsole.log(obj.getVal());',
+    options: ['undefined', '42', 'TypeError', '42 in strict mode'],
+    answer: 0,
+    explanation: 'Arrow functions do not bind their own "this". They inherit "this" from enclosing global scope where val is undefined.'
+  },
+  {
+    id: 'go-a3',
+    difficulty: 'advanced',
+    title: 'Async/Await Execution Flow',
+    language: 'javascript',
+    code: 'async function foo() {\n  console.log(1);\n  await null;\n  console.log(2);\n}\nfoo();\nconsole.log(3);',
+    options: ['1 3 2', '1 2 3', '3 1 2', '2 1 3'],
+    answer: 0,
+    explanation: 'foo runs synchronously up to await null (prints 1), pauses for microtask, prints 3 synchronously, then prints 2.'
+  },
+  {
+    id: 'go-a4',
+    difficulty: 'advanced',
+    title: 'Prototype Chain Property Override',
+    language: 'javascript',
+    code: 'function Dog() {}\nDog.prototype.bark = "Woof";\nconst d = new Dog();\nDog.prototype = { bark: "Arf" };\nconsole.log(d.bark);',
+    options: ['"Woof"', '"Arf"', 'undefined', 'TypeError'],
+    answer: 0,
+    explanation: 'd holds a direct internal link (__proto__) to the original prototype. Replacing Dog.prototype does not alter existing instances.'
+  },
+  {
+    id: 'go-a5',
+    difficulty: 'advanced',
+    title: 'Symbol Property Iteration',
+    language: 'javascript',
+    code: 'const s = Symbol("id");\nconst obj = { [s]: 100, name: "User" };\nconsole.log(Object.keys(obj).length);',
+    options: ['1', '2', '0', 'TypeError'],
+    answer: 0,
+    explanation: 'Object.keys ignores Symbol properties, so only "name" is counted (length = 1).'
+  },
+  {
+    id: 'go-a6',
+    difficulty: 'advanced',
+    title: 'Array Reduce Initial Value Accumulation',
+    language: 'javascript',
+    code: 'const res = [1, 2, 3].reduce((acc, curr) => acc + curr, 10);\nconsole.log(res);',
+    options: ['16', '6', '10', '15'],
+    answer: 0,
+    explanation: '10 is provided as initial accumulator value. 10 + 1 + 2 + 3 = 16.'
+  },
+  {
+    id: 'go-a7',
+    difficulty: 'advanced',
+    title: 'Set Unique Value Deduplication',
+    language: 'javascript',
+    code: 'const set = new Set([1, "1", true, 1]);\nconsole.log(set.size);',
+    options: ['3', '4', '2', '1'],
+    answer: 0,
+    explanation: 'Set holds unique values using SameValueZero equality. 1, "1", and true are all distinct types, but second 1 is duplicate. Size = 3.'
+  },
+  {
+    id: 'go-a8',
+    difficulty: 'advanced',
+    title: 'Temporal Dead Zone (TDZ) with let',
+    language: 'javascript',
+    code: 'let x = 10;\nfunction test() {\n  console.log(x);\n  let x = 20;\n}\ntest();',
+    options: ['ReferenceError', '10', '20', 'undefined'],
+    answer: 0,
+    explanation: 'The inner let x hoists to top of block scope test() but stays in Temporal Dead Zone until initialized. Accessing x throws ReferenceError.'
+  },
+  {
+    id: 'go-a9',
+    difficulty: 'advanced',
+    title: 'Object.freeze Mutation Prevention',
+    language: 'javascript',
+    code: 'const user = Object.freeze({ meta: { age: 25 } });\nuser.meta.age = 30;\nconsole.log(user.meta.age);',
+    options: ['30', '25', 'TypeError', 'undefined'],
+    answer: 0,
+    explanation: 'Object.freeze is shallow! Nested objects remain mutable, so user.meta.age changes to 30.'
+  },
+  {
+    id: 'go-a10',
+    difficulty: 'advanced',
+    title: 'Function Currying Output',
+    language: 'javascript',
+    code: 'const multiply = a => b => c => a * b * c;\nconsole.log(multiply(2)(3)(4));',
+    options: ['24', '9', '64', 'undefined'],
+    answer: 0,
+    explanation: 'Curried function multiplies 2 * 3 * 4 = 24.'
+  }
+];
+
+const FIND_BUG_CHALLENGES = [
+  // BEGINNER LEVEL (5 Questions)
+  {
+    id: 'fb-b1',
+    difficulty: 'beginner',
+    title: 'Infinite Decrement Loop',
+    language: 'javascript',
+    code: 'function countToTen() {\n  for (let i = 0; i < 10; i--) {\n    console.log(i);\n  }\n}',
+    options: ['Line 2: i-- causes infinite loop', 'Line 1: Missing const keyword', 'Line 3: Syntax error in console.log', 'Line 2: Missing semicolon'],
+    answer: 0,
+    explanation: 'i-- decrements i away from 10, causing an infinite loop. It should be i++.'
+  },
+  {
+    id: 'fb-b2',
+    difficulty: 'beginner',
+    title: 'Assignment inside Condition',
+    language: 'javascript',
+    code: 'let isLoggedIn = false;\nif (isLoggedIn = true) {\n  console.log("Welcome back!");\n}',
+    options: ['Line 2: Single = assigns value instead of comparing (== or ===)', 'Line 1: Must use const for booleans', 'Line 3: Missing quotes', 'Line 2: Syntax error'],
+    answer: 0,
+    explanation: 'Using single = in condition assigns true to isLoggedIn and evaluates to true. Should use === for comparison.'
+  },
+  {
+    id: 'fb-b3',
+    difficulty: 'beginner',
+    title: 'Missing Return Statement in Function',
+    language: 'javascript',
+    code: 'function sum(a, b) {\n  const total = a + b;\n}\nconst result = sum(5, 10);',
+    options: ['Line 2: Missing return total statement', 'Line 4: Cannot call sum with const', 'Line 1: Parameters require data types', 'Line 2: Cannot add a and b'],
+    answer: 0,
+    explanation: 'sum function calculates total but does not return it, so result receives undefined.'
+  },
+  {
+    id: 'fb-b4',
+    difficulty: 'beginner',
+    title: 'Uninitialized Variable Addition',
+    language: 'javascript',
+    code: 'let score;\nscore += 50;\nconsole.log(score);',
+    options: ['Line 1: score is uninitialized (undefined + 50 = NaN)', 'Line 2: Cannot use += operator', 'Line 3: Missing quotes around score', 'Line 1: Must use const'],
+    answer: 0,
+    explanation: 'score is declared without initial value (undefined). undefined + 50 results in NaN.'
+  },
+  {
+    id: 'fb-b5',
+    difficulty: 'beginner',
+    title: 'String Quote Mismatch',
+    language: 'javascript',
+    code: 'const greeting = "Hello World\';\nconsole.log(greeting);',
+    options: ['Line 1: Mismatched quotes (double quote closed with single quote)', 'Line 2: greeting cannot be logged', 'Line 1: Missing semicolon', 'Line 2: Missing parentheses'],
+    answer: 0,
+    explanation: 'String starts with double quote " but ends with single quote \', causing a SyntaxError.'
+  },
+
+  // INTERMEDIATE LEVEL (8 Questions)
+  {
+    id: 'fb-i1',
+    difficulty: 'intermediate',
+    title: 'Off-By-One Array Indexing',
+    language: 'javascript',
+    code: 'const items = ["Apple", "Banana", "Cherry"];\nfor (let i = 0; i <= items.length; i++) {\n  console.log(items[i].toUpperCase());\n}',
+    options: ['Line 2: i <= items.length accesses out-of-bounds undefined at items[3]', 'Line 3: toUpperCase does not exist on strings', 'Line 1: Const arrays cannot be iterated', 'Line 2: i should start at 1'],
+    answer: 0,
+    explanation: 'items.length is 3. i <= 3 causes i=3 access items[3] (undefined), throwing TypeError on .toUpperCase(). Use i < items.length.'
+  },
+  {
+    id: 'fb-i2',
+    difficulty: 'intermediate',
+    title: 'Array Push Mutating Filter',
+    language: 'javascript',
+    code: 'const nums = [1, 2, 3, 4, 5];\nconst evens = nums.filter(n => {\n  if (n % 2 === 0) return true;\n  nums.push(n * 2);\n});',
+    options: ['Line 4: Mutating array nums while iterating leads to infinite / corrupt execution', 'Line 2: Filter must return strings', 'Line 3: % 2 does not check even numbers', 'Line 1: Nums must be let'],
+    answer: 0,
+    explanation: 'Pushing items into nums inside filter callback mutates the array during iteration, leading to logic bugs or memory overflow.'
+  },
+  {
+    id: 'fb-i3',
+    difficulty: 'intermediate',
+    title: 'Object Reference Mutation Bug',
+    language: 'javascript',
+    code: 'const user1 = { name: "Alice", role: "admin" };\nconst user2 = user1;\nuser2.role = "student";\nconsole.log(user1.role);',
+    options: ['Line 2: user2 references user1 object directly without cloning', 'Line 3: Const objects cannot have properties updated', 'Line 4: user1.role throws error', 'Line 1: Missing JSON.stringify'],
+    answer: 0,
+    explanation: 'user2 = user1 copies the reference, not the object. Modifying user2.role mutates user1. Should use { ...user1 }.'
+  },
+  {
+    id: 'fb-i4',
+    difficulty: 'intermediate',
+    title: 'Async Function Missing await',
+    language: 'javascript',
+    code: 'async function fetchUser() {\n  return { name: "Bob" };\n}\nconst user = fetchUser();\nconsole.log(user.name);',
+    options: ['Line 4: fetchUser() returns a Promise, missing await keyword', 'Line 1: Async functions cannot return objects', 'Line 5: user.name is illegal', 'Line 2: Missing JSON parse'],
+    answer: 0,
+    explanation: 'Async functions always return a Promise. Calling fetchUser() without await leaves user as Promise { <pending> }, so user.name is undefined.'
+  },
+  {
+    id: 'fb-i5',
+    difficulty: 'intermediate',
+    title: 'Missing Break in Switch Case',
+    language: 'javascript',
+    code: 'let role = "admin";\nswitch(role) {\n  case "admin":\n    console.log("Full Access");\n  case "user":\n    console.log("Limited Access");\n}',
+    options: ['Line 4: Missing break statement causes fallthrough to next case', 'Line 2: Switch cannot check strings', 'Line 5: Duplicate case name', 'Line 3: Colon should be semicolon'],
+    answer: 0,
+    explanation: 'Without break statement, execution falls through to case "user" and prints both "Full Access" and "Limited Access".'
+  },
+  {
+    id: 'fb-i6',
+    difficulty: 'intermediate',
+    title: 'Incorrect Array Method Usage',
+    language: 'javascript',
+    code: 'const scores = [80, 95, 60];\nscores.sort();\nconsole.log(scores);',
+    options: ['Line 2: Array.prototype.sort() sorts elements as strings alphabetically by default', 'Line 1: const arrays cannot be sorted', 'Line 3: scores cannot be printed', 'Line 2: sort() requires array length parameter'],
+    answer: 0,
+    explanation: 'Default sort() converts elements to strings. [100, 25, 5].sort() yields [100, 25, 5]. Must provide compare function (a, b) => a - b.'
+  },
+  {
+    id: 'fb-i7',
+    difficulty: 'intermediate',
+    title: 'Event Listener Scope Leak',
+    language: 'javascript',
+    code: 'for (var i = 0; i < 3; i++) {\n  setTimeout(() => console.log(i), 100);\n}',
+    options: ['Line 1: var i is function-scoped; all callbacks log 3 instead of 0, 1, 2', 'Line 2: setTimeout cannot accept arrow function', 'Line 1: i < 3 is invalid', 'Line 2: 100ms is too short'],
+    answer: 0,
+    explanation: 'var i is shared across loop iterations. By the time 100ms timer fires, loop has completed and i is 3. Use let i.'
+  },
+  {
+    id: 'fb-i8',
+    difficulty: 'intermediate',
+    title: 'JSON Parse Unhandled Exception',
+    language: 'javascript',
+    code: 'function parseData(raw) {\n  return JSON.parse(raw);\n}\nparseData("invalid json");',
+    options: ['Line 2: JSON.parse throws SyntaxError on bad input without try/catch block', 'Line 1: Raw parameter is reserved', 'Line 4: JSON strings must be arrays', 'Line 2: Must use JSON.stringify instead'],
+    answer: 0,
+    explanation: 'Invalid JSON string passed to JSON.parse throws unhandled SyntaxError crash. Should wrap in try/catch.'
+  },
+
+  // ADVANCED LEVEL (10 Questions)
+  {
+    id: 'fb-a1',
+    difficulty: 'advanced',
+    title: 'Promise Race Condition in Loop',
+    language: 'javascript',
+    code: 'async function processItems(items) {\n  items.forEach(async (item) => {\n    await saveToDb(item);\n  });\n  console.log("All Saved!");\n}',
+    options: ['Line 2: forEach does not await async callbacks; console.log runs before saves finish', 'Line 3: saveToDb cannot be awaited inside loop', 'Line 1: processItems must be sync', 'Line 5: console.log is missing await'],
+    answer: 0,
+    explanation: 'Array.prototype.forEach ignores returned Promises. Use for...of or Promise.all(items.map(...)) to await completions.'
+  },
+  {
+    id: 'fb-a2',
+    difficulty: 'advanced',
+    title: 'Stale Closure in React Hook',
+    language: 'javascript',
+    code: 'const [count, setCount] = useState(0);\nuseEffect(() => {\n  const id = setInterval(() => {\n    setCount(count + 1);\n  }, 1000);\n  return () => clearInterval(id);\n}, []);',
+    options: ['Line 4: count in closure is stale (0); count stays stuck at 1. Use setCount(c => c + 1)', 'Line 6: Cleanup function is illegal', 'Line 7: Empty dependency array causes memory leak', 'Line 1: useState requires initial string'],
+    answer: 0,
+    explanation: 'Empty dependency array [] captures initial count = 0. Every second setCount(0 + 1) sets count to 1. Use functional updater setCount(c => c + 1).'
+  },
+  {
+    id: 'fb-a3',
+    difficulty: 'advanced',
+    title: 'Mutating State Directly in Redux/React',
+    language: 'javascript',
+    code: 'function reducer(state, action) {\n  if (action.type === "ADD") {\n    state.list.push(action.payload);\n    return state;\n  }\n}',
+    options: ['Line 3: Mutating state directly prevents re-renders due to identical object reference', 'Line 4: Reducer must return null', 'Line 1: State must be array', 'Line 2: === is invalid'],
+    answer: 0,
+    explanation: 'Directly mutating state.list modifies existing reference. Component shallow equality checks see no state change and skip re-rendering.'
+  },
+  {
+    id: 'fb-a4',
+    difficulty: 'advanced',
+    title: 'Uncaught Unhandled Rejection in Promise.all',
+    language: 'javascript',
+    code: 'async function fetchAll(urls) {\n  const results = await Promise.all(urls.map(url => fetch(url)));\n  return results;\n}',
+    options: ['Line 2: Promise.all rejects immediately if any single fetch fails, ignoring others', 'Line 1: Async functions cannot use Promise.all', 'Line 3: Return type is invalid', 'Line 2: Map cannot be used with fetch'],
+    answer: 0,
+    explanation: 'Promise.all has all-or-nothing behavior. If 1 request fails, all fail. Use Promise.allSettled for resilient batch fetching.'
+  },
+  {
+    id: 'fb-a5',
+    difficulty: 'advanced',
+    title: 'Memory Leak via Global Event Listener',
+    language: 'javascript',
+    code: 'function Component() {\n  useEffect(() => {\n    window.addEventListener("resize", handleResize);\n  }, []);\n}',
+    options: ['Line 3: Missing cleanup return () => window.removeEventListener("resize", handleResize)', 'Line 3: Window resize cannot be listened to', 'Line 4: Dependency array must contain window', 'Line 1: Component name must be lowercase'],
+    answer: 0,
+    explanation: 'Adding global event listeners inside useEffect without returning cleanup function causes memory leaks and duplicate triggers.'
+  },
+  {
+    id: 'fb-a6',
+    difficulty: 'advanced',
+    title: 'Object Key Prototype Pollution',
+    language: 'javascript',
+    code: 'function merge(target, source) {\n  for (let key in source) {\n    target[key] = source[key];\n  }\n  return target;\n}',
+    options: ['Line 2: for...in iterates prototype properties unless guarded by hasOwnProperty', 'Line 3: Assignment requires Object.assign', 'Line 1: Target cannot be object', 'Line 4: Merge must return array'],
+    answer: 0,
+    explanation: 'for...in iterates over inherited prototype properties of source, causing unexpected property leaks or security vulnerabilities.'
+  },
+  {
+    id: 'fb-a7',
+    difficulty: 'advanced',
+    title: 'Float Point Precision Equality Bug',
+    language: 'javascript',
+    code: 'function checkPrice(a, b) {\n  if (a + b === 0.3) {\n    return "Exact!";\n  }\n}\ncheckPrice(0.1, 0.2);',
+    options: ['Line 2: 0.1 + 0.2 equals 0.30000000000000004 in IEEE-754 floating point arithmetic', 'Line 5: Function parameters must be numbers', 'Line 1: checkPrice is invalid function name', 'Line 2: === must be =='],
+    answer: 0,
+    explanation: '0.1 + 0.2 === 0.3 evaluates to false due to binary floating point representation. Should use Math.abs((a + b) - 0.3) < Number.EPSILON.'
+  },
+  {
+    id: 'fb-a8',
+    difficulty: 'advanced',
+    title: 'Recursion Missing Base Case',
+    language: 'javascript',
+    code: 'function factorial(n) {\n  return n * factorial(n - 1);\n}',
+    options: ['Line 2: Missing base case (if n <= 1 return 1), causing RangeError maximum call stack size exceeded', 'Line 1: Factorial cannot accept n', 'Line 2: Multiplication is invalid', 'Line 1: Function needs async keyword'],
+    answer: 0,
+    explanation: 'Without a base case, factorial continues recursing into negative numbers until call stack overflows.'
+  },
+  {
+    id: 'fb-a9',
+    difficulty: 'advanced',
+    title: 'NaN Comparison Trap',
+    language: 'javascript',
+    code: 'function isInvalid(val) {\n  if (val === NaN) {\n    return true;\n  }\n}',
+    options: ['Line 2: NaN === NaN evaluates to false. Must use Number.isNaN(val)', 'Line 1: val cannot be checked', 'Line 2: Strict equality is illegal for numbers', 'Line 3: Return statement needs brackets'],
+    answer: 0,
+    explanation: 'NaN is the only value in JavaScript that is not equal to itself (NaN === NaN is false). Must use Number.isNaN(val).'
+  },
+  {
+    id: 'fb-a10',
+    difficulty: 'advanced',
+    title: 'Strict Mode Arguments Callee Usage',
+    language: 'javascript',
+    code: '"use strict";\nfunction recurse() {\n  arguments.callee();\n}',
+    options: ['Line 3: arguments.callee is forbidden in strict mode and throws TypeError', 'Line 1: "use strict" is invalid', 'Line 2: recurse cannot be empty', 'Line 3: arguments is reserved variable'],
+    answer: 0,
+    explanation: 'ES5 strict mode disallows arguments.callee for security and optimization reasons. Named function expressions should be used instead.'
+  }
+];
+
+const getFunnyGuessResult = (score, total) => {
+  const ratio = total > 0 ? score / total : 0;
+  if (ratio === 1) {
+    return {
+      title: "🔮 The V8 Compiler Prophet",
+      emoji: "👑",
+      message: "Holy Chrome V8! You predict JavaScript outputs better than the JS execution engine itself. Are you written in C++?",
+      suggestion: "💡 Recommendation: Go compile the Linux kernel from source or start building your own JS runtime like Ryan Dahl!"
+    };
+  } else if (ratio >= 0.75) {
+    return {
+      title: "💻 Console Log Addict",
+      emoji: "⚡",
+      message: "Solid performance! You only got bamboozled by typeof NaN once. Your dev tools console is proud of you.",
+      suggestion: "💡 Recommendation: Stop spamming console.log('here 123') and start using a real debugger!"
+    };
+  } else if (ratio >= 0.5) {
+    return {
+      title: "⚠️ Undefined Is Not A Function",
+      emoji: "☕",
+      message: "Not bad! Type coercion got the best of you on a couple of questions, but you survived the event loop.",
+      suggestion: "💡 Recommendation: Remember: 1 + '1' is '11' because JavaScript loves chaos and dynamic typing!"
+    };
+  } else if (ratio >= 0.25) {
+    return {
+      title: "🤡 [object Object] Guesser",
+      emoji: "🍵",
+      message: "Oops! You guessed [object Object] or NaN for almost every question... To be fair, JS IS weird like that.",
+      suggestion: "💡 Recommendation: Sip some tea, close your 40 open browser tabs, and review basic scope and coercion rules!"
+    };
+  } else {
+    return {
+      title: "💥 Fatal Heap Out of Memory",
+      emoji: "💥",
+      message: "Yikes! Your output guesses caused a stack overflow and crashed Node.js! V8 engine is crying.",
+      suggestion: "💡 Recommendation: Turn off your laptop, take a deep breath, and restart from Beginner level!"
+    };
+  }
+};
+
+const getFunnyBugResult = (score, total) => {
+  const ratio = total > 0 ? score / total : 0;
+  if (ratio === 1) {
+    return {
+      title: "🦟 The Ultimate Bug Exterminator",
+      emoji: "🏆",
+      message: "Absolute perfection! You exterminated memory leaks, infinite loops, and race conditions faster than a Senior QA Lead!",
+      suggestion: "💡 Recommendation: Inspect your production codebase right now—you might save your team from a 3 AM weekend callout!"
+    };
+  } else if (ratio >= 0.75) {
+    return {
+      title: "🔍 Inspector Gadget",
+      emoji: "⚡",
+      message: "Great eye! You caught almost every infinite loop before the browser tab completely froze.",
+      suggestion: "💡 Recommendation: Always double-check your loop counter condition before hitting git push!"
+    };
+  } else if (ratio >= 0.5) {
+    return {
+      title: "🍌 Banana in the Exhaust Pipe",
+      emoji: "☕",
+      message: "Not bad! You spotted the obvious syntax error, but missed the sneaky off-by-one array boundary bug.",
+      suggestion: "💡 Recommendation: Don't code at 3 AM without coffee! Read compiler error tracebacks carefully."
+    };
+  } else if (ratio >= 0.25) {
+    return {
+      title: "🐛 Bug Breeding Farm",
+      emoji: "🍵",
+      message: "Oops! You called an infinite loop a 'feature'... Your tech lead is currently hyperventilating.",
+      suggestion: "💡 Recommendation: If code compiles, don't just pray—test it with edge cases!"
+    };
+  } else {
+    return {
+      title: "🔥 Production Server Burning",
+      emoji: "💥",
+      message: "Yikes! Your bug hunting accidentally pushed 4 broken loops to production on a Friday at 4:59 PM!",
+      suggestion: "💡 Recommendation: Apologize to your server room, grab a coffee, and start over in Beginner mode!"
+    };
+  }
+};
 
 const TANGO_PUZZLES = [
   { id: 'tango-1', grid: '4x4', difficulty: 'beginner', desc: 'Equal count of ☀️ and 🌙 symbols per row and column (2 of each)!', size: 4, fixed: { '0-0': 'sun', '1-3': 'moon' } },
@@ -161,7 +849,11 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
     removeFindBugChallenge,
     addOrUpdateQuizQuestion,
     removeQuizQuestion,
-    addThisOrThatPoll
+    addThisOrThatPoll,
+    weeklyMissions: contextMissions,
+    badges: contextBadges,
+    mysteryRewards,
+    siteConfig
   } = useData();
 
   // Active Main Tab state: 'games' | 'goals' | 'leaderboard'
@@ -230,6 +922,7 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
 
   // 60-Second Challenge Modal State
   const [challengeOpen, setChallengeOpen] = useState(false);
+  const [challengeQuizPool, setChallengeQuizPool] = useState([]);
   const [challengeIndex, setChallengeIndex] = useState(0);
   const [challengeScore, setChallengeScore] = useState(0);
   const [challengeTimer, setChallengeTimer] = useState(60);
@@ -251,6 +944,8 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
   const [guessIndex, setGuessIndex] = useState(0);
   const [guessSelectedOpt, setGuessSelectedOpt] = useState(null);
   const [guessSubmitted, setGuessSubmitted] = useState(false);
+  const [guessScore, setGuessScore] = useState(0);
+  const [guessFinished, setGuessFinished] = useState(false);
 
   // Find Bug Modal State
   const [findBugOpen, setFindBugOpen] = useState(false);
@@ -258,6 +953,8 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
   const [bugIndex, setBugIndex] = useState(0);
   const [bugSelectedOpt, setBugSelectedOpt] = useState(null);
   const [bugSubmitted, setBugSubmitted] = useState(false);
+  const [bugScore, setBugScore] = useState(0);
+  const [bugFinished, setBugFinished] = useState(false);
 
   // ECG (Error Code Guessing) Modal State
   const [ecgModalOpen, setEcgModalOpen] = useState(false);
@@ -265,6 +962,8 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
   const [ecgIndex, setEcgIndex] = useState(0);
   const [ecgSelectedOpt, setEcgSelectedOpt] = useState(null);
   const [ecgSubmitted, setEcgSubmitted] = useState(false);
+  const [ecgScore, setEcgScore] = useState(0);
+  const [ecgFinished, setEcgFinished] = useState(false);
 
   // Interactive Tango Logic Grid Engine State
   const [tangoModalOpen, setTangoModalOpen] = useState(false);
@@ -283,17 +982,63 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
   const [speedTypeWpm, setSpeedTypeWpm] = useState(0);
   const [speedTypeAccuracy, setSpeedTypeAccuracy] = useState(100);
 
+  // Copy-Paste Protection Toast State & Active Session Engine
+  const [toastMessage, setToastMessage] = useState(null);
+
+  const triggerToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const isGameSessionActive = Boolean(
+    challengeActive || 
+    quickQuizOpen || 
+    guessOutputOpen || 
+    findBugOpen || 
+    ecgModalOpen || 
+    tangoModalOpen || 
+    speedTypeModalOpen
+  );
+
+  // Copy-Paste Prevention Global Event Listeners Effect (Only during active game sessions)
+  useEffect(() => {
+    if (!isGameSessionActive) return;
+
+    const handleBlockedAction = (e, actionName) => {
+      e.preventDefault();
+      triggerToast(`🚫 ${actionName} is disabled during active tests`);
+    };
+
+    const onCtx = (e) => handleBlockedAction(e, "Right-click context menu");
+    const onCopy = (e) => handleBlockedAction(e, "Copying text");
+    const onCut = (e) => handleBlockedAction(e, "Cut text");
+    const onPaste = (e) => handleBlockedAction(e, "Pasting");
+
+    window.addEventListener('contextmenu', onCtx);
+    window.addEventListener('copy', onCopy);
+    window.addEventListener('cut', onCut);
+    window.addEventListener('paste', onPaste);
+
+    return () => {
+      window.removeEventListener('contextmenu', onCtx);
+      window.removeEventListener('copy', onCopy);
+      window.removeEventListener('cut', onCut);
+      window.removeEventListener('paste', onPaste);
+    };
+  }, [isGameSessionActive]);
+
 
 
   // Leaderboard Filters State: 'weekly' | 'monthly' | 'class'
   const [leaderboardFilter, setLeaderboardFilter] = useState('weekly');
 
   // Weekly Mission State
-  const [weeklyMissions, setWeeklyMissions] = useState([
+  const activeWeeklyMissions = (contextMissions && contextMissions.length > 0) ? contextMissions : [
     { id: 'm-1', title: 'Complete 3 Quick Quizzes', target: 3, progress: 2, reward: 75 },
     { id: 'm-2', title: 'Play Spin & Learn 3 times', target: 3, progress: 2, reward: 50 },
     { id: 'm-3', title: 'Complete 2 Coding Challenges', target: 2, progress: 1, reward: 100 }
-  ]);
+  ];
+  const activeBadges = (contextBadges && contextBadges.length > 0) ? contextBadges : INITIAL_ACHIEVEMENT_BADGES;
   const [claimedWeeklyBonus, setClaimedWeeklyBonus] = useState(false);
 
   // Admin Management Modal State inside BrainZone
@@ -462,7 +1207,16 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
     return true;
   };
 
-  const start60SecChallenge = () => {
+  const start60SecChallenge = (diffLevel = gameDifficulty || 'intermediate') => {
+    const allQuestions = (quizQuestions && quizQuestions.length > 0) ? quizQuestions : DAILY_QUIZ_QUESTIONS;
+    const diffQuestions = allQuestions.filter(q => {
+      if (diffLevel === 'beginner') return q.difficulty === 'beginner';
+      if (diffLevel === 'advanced') return q.difficulty === 'advanced';
+      return !q.difficulty || q.difficulty === 'intermediate';
+    });
+    const pool = diffQuestions.length > 0 ? diffQuestions : allQuestions;
+
+    setChallengeQuizPool(pool);
     setChallengeIndex(0);
     setChallengeScore(0);
     setChallengeTimer(60);
@@ -472,15 +1226,14 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
   };
 
   const handleAnswerChallenge = (optionIndex) => {
-    const qList = (quizQuestions && quizQuestions.length > 0) ? quizQuestions : DAILY_QUIZ_QUESTIONS;
-    if (optionIndex === qList[challengeIndex % qList.length].answer) {
+    const pool = challengeQuizPool.length > 0 ? challengeQuizPool : ((quizQuestions && quizQuestions.length > 0) ? quizQuestions : DAILY_QUIZ_QUESTIONS);
+    const currentQ = pool[challengeIndex % pool.length];
+
+    if (currentQ && optionIndex === currentQ.answer) {
       setChallengeScore(prev => prev + 1);
     }
-    if (challengeIndex < qList.length - 1) {
-      setChallengeIndex(prev => prev + 1);
-    } else {
-      finishChallenge();
-    }
+    // Continuous 60s sprint: always advance to next question; time limit of 60s controls when sprint ends!
+    setChallengeIndex(prev => prev + 1);
   };
 
   // Universal Difficulty Selector Launcher
@@ -556,38 +1309,32 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
         setSpinQuizAnswered(false);
         setSpinQuizModalOpen(true);
       } else if (winningSeg.id === 'mystery') {
+        const pool = (mysteryRewards && mysteryRewards.length > 0) ? mysteryRewards : [
+          { id: 'mr-1', title: '+150 Super XP Bonus', rewardType: 'xp', value: 150 },
+          { id: 'mr-2', title: 'Golden Legend Border', rewardType: 'cosmetic', value: 'golden_legend' },
+          { id: 'mr-3', title: '1x Streak Shield', rewardType: 'shield', value: 1 }
+        ];
+        const loot = pool[Math.floor(Math.random() * pool.length)];
+
+        if (loot.rewardType === 'xp') {
+          nextProfile.funPoints = funPoints + Number(loot.value);
+        } else if (loot.rewardType === 'cosmetic') {
+          const unlockedBorders = currentUser?.unlockedBorderIds || ['default', 'cyber_neon'];
+          if (!unlockedBorders.includes(loot.value)) {
+            nextProfile.unlockedBorderIds = [...unlockedBorders, loot.value];
+          }
+        }
         updateUserProfile(nextProfile);
-        const rewards = ['💎 +150 Super XP Bonus!', '🎁 Unlocked Golden Legend Border!', '🛡️ Earned 1x Streak Shield!'];
-        setSpinResult(`🎁 Mystery Loot: ${rewards[Math.floor(Math.random() * rewards.length)]}`);
+        setSpinResult(`🎁 Mystery Loot: ${loot.title}!`);
       }
     }, 3600);
   };
 
   // Guess Output Challenge list
-  const guessList = (guessOutputChallenges && guessOutputChallenges.length > 0) ? guessOutputChallenges : [
-    {
-      id: 'go-1',
-      title: 'JavaScript Type Coercion',
-      language: 'javascript',
-      code: 'console.log(1 + "2" + 3);',
-      options: ['"123"', '"6"', '"15"', 'NaN'],
-      answer: 0,
-      explanation: 'In JavaScript, numbers added to strings are converted to strings: 1 + "2" = "12", then "12" + 3 = "123".'
-    }
-  ];
+  const guessList = (guessOutputChallenges && guessOutputChallenges.length > 0) ? guessOutputChallenges : GUESS_OUTPUT_CHALLENGES;
 
   // Find Bug Challenge list
-  const bugList = (findBugChallenges && findBugChallenges.length > 0) ? findBugChallenges : [
-    {
-      id: 'fb-1',
-      title: 'Infinite Decrement Loop',
-      language: 'javascript',
-      code: 'function countToTen() {\n  for (let i = 0; i < 10; i--) {\n    console.log(i);\n  }\n}',
-      options: ['Line 2: i-- causes infinite loop', 'Line 1: Missing const keyword', 'Line 3: Syntax error in console.log', 'Line 2: Missing semicolon'],
-      answer: 0,
-      explanation: 'i-- decrements i away from 10, causing an infinite loop. It should be i++.'
-    }
-  ];
+  const bugList = (findBugChallenges && findBugChallenges.length > 0) ? findBugChallenges : FIND_BUG_CHALLENGES;
 
   // Leaderboard Aggregates & Users (Merged with currentUser and rich cosmetics)
   const baseRoster = (registeredUsers && registeredUsers.length > 0)
@@ -901,15 +1648,10 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                   gameId: '60sec',
                   title: '60-Second Sprint',
                   icon: '⏱️',
-                  description: 'Answer 5 rapid questions under 60 seconds. Select difficulty for higher bonus XP payouts!',
+                  description: 'Answer as many rapid questions as possible in 60 seconds. Select difficulty level for higher XP multipliers!',
                   baseXp: 150,
-                  onStart: () => {
-                    setChallengeIndex(0);
-                    setChallengeScore(0);
-                    setChallengeTimer(60);
-                    setChallengeFinished(false);
-                    setChallengeActive(true);
-                    setChallengeOpen(true);
+                  onStart: (diff) => {
+                    start60SecChallenge(diff);
                   }
                 })}
                 className="w-full py-3 rounded-2xl text-xs font-black uppercase tracking-wider bg-gradient-to-r from-cyan-600 via-teal-600 to-emerald-600 hover:opacity-90 text-white shadow-lg shadow-cyan-600/30 transition-all flex items-center justify-center space-x-2"
@@ -926,7 +1668,10 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40">
                     Daily Poll
                   </span>
-                  <span className="text-[10px] text-slate-400 font-semibold">{totalPollVotes} Votes</span>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-900 text-amber-300 border border-amber-500/30 flex items-center space-x-1">
+                    <Users className="w-3 h-3 text-amber-400" />
+                    <span>{totalPollVotes} {totalPollVotes === 1 ? 'user' : 'users'} voted</span>
+                  </span>
                 </div>
                 <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
                   <span>🗳️ This or That</span>
@@ -938,47 +1683,51 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
 
               <div className="space-y-2 my-1">
                 {!hasVotedActivePoll ? (
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => handleVotePoll('A')}
-                      className="p-3 rounded-2xl bg-slate-900 border border-slate-800 hover:border-amber-500 text-xs font-bold text-slate-200 hover:text-white transition-all text-center"
-                    >
-                      {activePoll.optionA}
-                    </button>
-                    <button
-                      onClick={() => handleVotePoll('B')}
-                      className="p-3 rounded-2xl bg-slate-900 border border-slate-800 hover:border-amber-500 text-xs font-bold text-slate-200 hover:text-white transition-all text-center"
-                    >
-                      {activePoll.optionB}
-                    </button>
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => handleVotePoll('A')}
+                        className="p-3 rounded-2xl bg-slate-900 border border-slate-800 hover:border-amber-500/60 text-xs font-bold text-slate-200 hover:text-white transition-all text-center group/opt flex flex-col items-center justify-center space-y-1"
+                      >
+                        <span className="text-white font-black">{activePoll.optionA}</span>
+                        <span className="text-[10px] text-amber-400 font-semibold">{activePoll.votesA || 0} votes ({percentA}%)</span>
+                      </button>
+                      <button
+                        onClick={() => handleVotePoll('B')}
+                        className="p-3 rounded-2xl bg-slate-900 border border-slate-800 hover:border-cyan-500/60 text-xs font-bold text-slate-200 hover:text-white transition-all text-center group/opt flex flex-col items-center justify-center space-y-1"
+                      >
+                        <span className="text-white font-black">{activePoll.optionB}</span>
+                        <span className="text-[10px] text-cyan-400 font-semibold">{activePoll.votesB || 0} votes ({percentB}%)</span>
+                      </button>
+                    </div>
                   </div>
                 ) : (
-                  <div className="space-y-2 p-3 bg-slate-900/90 rounded-2xl border border-slate-800">
+                  <div className="space-y-2.5 p-3.5 bg-slate-900/90 rounded-2xl border border-slate-800">
                     <div className="space-y-1">
                       <div className="flex justify-between text-[11px] font-bold text-amber-300">
                         <span>{activePoll.optionA} {userVoteChoice === 'A' ? '✓ Your Vote' : ''}</span>
-                        <span>{percentA}%</span>
+                        <span>{activePoll.votesA || 0} votes ({percentA}%)</span>
                       </div>
-                      <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden">
-                        <div className="h-full bg-amber-400 rounded-full" style={{ width: `${percentA}%` }} />
+                      <div className="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800">
+                        <div className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full transition-all duration-500" style={{ width: `${percentA}%` }} />
                       </div>
                     </div>
 
                     <div className="space-y-1">
                       <div className="flex justify-between text-[11px] font-bold text-cyan-300">
                         <span>{activePoll.optionB} {userVoteChoice === 'B' ? '✓ Your Vote' : ''}</span>
-                        <span>{percentB}%</span>
+                        <span>{activePoll.votesB || 0} votes ({percentB}%)</span>
                       </div>
-                      <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden">
-                        <div className="h-full bg-cyan-400 rounded-full" style={{ width: `${percentB}%` }} />
+                      <div className="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800">
+                        <div className="h-full bg-gradient-to-r from-cyan-500 to-cyan-400 rounded-full transition-all duration-500" style={{ width: `${percentB}%` }} />
                       </div>
                     </div>
                   </div>
                 )}
               </div>
 
-              <div className="text-[10px] text-center text-slate-400 font-semibold">
-                {hasVotedActivePoll ? '✓ Voted (+25 XP Claimed)' : 'Vote to earn +25 XP!'}
+              <div className="text-[10px] text-center text-slate-400 font-semibold flex items-center justify-center space-x-1">
+                <span>{hasVotedActivePoll ? `✓ Voted (${totalPollVotes} total votes) • +25 XP Claimed` : `👥 ${totalPollVotes} users voted so far • Click an option to vote (+25 XP)!`}</span>
               </div>
             </div>
 
@@ -1075,12 +1824,15 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                   description: 'Analyze code logic snippets. Advanced difficulty includes closures, coercion, and async edge cases!',
                   baseXp: 80,
                   onStart: (diff) => {
-                    const filtered = guessList.filter(g => !g.difficulty || g.difficulty === diff);
-                    setActiveGuessList(shuffleArray(filtered.length > 0 ? filtered : guessList));
+                    const filtered = guessList.filter(g => g.difficulty === diff);
+                    const questions = shuffleArray(filtered.length > 0 ? filtered : guessList);
+                    setActiveGuessList(questions);
                     setGuessIndex(0);
+                    setGuessScore(0);
                     setGuessSelectedOpt(null);
                     setGuessSubmitted(false);
-                    const secs = getTimerSecondsForDiff(diff);
+                    setGuessFinished(false);
+                    const secs = diff === 'beginner' ? 60 : diff === 'advanced' ? 120 : 90;
                     setRoundTimer(secs);
                     setRoundTimerMax(secs);
                     setRoundTimerActive(true);
@@ -1113,7 +1865,7 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
 
               <div className="my-2 p-3 bg-slate-950 rounded-2xl border border-slate-800 font-mono text-[11px] text-rose-300 space-y-1">
                 <div className="text-[9px] text-slate-500 font-sans uppercase">Bug Hunt Preview</div>
-                <code>{bugList[0].code.split('\n')[1]}</code>
+                <code>{bugList[0].code.split('\n')[0]}</code>
               </div>
 
               <button
@@ -1124,12 +1876,15 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                   description: 'Spot syntax errors, infinite loops, and logical bugs. Choose difficulty level for higher XP rewards!',
                   baseXp: 90,
                   onStart: (diff) => {
-                    const filtered = bugList.filter(b => !b.difficulty || b.difficulty === diff);
-                    setActiveBugList(shuffleArray(filtered.length > 0 ? filtered : bugList));
+                    const filtered = bugList.filter(b => b.difficulty === diff);
+                    const questions = shuffleArray(filtered.length > 0 ? filtered : bugList);
+                    setActiveBugList(questions);
                     setBugIndex(0);
+                    setBugScore(0);
                     setBugSelectedOpt(null);
                     setBugSubmitted(false);
-                    const secs = getTimerSecondsForDiff(diff);
+                    setBugFinished(false);
+                    const secs = diff === 'beginner' ? 60 : diff === 'advanced' ? 120 : 90;
                     setRoundTimer(secs);
                     setRoundTimerMax(secs);
                     setRoundTimerActive(true);
@@ -1172,12 +1927,15 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                   description: 'Guess HTTP codes and system error messages across Beginner, Intermediate, or Advanced levels!',
                   baseXp: 70,
                   onStart: (diff) => {
-                    const filtered = ECG_CHALLENGES.filter(c => !c.difficulty || c.difficulty === diff);
-                    setActiveEcgList(shuffleArray(filtered.length > 0 ? filtered : ECG_CHALLENGES));
+                    const filtered = ECG_CHALLENGES.filter(c => c.difficulty === diff);
+                    const questions = shuffleArray(filtered.length > 0 ? filtered : ECG_CHALLENGES);
+                    setActiveEcgList(questions);
                     setEcgIndex(0);
+                    setEcgScore(0);
                     setEcgSelectedOpt(null);
                     setEcgSubmitted(false);
-                    const secs = getTimerSecondsForDiff(diff);
+                    setEcgFinished(false);
+                    const secs = diff === 'beginner' ? 60 : diff === 'advanced' ? 120 : 90;
                     setRoundTimer(secs);
                     setRoundTimerMax(secs);
                     setRoundTimerActive(true);
@@ -1272,7 +2030,7 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                     setSpeedTypeFinished(false);
                     setSpeedTypeWpm(0);
                     setSpeedTypeAccuracy(100);
-                    const secs = getTimerSecondsForDiff(diff);
+                    const secs = diff === 'beginner' ? 60 : diff === 'advanced' ? 90 : 75;
                     setRoundTimer(secs);
                     setRoundTimerMax(secs);
                     setRoundTimerActive(true);
@@ -1399,20 +2157,20 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                 </div>
 
                 <div className="space-y-3">
-                  {weeklyMissions.map(m => (
+                  {activeWeeklyMissions.map(m => (
                     <div key={m.id} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-bold text-white flex items-center gap-2">
-                          <CheckCircle2 className={`w-4 h-4 ${m.progress >= m.target ? 'text-emerald-400' : 'text-slate-600'}`} />
+                          <CheckCircle2 className={`w-4 h-4 ${(m.progress || 0) >= m.target ? 'text-emerald-400' : 'text-slate-600'}`} />
                           {m.title}
                         </span>
-                        <span className="text-slate-400 font-mono font-bold">{m.progress} / {m.target} Completed</span>
+                        <span className="text-slate-400 font-mono font-bold">{m.progress || 0} / {m.target} Completed</span>
                       </div>
 
                       <div className="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden border border-slate-800">
                         <div
                           className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all"
-                          style={{ width: `${Math.min(100, (m.progress / m.target) * 100)}%` }}
+                          style={{ width: `${Math.min(100, ((m.progress || 0) / m.target) * 100)}%` }}
                         />
                       </div>
                     </div>
@@ -1428,8 +2186,8 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                 </h3>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {INITIAL_ACHIEVEMENT_BADGES.map((b, i) => {
-                    const isUnlocked = i < 4; // Mock status
+                  {activeBadges.map((b, i) => {
+                    const isUnlocked = userBadges.includes(b.id) || i < 2;
                     return (
                       <div
                         key={b.id}
@@ -1904,56 +2662,70 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
           <div className="glass-panel rounded-3xl max-w-lg w-full p-6 sm:p-8 border border-cyan-500/40 shadow-2xl space-y-6">
             
-            {!challengeFinished ? (
-              <>
-                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                  <div>
-                    <h3 className="text-lg font-black text-white">60-Second IT Challenge</h3>
-                    <p className="text-xs text-slate-400">Question {challengeIndex + 1} of {DAILY_QUIZ_QUESTIONS.length}</p>
-                  </div>
-                  <div className="flex items-center space-x-1 text-amber-400 font-mono text-lg font-black bg-amber-500/10 px-3 py-1 rounded-xl border border-amber-500/30">
-                    <Clock className="w-4 h-4" />
-                    <span>{challengeTimer}s</span>
-                  </div>
-                </div>
+            {(() => {
+              const pool = challengeQuizPool.length > 0 ? challengeQuizPool : ((quizQuestions && quizQuestions.length > 0) ? quizQuestions : DAILY_QUIZ_QUESTIONS);
+              const currentQ = pool[challengeIndex % pool.length];
 
-                <div className="space-y-4">
-                  <p className="text-sm sm:text-base font-bold text-white leading-snug">
-                    {DAILY_QUIZ_QUESTIONS[challengeIndex % DAILY_QUIZ_QUESTIONS.length].q}
-                  </p>
-
-                  <div className="space-y-2.5">
-                    {DAILY_QUIZ_QUESTIONS[challengeIndex % DAILY_QUIZ_QUESTIONS.length].options.map((opt, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleAnswerChallenge(idx)}
-                        className="w-full p-3.5 rounded-2xl border border-slate-800 bg-slate-900/90 hover:bg-cyan-500/20 hover:border-cyan-500/40 text-slate-200 hover:text-white font-semibold text-xs text-left transition-all flex items-center justify-between group"
-                      >
-                        <span>{opt}</span>
-                        <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-cyan-400" />
-                      </button>
-                    ))}
+              return !challengeFinished ? (
+                <>
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div>
+                      <h3 className="text-lg font-black text-white flex items-center space-x-2">
+                        <span>60-Second IT Challenge</span>
+                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
+                          gameDifficulty === 'advanced' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' :
+                          gameDifficulty === 'beginner' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
+                          'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        }`}>
+                          {gameDifficulty || 'intermediate'}
+                        </span>
+                      </h3>
+                      <p className="text-xs text-slate-400">Question #{challengeIndex + 1} • Continuous 60s Sprint ({pool.length} Qs in pool)</p>
+                    </div>
+                    <div className="flex items-center space-x-1 text-amber-400 font-mono text-lg font-black bg-amber-500/10 px-3 py-1 rounded-xl border border-amber-500/30">
+                      <Clock className="w-4 h-4 animate-pulse" />
+                      <span>{challengeTimer}s</span>
+                    </div>
                   </div>
-                </div>
-              </>
-            ) : (
-              <div className="text-center space-y-4 py-4 animate-in zoom-in-95">
-                <Trophy className="w-16 h-16 text-amber-400 mx-auto animate-bounce" />
-                <h3 className="text-2xl font-black text-white">Challenge Completed!</h3>
-                
-                <div className="p-4 rounded-2xl bg-cyan-950/30 border border-cyan-500/40 space-y-1">
-                  <p className="text-3xl font-black text-cyan-300">{challengeScore} / {DAILY_QUIZ_QUESTIONS.length} Correct</p>
-                  <p className="text-xs font-bold text-amber-400">+{(challengeScore * 30) + (challengeTimer > 20 ? 50 : 20)} XP Earned!</p>
-                </div>
 
-                <button
-                  onClick={() => setChallengeOpen(false)}
-                  className="w-full py-3 rounded-2xl font-black text-xs uppercase bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-600/30 transition-all"
-                >
-                  Return to BrainZone Hub
-                </button>
-              </div>
-            )}
+                  <div className="space-y-4">
+                    <p className="text-sm sm:text-base font-bold text-white leading-snug">
+                      {currentQ?.q}
+                    </p>
+
+                    <div className="space-y-2.5">
+                      {currentQ?.options?.map((opt, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => handleAnswerChallenge(idx)}
+                          className="w-full p-3.5 rounded-2xl border border-slate-800 bg-slate-900/90 hover:bg-cyan-500/20 hover:border-cyan-500/40 text-slate-200 hover:text-white font-semibold text-xs text-left transition-all flex items-center justify-between group"
+                        >
+                          <span>{opt}</span>
+                          <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-cyan-400" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center space-y-4 py-4 animate-in zoom-in-95">
+                  <Trophy className="w-16 h-16 text-amber-400 mx-auto animate-bounce" />
+                  <h3 className="text-2xl font-black text-white">Challenge Completed!</h3>
+                  
+                  <div className="p-4 rounded-2xl bg-cyan-950/30 border border-cyan-500/40 space-y-1">
+                    <p className="text-3xl font-black text-cyan-300">{challengeScore} Correct Answers</p>
+                    <p className="text-xs font-bold text-amber-400">+{Math.round(((challengeScore * 30) + (challengeTimer > 20 ? 50 : 20)) * gameXpMultiplier)} XP Earned ({gameXpMultiplier}x Multiplier)!</p>
+                  </div>
+
+                  <button
+                    onClick={() => setChallengeOpen(false)}
+                    className="w-full py-3 rounded-2xl font-black text-xs uppercase bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-600/30 transition-all"
+                  >
+                    Return to BrainZone Hub
+                  </button>
+                </div>
+              );
+            })()}
 
           </div>
         </div>
@@ -1966,56 +2738,70 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
           <div className="glass-panel rounded-3xl max-w-lg w-full p-6 border border-purple-500/40 shadow-2xl space-y-4">
             
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Brain className="w-5 h-5 text-purple-400" />
-                <span>Quick Quiz Challenge ({selectedQuizCategory})</span>
-              </h3>
-              <button onClick={() => setQuickQuizOpen(false)} className="p-1 text-slate-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+            {(() => {
+              const pool = (activeQuizList && activeQuizList.length > 0) ? activeQuizList : ((quizQuestions && quizQuestions.length > 0) ? quizQuestions : DAILY_QUIZ_QUESTIONS);
+              const currentQ = pool[quizIndex % pool.length];
 
-            {!quizFinished ? (
-              <div className="space-y-4">
-                <p className="text-sm font-bold text-white">
-                  {DAILY_QUIZ_QUESTIONS[quizIndex % DAILY_QUIZ_QUESTIONS.length].q}
-                </p>
-
-                <div className="space-y-2">
-                  {DAILY_QUIZ_QUESTIONS[quizIndex % DAILY_QUIZ_QUESTIONS.length].options.map((opt, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        setSelectedQuizOption(idx);
-                        if (idx === DAILY_QUIZ_QUESTIONS[quizIndex % DAILY_QUIZ_QUESTIONS.length].answer) {
-                          setQuizScore(prev => prev + 1);
-                        }
-                        if (quizIndex < DAILY_QUIZ_QUESTIONS.length - 1) {
-                          setQuizIndex(prev => prev + 1);
-                        } else {
-                          setQuizFinished(true);
-                          updateUserProfile({ funPoints: funPoints + 80 });
-                        }
-                      }}
-                      className="w-full p-3 rounded-2xl border border-slate-800 bg-slate-900 text-xs font-semibold text-left text-slate-200 hover:bg-purple-500/20 hover:border-purple-500/40 transition-all"
-                    >
-                      {opt}
+              return (
+                <>
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h3 className="text-base font-bold text-white flex items-center gap-2">
+                      <Brain className="w-5 h-5 text-purple-400" />
+                      <span>Quick Quiz ({selectedQuizCategory || 'General'})</span>
+                    </h3>
+                    <button onClick={() => setQuickQuizOpen(false)} className="p-1 text-slate-400 hover:text-white">
+                      <X className="w-5 h-5" />
                     </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="text-center space-y-4 py-3">
-                <Trophy className="w-12 h-12 text-amber-400 mx-auto" />
-                <h4 className="text-lg font-bold text-white">Quiz Complete!</h4>
-                <p className="text-2xl font-black text-purple-300">{quizScore} / {DAILY_QUIZ_QUESTIONS.length} Correct</p>
-                <p className="text-xs font-bold text-amber-400">+80 XP Awarded!</p>
-                <button onClick={() => setQuickQuizOpen(false)} className="w-full py-2.5 rounded-xl bg-purple-600 text-white font-bold text-xs">
-                  Done
-                </button>
-              </div>
-            )}
+                  </div>
+
+                  {!quizFinished ? (
+                    <div className="space-y-4">
+                      <div className="flex justify-between text-xs text-slate-400 font-semibold">
+                        <span>Question {quizIndex + 1} of {pool.length}</span>
+                        <span className="text-purple-400 font-mono">Score: {quizScore}</span>
+                      </div>
+                      <p className="text-sm font-bold text-white">
+                        {currentQ?.q}
+                      </p>
+
+                      <div className="space-y-2">
+                        {currentQ?.options?.map((opt, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => {
+                              setSelectedQuizOption(idx);
+                              if (idx === currentQ?.answer) {
+                                setQuizScore(prev => prev + 1);
+                              }
+                              if (quizIndex < pool.length - 1) {
+                                setQuizIndex(prev => prev + 1);
+                              } else {
+                                setQuizFinished(true);
+                                const earned = Math.round(80 * gameXpMultiplier);
+                                updateUserProfile({ funPoints: funPoints + earned });
+                              }
+                            }}
+                            className="w-full p-3 rounded-2xl border border-slate-800 bg-slate-900 text-xs font-semibold text-left text-slate-200 hover:bg-purple-500/20 hover:border-purple-500/40 transition-all"
+                          >
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center space-y-4 py-3">
+                      <Trophy className="w-12 h-12 text-amber-400 mx-auto" />
+                      <h4 className="text-lg font-bold text-white">Quiz Complete!</h4>
+                      <p className="text-2xl font-black text-purple-300">{quizScore} / {pool.length} Correct</p>
+                      <p className="text-xs font-bold text-amber-400">+{Math.round(80 * gameXpMultiplier)} XP Awarded!</p>
+                      <button onClick={() => setQuickQuizOpen(false)} className="w-full py-2.5 rounded-xl bg-purple-600 text-white font-bold text-xs">
+                        Done
+                      </button>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
 
           </div>
         </div>
@@ -2024,144 +2810,424 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
       {/* ========================================================================= */}
       {/* MODAL 3: 💻 GUESS THE OUTPUT MODAL */}
       {/* ========================================================================= */}
-      {guessOutputOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
-          <div className="glass-panel rounded-3xl max-w-lg w-full p-6 border border-blue-500/40 shadow-2xl space-y-4">
-            
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Code className="w-5 h-5 text-blue-400" />
-                <span>Guess The Output ({guessList[guessIndex].title})</span>
-              </h3>
-              <button onClick={() => setGuessOutputOpen(false)} className="p-1 text-slate-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {guessOutputOpen && activeGuessList.length > 0 && (() => {
+        const currentWeekId = getISOWeekId();
+        const guessWeeklyCompletions = currentUser?.guessWeeklyCompletions || {};
+        const alreadyClaimedThisWeek = guessWeeklyCompletions[gameDifficulty] === currentWeekId;
+        const currentQ = activeGuessList[guessIndex % activeGuessList.length];
+        const funnyResult = getFunnyGuessResult(guessScore, activeGuessList.length);
 
-            <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 font-mono text-xs text-cyan-300">
-              <pre>{guessList[guessIndex].code}</pre>
-            </div>
+        const baseQXp = siteConfig?.xpSettings?.guessQuestionXP ?? 20;
+        const baseBonusXp = siteConfig?.xpSettings?.guessWeeklyBonusXP ?? 50;
+        const qXpAmount = Math.round(baseQXp * gameXpMultiplier);
+        const weeklyBonusAmount = Math.round(baseBonusXp * gameXpMultiplier);
 
-            <p className="text-xs font-bold text-slate-300">What will be the output?</p>
+        const handleFinishGuess = () => {
+          setGuessFinished(true);
+          setRoundTimerActive(false);
 
-            <div className="grid grid-cols-2 gap-2">
-              {guessList[guessIndex].options.map((opt, idx) => {
-                const isCorrect = idx === guessList[guessIndex].answer;
-                const isSelected = guessSelectedOpt === idx;
-                let btnStyle = "p-3 rounded-xl text-xs font-mono font-bold border border-slate-800 bg-slate-900 text-slate-200";
+          if (!alreadyClaimedThisWeek) {
+            const updatedCompletions = {
+              ...guessWeeklyCompletions,
+              [gameDifficulty]: currentWeekId
+            };
+            updateUserProfile({
+              funPoints: (currentUser?.funPoints || 450) + weeklyBonusAmount,
+              guessWeeklyCompletions: updatedCompletions
+            });
+          }
+        };
 
-                if (guessSubmitted) {
-                  if (isCorrect) btnStyle = "p-3 rounded-xl text-xs font-mono font-bold border border-emerald-500 bg-emerald-500/20 text-emerald-300";
-                  else if (isSelected) btnStyle = "p-3 rounded-xl text-xs font-mono font-bold border border-rose-500 bg-rose-500/20 text-rose-300";
-                }
-
-                return (
-                  <button
-                    key={idx}
-                    disabled={guessSubmitted}
-                    onClick={() => {
-                      setGuessSelectedOpt(idx);
-                      setGuessSubmitted(true);
-                      if (idx === guessList[guessIndex].answer) {
-                        updateUserProfile({ funPoints: funPoints + 40 });
-                      }
-                    }}
-                    className={btnStyle}
-                  >
-                    {opt}
-                  </button>
-                );
-              })}
-            </div>
-
-            {guessSubmitted && (
-              <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 space-y-1.5 text-xs">
-                <p className={`font-bold ${guessSelectedOpt === guessList[guessIndex].answer ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {guessSelectedOpt === guessList[guessIndex].answer ? '🎉 Correct! +40 XP Earned!' : '❌ Incorrect!'}
-                </p>
-                <p className="text-[11px] text-slate-300 leading-relaxed">
-                  <strong>Explanation:</strong> {guessList[guessIndex].explanation}
-                </p>
-                <button onClick={() => setGuessOutputOpen(false)} className="w-full py-2 rounded-xl bg-blue-600 text-white font-bold text-xs mt-2">
-                  Continue
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+            <div className="glass-panel rounded-3xl max-w-lg w-full p-6 border border-blue-500/40 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+              
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center space-x-2">
+                  <span className="text-xl">💻</span>
+                  <h3 className="text-base font-extrabold text-white">Guess The Output</h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30 uppercase">
+                    {gameDifficulty} ({activeGuessList.length} Qs)
+                  </span>
+                </div>
+                <button onClick={() => { setGuessOutputOpen(false); setRoundTimerActive(false); }} className="p-1 text-slate-400 hover:text-white">
+                  <X className="w-5 h-5" />
                 </button>
               </div>
-            )}
 
+              {/* Weekly XP Status Banner */}
+              {alreadyClaimedThisWeek ? (
+                <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-between text-purple-300 text-[11px] font-semibold">
+                  <span>ℹ️ Weekly Completion Bonus Claimed</span>
+                  <span className="text-[10px] text-purple-300/80">+{qXpAmount} XP per correct option active</span>
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-between text-blue-300 text-[11px] font-semibold">
+                  <span>🎯 Weekly XP Active (+{qXpAmount} XP/correct +{weeklyBonusAmount} XP Level Bonus)</span>
+                  <span className="text-[10px] text-blue-400">First play of the week</span>
+                </div>
+              )}
+
+              {/* Timer Bar */}
+              <div className="flex items-center justify-between bg-slate-900 px-3 py-2 rounded-xl border border-slate-800 text-xs font-mono">
+                <div className="flex items-center space-x-1.5 text-amber-400">
+                  <Clock className="w-4 h-4 animate-pulse" />
+                  <span>Time: <strong className={roundTimer <= 10 ? "text-rose-400 font-black animate-ping" : "text-amber-300"}>{roundTimer}s</strong></span>
+                </div>
+                <div className="w-24 bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800">
+                  <div className={`h-full transition-all duration-1000 ${roundTimer <= 10 ? 'bg-rose-500' : 'bg-blue-400'}`} style={{ width: `${(roundTimer / roundTimerMax) * 100}%` }} />
+                </div>
+              </div>
+
+              {!guessFinished && currentQ ? (
+                <>
+                  {/* Code Snippet Box */}
+                  <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 font-mono text-xs text-cyan-300 overflow-x-auto">
+                    <div className="text-[10px] text-slate-500 font-sans uppercase mb-1 flex items-center justify-between">
+                      <span>Snippet ({guessIndex + 1}/{activeGuessList.length}) - {currentQ.title}</span>
+                      <span className="text-blue-400 font-bold uppercase">{currentQ.language || 'JS'}</span>
+                    </div>
+                    <pre>{currentQ.code}</pre>
+                  </div>
+
+                  <p className="text-xs font-bold text-slate-300">What will be the output of this code?</p>
+
+                  {/* Options */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {currentQ.options.map((opt, idx) => {
+                      const isCorrect = idx === currentQ.answer;
+                      const isSelected = guessSelectedOpt === idx;
+                      let btnStyle = "p-3 rounded-xl text-xs font-mono font-bold border border-slate-800 bg-slate-900 text-slate-200 hover:bg-blue-500/20 transition-all text-left";
+
+                      if (guessSubmitted) {
+                        if (isCorrect) btnStyle = "p-3 rounded-xl text-xs font-mono font-bold border border-emerald-500 bg-emerald-500/20 text-emerald-300 text-left";
+                        else if (isSelected) btnStyle = "p-3 rounded-xl text-xs font-mono font-bold border border-rose-500 bg-rose-500/20 text-rose-300 text-left";
+                      }
+
+                      return (
+                        <button
+                          key={idx}
+                          disabled={guessSubmitted || roundTimer === 0}
+                          onClick={() => {
+                            setGuessSelectedOpt(idx);
+                            setGuessSubmitted(true);
+
+                            if (isCorrect) {
+                              setGuessScore(prev => prev + 1);
+                              updateUserProfile({
+                                funPoints: (currentUser?.funPoints || 450) + qXpAmount
+                              });
+                            }
+                          }}
+                          className={btnStyle}
+                        >
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Feedback Banner */}
+                  {guessSubmitted && (
+                    <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 space-y-1 animate-in fade-in">
+                      <p className={`text-xs font-bold ${guessSelectedOpt === currentQ.answer ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {guessSelectedOpt === currentQ.answer 
+                          ? `🎉 Correct Output! +${qXpAmount} XP Earned!` 
+                          : '❌ Incorrect Output!'}
+                      </p>
+                      <p className="text-[11px] text-slate-300 leading-relaxed">
+                        <strong>Explanation:</strong> {currentQ.explanation}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Next / Finish Button */}
+                  {guessSubmitted && (
+                    <div className="pt-1">
+                      {guessIndex < activeGuessList.length - 1 ? (
+                        <button
+                          onClick={() => {
+                            setGuessIndex(prev => prev + 1);
+                            setGuessSelectedOpt(null);
+                            setGuessSubmitted(false);
+                          }}
+                          className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md transition-all"
+                        >
+                          Next Question ➔
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleFinishGuess}
+                          className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-90 text-white font-black text-xs uppercase tracking-wider shadow-md transition-all"
+                        >
+                          Finish Level & See Results 🏁
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* Level Results Screen with Funny Ranking & Custom Suggestions */
+                <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 text-center space-y-4 animate-in fade-in">
+                  <div className="space-y-2">
+                    <div className="text-4xl">{funnyResult.emoji}</div>
+                    <h4 className="text-lg font-black text-blue-400">
+                      {funnyResult.title}
+                    </h4>
+                    <p className="text-xs text-slate-300 italic bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                      "{funnyResult.message}"
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-blue-950/60 border border-blue-500/30 text-xs text-blue-200 text-left space-y-1">
+                    <p className="font-bold text-blue-300">📊 Your Performance Breakdown:</p>
+                    <p className="text-slate-300">
+                      Score: <strong className="text-white">{guessScore}</strong> / <strong className="text-white">{activeGuessList.length}</strong> correct ({Math.round((guessScore / (activeGuessList.length || 1)) * 100)}% accuracy)
+                    </p>
+                    <p className="text-amber-300 font-semibold">
+                      Total XP Earned: +{(qXpAmount * guessScore) + (!alreadyClaimedThisWeek ? weeklyBonusAmount : 0)} XP
+                    </p>
+                  </div>
+
+                  {/* Funny Custom Suggestion Box */}
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 font-semibold leading-relaxed">
+                    {funnyResult.suggestion}
+                  </div>
+
+                  {!alreadyClaimedThisWeek && (
+                    <div className="p-2.5 rounded-xl bg-blue-500/20 border border-blue-500/40 text-[11px] font-bold text-blue-300">
+                      🎉 First Weekly Completion Bonus (+{weeklyBonusAmount} XP) Unlocked!
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      setGuessOutputOpen(false);
+                      setRoundTimerActive(false);
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md"
+                  >
+                    Close & Play Again
+                  </button>
+                </div>
+              )}
+
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ========================================================================= */}
       {/* MODAL 4: 🐞 FIND THE BUG MODAL */}
       {/* ========================================================================= */}
-      {findBugOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
-          <div className="glass-panel rounded-3xl max-w-lg w-full p-6 border border-rose-500/40 shadow-2xl space-y-4">
-            
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Bug className="w-5 h-5 text-rose-400" />
-                <span>Find The Bug ({bugList[bugIndex].title})</span>
-              </h3>
-              <button onClick={() => setFindBugOpen(false)} className="p-1 text-slate-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {findBugOpen && activeBugList.length > 0 && (() => {
+        const currentWeekId = getISOWeekId();
+        const bugWeeklyCompletions = currentUser?.bugWeeklyCompletions || {};
+        const alreadyClaimedThisWeek = bugWeeklyCompletions[gameDifficulty] === currentWeekId;
+        const currentQ = activeBugList[bugIndex % activeBugList.length];
+        const funnyResult = getFunnyBugResult(bugScore, activeBugList.length);
 
-            <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 font-mono text-xs text-rose-300">
-              <pre>{bugList[bugIndex].code}</pre>
-            </div>
+        const baseQXp = siteConfig?.xpSettings?.bugQuestionXP ?? 20;
+        const baseBonusXp = siteConfig?.xpSettings?.bugWeeklyBonusXP ?? 50;
+        const qXpAmount = Math.round(baseQXp * gameXpMultiplier);
+        const weeklyBonusAmount = Math.round(baseBonusXp * gameXpMultiplier);
 
-            <p className="text-xs font-bold text-slate-300">Identify the issue in this code:</p>
+        const handleFinishBug = () => {
+          setBugFinished(true);
+          setRoundTimerActive(false);
 
-            <div className="space-y-2">
-              {bugList[bugIndex].options.map((opt, idx) => {
-                const isCorrect = idx === bugList[bugIndex].answer;
-                const isSelected = bugSelectedOpt === idx;
-                let btnStyle = "w-full p-3 rounded-xl text-xs font-semibold text-left border border-slate-800 bg-slate-900 text-slate-200";
+          if (!alreadyClaimedThisWeek) {
+            const updatedCompletions = {
+              ...bugWeeklyCompletions,
+              [gameDifficulty]: currentWeekId
+            };
+            updateUserProfile({
+              funPoints: (currentUser?.funPoints || 450) + weeklyBonusAmount,
+              bugWeeklyCompletions: updatedCompletions
+            });
+          }
+        };
 
-                if (bugSubmitted) {
-                  if (isCorrect) btnStyle = "w-full p-3 rounded-xl text-xs font-semibold text-left border border-emerald-500 bg-emerald-500/20 text-emerald-300";
-                  else if (isSelected) btnStyle = "w-full p-3 rounded-xl text-xs font-semibold text-left border border-rose-500 bg-rose-500/20 text-rose-300";
-                }
-
-                return (
-                  <button
-                    key={idx}
-                    disabled={bugSubmitted}
-                    onClick={() => {
-                      setBugSelectedOpt(idx);
-                      setBugSubmitted(true);
-                      if (idx === bugList[bugIndex].answer) {
-                        updateUserProfile({ funPoints: funPoints + 45 });
-                      }
-                    }}
-                    className={btnStyle}
-                  >
-                    {opt}
-                  </button>
-                );
-              })}
-            </div>
-
-            {bugSubmitted && (
-              <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 space-y-1.5 text-xs">
-                <p className={`font-bold ${bugSelectedOpt === bugList[bugIndex].answer ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {bugSelectedOpt === bugList[bugIndex].answer ? '🎉 Correct Bug Identified! +45 XP Earned!' : '❌ Incorrect!'}
-                </p>
-                <p className="text-[11px] text-slate-300 leading-relaxed">
-                  <strong>Explanation:</strong> {bugList[bugIndex].explanation}
-                </p>
-                <button onClick={() => setFindBugOpen(false)} className="w-full py-2 rounded-xl bg-rose-600 text-white font-bold text-xs mt-2">
-                  Continue
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+            <div className="glass-panel rounded-3xl max-w-lg w-full p-6 border border-rose-500/40 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+              
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center space-x-2">
+                  <span className="text-xl">🐞</span>
+                  <h3 className="text-base font-extrabold text-white">Find The Bug</h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 uppercase">
+                    {gameDifficulty} ({activeBugList.length} Qs)
+                  </span>
+                </div>
+                <button onClick={() => { setFindBugOpen(false); setRoundTimerActive(false); }} className="p-1 text-slate-400 hover:text-white">
+                  <X className="w-5 h-5" />
                 </button>
               </div>
-            )}
 
+              {/* Weekly XP Status Banner */}
+              {alreadyClaimedThisWeek ? (
+                <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-between text-purple-300 text-[11px] font-semibold">
+                  <span>ℹ️ Weekly Completion Bonus Claimed</span>
+                  <span className="text-[10px] text-purple-300/80">+{qXpAmount} XP per correct option active</span>
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-between text-rose-300 text-[11px] font-semibold">
+                  <span>🎯 Weekly XP Active (+{qXpAmount} XP/correct +{weeklyBonusAmount} XP Level Bonus)</span>
+                  <span className="text-[10px] text-rose-400">First play of the week</span>
+                </div>
+              )}
+
+              {/* Timer Bar */}
+              <div className="flex items-center justify-between bg-slate-900 px-3 py-2 rounded-xl border border-slate-800 text-xs font-mono">
+                <div className="flex items-center space-x-1.5 text-amber-400">
+                  <Clock className="w-4 h-4 animate-pulse" />
+                  <span>Time: <strong className={roundTimer <= 10 ? "text-rose-400 font-black animate-ping" : "text-amber-300"}>{roundTimer}s</strong></span>
+                </div>
+                <div className="w-24 bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800">
+                  <div className={`h-full transition-all duration-1000 ${roundTimer <= 10 ? 'bg-rose-500' : 'bg-rose-400'}`} style={{ width: `${(roundTimer / roundTimerMax) * 100}%` }} />
+                </div>
+              </div>
+
+              {!bugFinished && currentQ ? (
+                <>
+                  {/* Code Snippet Box */}
+                  <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 font-mono text-xs text-rose-300 overflow-x-auto">
+                    <div className="text-[10px] text-slate-500 font-sans uppercase mb-1 flex items-center justify-between">
+                      <span>Bug Hunt ({bugIndex + 1}/{activeBugList.length}) - {currentQ.title}</span>
+                      <span className="text-rose-400 font-bold uppercase">{currentQ.language || 'JS'}</span>
+                    </div>
+                    <pre>{currentQ.code}</pre>
+                  </div>
+
+                  <p className="text-xs font-bold text-slate-300">Identify the bug in this code snippet:</p>
+
+                  {/* Options */}
+                  <div className="space-y-2">
+                    {currentQ.options.map((opt, idx) => {
+                      const isCorrect = idx === currentQ.answer;
+                      const isSelected = bugSelectedOpt === idx;
+                      let btnStyle = "w-full p-3 rounded-xl text-xs font-semibold text-left border border-slate-800 bg-slate-900 text-slate-200 hover:bg-rose-500/20 transition-all";
+
+                      if (bugSubmitted) {
+                        if (isCorrect) btnStyle = "w-full p-3 rounded-xl text-xs font-semibold text-left border border-emerald-500 bg-emerald-500/20 text-emerald-300";
+                        else if (isSelected) btnStyle = "w-full p-3 rounded-xl text-xs font-semibold text-left border border-rose-500 bg-rose-500/20 text-rose-300";
+                      }
+
+                      return (
+                        <button
+                          key={idx}
+                          disabled={bugSubmitted || roundTimer === 0}
+                          onClick={() => {
+                            setBugSelectedOpt(idx);
+                            setBugSubmitted(true);
+
+                            if (isCorrect) {
+                              setBugScore(prev => prev + 1);
+                              updateUserProfile({
+                                funPoints: (currentUser?.funPoints || 450) + qXpAmount
+                              });
+                            }
+                          }}
+                          className={btnStyle}
+                        >
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Feedback Banner */}
+                  {bugSubmitted && (
+                    <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 space-y-1 animate-in fade-in">
+                      <p className={`text-xs font-bold ${bugSelectedOpt === currentQ.answer ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {bugSelectedOpt === currentQ.answer 
+                          ? `🎉 Correct Bug Identified! +${qXpAmount} XP Earned!` 
+                          : '❌ Incorrect Bug Choice!'}
+                      </p>
+                      <p className="text-[11px] text-slate-300 leading-relaxed">
+                        <strong>Explanation:</strong> {currentQ.explanation}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Next / Finish Button */}
+                  {bugSubmitted && (
+                    <div className="pt-1">
+                      {bugIndex < activeBugList.length - 1 ? (
+                        <button
+                          onClick={() => {
+                            setBugIndex(prev => prev + 1);
+                            setBugSelectedOpt(null);
+                            setBugSubmitted(false);
+                          }}
+                          className="w-full py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md transition-all"
+                        >
+                          Next Bug Hunt ➔
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleFinishBug}
+                          className="w-full py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-pink-600 hover:opacity-90 text-white font-black text-xs uppercase tracking-wider shadow-md transition-all"
+                        >
+                          Finish Hunt & See Results 🏁
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* Level Results Screen with Funny Ranking & Custom Suggestions */
+                <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 text-center space-y-4 animate-in fade-in">
+                  <div className="space-y-2">
+                    <div className="text-4xl">{funnyResult.emoji}</div>
+                    <h4 className="text-lg font-black text-rose-400">
+                      {funnyResult.title}
+                    </h4>
+                    <p className="text-xs text-slate-300 italic bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                      "{funnyResult.message}"
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-500/30 text-xs text-rose-200 text-left space-y-1">
+                    <p className="font-bold text-rose-300">📊 Your Performance Breakdown:</p>
+                    <p className="text-slate-300">
+                      Score: <strong className="text-white">{bugScore}</strong> / <strong className="text-white">{activeBugList.length}</strong> correct ({Math.round((bugScore / (activeBugList.length || 1)) * 100)}% accuracy)
+                    </p>
+                    <p className="text-amber-300 font-semibold">
+                      Total XP Earned: +{(qXpAmount * bugScore) + (!alreadyClaimedThisWeek ? weeklyBonusAmount : 0)} XP
+                    </p>
+                  </div>
+
+                  {/* Funny Custom Suggestion Box */}
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 font-semibold leading-relaxed">
+                    {funnyResult.suggestion}
+                  </div>
+
+                  {!alreadyClaimedThisWeek && (
+                    <div className="p-2.5 rounded-xl bg-rose-500/20 border border-rose-500/40 text-[11px] font-bold text-rose-300">
+                      🎉 First Weekly Completion Bonus (+{weeklyBonusAmount} XP) Unlocked!
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      setFindBugOpen(false);
+                      setRoundTimerActive(false);
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md"
+                  >
+                    Close & Play Again
+                  </button>
+                </div>
+              )}
+
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* SPIN WHEEL OUTCOME: QUICK QUIZ MODAL */}
       {spinQuizModalOpen && spinQuizQ && (
@@ -2252,85 +3318,207 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
       )}
 
       {/* ECG (ERROR CODE GUESSING) GAME MODAL */}
-      {ecgModalOpen && activeEcgList.length > 0 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
-          <div className="glass-panel rounded-3xl max-w-lg w-full p-6 border border-emerald-500/40 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center space-x-2">
-                <span className="text-xl">⚡</span>
-                <h3 className="text-base font-extrabold text-white">Error Code Guessing (ECG)</h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase">
-                  {gameDifficulty} ({gameXpMultiplier}x XP)
-                </span>
-              </div>
-              <button onClick={() => { setEcgModalOpen(false); setRoundTimerActive(false); }} className="p-1 text-slate-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {ecgModalOpen && activeEcgList.length > 0 && (() => {
+        const currentWeekId = getISOWeekId();
+        const ecgWeeklyCompletions = currentUser?.ecgWeeklyCompletions || {};
+        const alreadyClaimedThisWeek = ecgWeeklyCompletions[gameDifficulty] === currentWeekId;
+        const currentQ = activeEcgList[ecgIndex % activeEcgList.length];
+        const funnyResult = getFunnyEcgResult(ecgScore, activeEcgList.length);
 
-            {/* Live Per-Round Timer Bar */}
-            <div className="flex items-center justify-between bg-slate-900 px-3 py-2 rounded-xl border border-slate-800 text-xs font-mono">
-              <div className="flex items-center space-x-1.5 text-amber-400">
-                <Clock className="w-4 h-4 animate-pulse" />
-                <span>Time Remaining: <strong className={roundTimer <= 10 ? "text-rose-400 font-black animate-ping" : "text-amber-300"}>{roundTimer}s</strong></span>
-              </div>
-              <div className="w-24 bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800">
-                <div className={`h-full transition-all duration-1000 ${roundTimer <= 10 ? 'bg-rose-500' : 'bg-emerald-400'}`} style={{ width: `${(roundTimer / roundTimerMax) * 100}%` }} />
-              </div>
-            </div>
+        const ecgQuestionBaseXP = siteConfig?.xpSettings?.ecgQuestionXP ?? 15;
+        const ecgWeeklyBonusBaseXP = siteConfig?.xpSettings?.ecgWeeklyBonusXP ?? 50;
+        const qXpAmount = Math.round(ecgQuestionBaseXP * gameXpMultiplier);
+        const weeklyBonusAmount = Math.round(ecgWeeklyBonusBaseXP * gameXpMultiplier);
 
-            <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 text-center space-y-2">
-              <span className="text-xs font-bold text-slate-400 uppercase">Identify Code ({ecgIndex + 1}/{activeEcgList.length}):</span>
-              <div className="text-3xl font-mono font-black text-emerald-400">
-                HTTP {activeEcgList[ecgIndex % activeEcgList.length].code}
-              </div>
-              <p className="text-xs text-slate-300 italic">{activeEcgList[ecgIndex % activeEcgList.length].desc}</p>
-            </div>
+        const handleFinishEcg = () => {
+          setEcgFinished(true);
+          setRoundTimerActive(false);
 
-            <div className="space-y-2">
-              {activeEcgList[ecgIndex % activeEcgList.length].options.map((opt, idx) => {
-                const isCorrect = idx === activeEcgList[ecgIndex % activeEcgList.length].answer;
-                const isSelected = ecgSelectedOpt === idx;
-                let btnStyle = "w-full p-3 rounded-xl text-xs font-semibold text-left border border-slate-800 bg-slate-900 text-slate-200 hover:bg-emerald-500/20";
-                if (ecgSubmitted) {
-                  if (isCorrect) btnStyle = "w-full p-3 rounded-xl text-xs font-semibold text-left border border-emerald-500 bg-emerald-500/20 text-emerald-300 font-bold";
-                  else if (isSelected) btnStyle = "w-full p-3 rounded-xl text-xs font-semibold text-left border border-rose-500 bg-rose-500/20 text-rose-300 font-bold";
-                }
+          if (!alreadyClaimedThisWeek) {
+            const updatedCompletions = {
+              ...ecgWeeklyCompletions,
+              [gameDifficulty]: currentWeekId
+            };
+            updateUserProfile({
+              funPoints: (currentUser?.funPoints || 450) + weeklyBonusAmount,
+              ecgWeeklyCompletions: updatedCompletions
+            });
+          }
+        };
 
-                return (
-                  <button
-                    key={idx}
-                    disabled={ecgSubmitted || roundTimer === 0}
-                    onClick={() => {
-                      setEcgSelectedOpt(idx);
-                      setEcgSubmitted(true);
-                      setRoundTimerActive(false);
-                      if (isCorrect) {
-                        const earned = Math.round(35 * gameXpMultiplier);
-                        updateUserProfile({ funPoints: funPoints + earned });
-                      }
-                    }}
-                    className={btnStyle}
-                  >
-                    {opt}
-                  </button>
-                );
-              })}
-            </div>
-
-            {ecgSubmitted && (
-              <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 space-y-2 text-center">
-                <p className={`text-xs font-bold ${ecgSelectedOpt === activeEcgList[ecgIndex % activeEcgList.length].answer ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {ecgSelectedOpt === activeEcgList[ecgIndex % activeEcgList.length].answer ? `🎉 Correct Code! +${Math.round(35 * gameXpMultiplier)} XP Earned!` : '❌ Incorrect!'}
-                </p>
-                <button onClick={() => { setEcgModalOpen(false); setRoundTimerActive(false); }} className="w-full py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs">
-                  Continue
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+            <div className="glass-panel rounded-3xl max-w-lg w-full p-6 border border-emerald-500/40 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+              
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center space-x-2">
+                  <span className="text-xl">⚡</span>
+                  <h3 className="text-base font-extrabold text-white">Error Code Guessing</h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase">
+                    {gameDifficulty} ({activeEcgList.length} Qs)
+                  </span>
+                </div>
+                <button onClick={() => { setEcgModalOpen(false); setRoundTimerActive(false); }} className="p-1 text-slate-400 hover:text-white">
+                  <X className="w-5 h-5" />
                 </button>
               </div>
-            )}
+
+              {/* Weekly XP Status Banner */}
+              {alreadyClaimedThisWeek ? (
+                <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-between text-purple-300 text-[11px] font-semibold">
+                  <span>ℹ️ Weekly Completion Bonus Claimed</span>
+                  <span className="text-[10px] text-purple-300/80">+{qXpAmount} XP per correct option active</span>
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between text-emerald-300 text-[11px] font-semibold">
+                  <span>🎯 Weekly XP Active (+{qXpAmount} XP/correct +{weeklyBonusAmount} XP Level Bonus)</span>
+                  <span className="text-[10px] text-emerald-400">First play of the week</span>
+                </div>
+              )}
+
+              {/* Timer Bar */}
+              <div className="flex items-center justify-between bg-slate-900 px-3 py-2 rounded-xl border border-slate-800 text-xs font-mono">
+                <div className="flex items-center space-x-1.5 text-amber-400">
+                  <Clock className="w-4 h-4 animate-pulse" />
+                  <span>Time: <strong className={roundTimer <= 10 ? "text-rose-400 font-black animate-ping" : "text-amber-300"}>{roundTimer}s</strong></span>
+                </div>
+                <div className="w-24 bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800">
+                  <div className={`h-full transition-all duration-1000 ${roundTimer <= 10 ? 'bg-rose-500' : 'bg-emerald-400'}`} style={{ width: `${(roundTimer / roundTimerMax) * 100}%` }} />
+                </div>
+              </div>
+
+              {!ecgFinished && currentQ ? (
+                <>
+                  {/* Question Prompt */}
+                  <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 text-center space-y-2">
+                    <span className="text-xs font-bold text-slate-400 uppercase">Identify Code ({ecgIndex + 1}/{activeEcgList.length}):</span>
+                    <div className="text-3xl font-mono font-black text-emerald-400">
+                      HTTP {currentQ.code}
+                    </div>
+                    <p className="text-xs text-slate-300 italic">{currentQ.desc}</p>
+                  </div>
+
+                  {/* Options */}
+                  <div className="space-y-2">
+                    {currentQ.options.map((opt, idx) => {
+                      const isCorrect = idx === currentQ.answer;
+                      const isSelected = ecgSelectedOpt === idx;
+                      let btnStyle = "w-full p-3 rounded-xl text-xs font-semibold text-left border border-slate-800 bg-slate-900 text-slate-200 hover:bg-emerald-500/20 transition-all";
+                      if (ecgSubmitted) {
+                        if (isCorrect) btnStyle = "w-full p-3 rounded-xl text-xs font-semibold text-left border border-emerald-500 bg-emerald-500/20 text-emerald-300 font-bold";
+                        else if (isSelected) btnStyle = "w-full p-3 rounded-xl text-xs font-semibold text-left border border-rose-500 bg-rose-500/20 text-rose-300 font-bold";
+                      }
+
+                      return (
+                        <button
+                          key={idx}
+                          disabled={ecgSubmitted || roundTimer === 0}
+                          onClick={() => {
+                            setEcgSelectedOpt(idx);
+                            setEcgSubmitted(true);
+
+                            if (isCorrect) {
+                              setEcgScore(prev => prev + 1);
+                              updateUserProfile({
+                                funPoints: (currentUser?.funPoints || 450) + qXpAmount
+                              });
+                            }
+                          }}
+                          className={btnStyle}
+                        >
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Feedback Banner */}
+                  {ecgSubmitted && (
+                    <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 text-center animate-in fade-in">
+                      <p className={`text-xs font-bold ${ecgSelectedOpt === currentQ.answer ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {ecgSelectedOpt === currentQ.answer 
+                          ? `🎉 Correct Code! +${qXpAmount} XP Earned!` 
+                          : '❌ Incorrect Code!'}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Next / Finish Button */}
+                  {ecgSubmitted && (
+                    <div className="pt-1">
+                      {ecgIndex < activeEcgList.length - 1 ? (
+                        <button
+                          onClick={() => {
+                            setEcgIndex(prev => prev + 1);
+                            setEcgSelectedOpt(null);
+                            setEcgSubmitted(false);
+                          }}
+                          className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all"
+                        >
+                          Next Question ➔
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleFinishEcg}
+                          className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-90 text-white font-black text-xs uppercase tracking-wider shadow-md transition-all"
+                        >
+                          Finish Level & See Results 🏁
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* Level Results Screen with Funny Ranking & Custom Suggestions */
+                <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 text-center space-y-4 animate-in fade-in">
+                  <div className="space-y-2">
+                    <div className="text-4xl">{funnyResult.emoji}</div>
+                    <h4 className="text-lg font-black text-emerald-400">
+                      {funnyResult.title}
+                    </h4>
+                    <p className="text-xs text-slate-300 italic bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                      "{funnyResult.message}"
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-indigo-950/60 border border-indigo-500/30 text-xs text-indigo-200 text-left space-y-1">
+                    <p className="font-bold text-indigo-300">📊 Your Performance Breakdown:</p>
+                    <p className="text-slate-300">
+                      Score: <strong className="text-white">{ecgScore}</strong> / <strong className="text-white">{activeEcgList.length}</strong> correct ({Math.round((ecgScore / (activeEcgList.length || 1)) * 100)}% accuracy)
+                    </p>
+                    <p className="text-amber-300 font-semibold">
+                      Total XP Earned: +{(qXpAmount * ecgScore) + (!alreadyClaimedThisWeek ? weeklyBonusAmount : 0)} XP
+                    </p>
+                  </div>
+
+                  {/* Funny Custom Suggestion Box */}
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 font-semibold leading-relaxed">
+                    {funnyResult.suggestion}
+                  </div>
+
+                  {!alreadyClaimedThisWeek && (
+                    <div className="p-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-[11px] font-bold text-emerald-300">
+                      🎉 First Weekly Completion Bonus (+{weeklyBonusAmount} XP) Unlocked!
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      setEcgModalOpen(false);
+                      setRoundTimerActive(false);
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md"
+                  >
+                    Close & Play Again
+                  </button>
+                </div>
+              )}
+
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* TANGO LOGIC GRID INTERACTIVE PUZZLE MODAL */}
       {tangoModalOpen && (
@@ -2455,6 +3643,12 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
               </button>
             </div>
 
+            {/* Real Keyboard Test Mode Banner */}
+            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between text-amber-300 text-[11px] font-bold">
+              <span>🚫 Real Keyboard Test Mode: Backspace is DISABLED</span>
+              <span className="text-[10px] text-amber-400/90 font-medium">Wrong keys auto-advance & reduce accuracy</span>
+            </div>
+
             {/* Live Timer & Stats Header */}
             <div className="grid grid-cols-3 gap-3 bg-slate-900 p-3 rounded-2xl border border-slate-800 text-center font-mono">
               <div className="space-y-0.5">
@@ -2467,7 +3661,7 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
               </div>
               <div className="space-y-0.5">
                 <span className="text-[9px] text-slate-400 uppercase font-sans font-bold">Accuracy</span>
-                <div className="text-sm font-black text-emerald-400">{speedTypeAccuracy}%</div>
+                <div className={`text-sm font-black ${speedTypeAccuracy >= 90 ? 'text-emerald-400' : speedTypeAccuracy >= 75 ? 'text-amber-400' : 'text-rose-400'}`}>{speedTypeAccuracy}%</div>
               </div>
             </div>
 
@@ -2503,10 +3697,27 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
             <textarea
               rows={4}
               disabled={speedTypeFinished || roundTimer === 0}
-              placeholder="Start typing the code snippet here..."
+              placeholder="⚡ Start typing here (Backspace is disabled)..."
               value={speedTypeInput}
+              onKeyDown={(e) => {
+                // Disable Backspace in real exam keyboard mode
+                if (e.key === 'Backspace') {
+                  e.preventDefault();
+                }
+              }}
               onChange={(e) => {
-                const val = e.target.value;
+                let val = e.target.value;
+
+                // Block backspace deletion (prevent shortening input length)
+                if (val.length < speedTypeInput.length) {
+                  return;
+                }
+
+                // Prevent typing beyond prompt snippet length
+                if (val.length > speedTypePrompt.snippet.length) {
+                  val = val.substring(0, speedTypePrompt.snippet.length);
+                }
+
                 setSpeedTypeInput(val);
 
                 if (!speedTypeStartTime) {
@@ -2528,24 +3739,30 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                 const calcWpm = Math.round((correctChars / 5) / (elapsedSeconds / 60));
                 setSpeedTypeWpm(calcWpm);
 
-                // Completion check
-                if (val.trim() === promptStr.trim()) {
+                // Completion check when full snippet length is typed
+                if (val.length >= promptStr.length) {
                   setSpeedTypeFinished(true);
                   setRoundTimerActive(false);
-                  const earned = Math.round(45 * gameXpMultiplier);
+                  const earned = Math.round(50 * (acc / 100) * gameXpMultiplier);
                   updateUserProfile({ funPoints: funPoints + earned });
                 }
+              }}
+              onPaste={(e) => {
+                e.preventDefault();
+                triggerToast("🚫 Pasting into typing input is disabled!");
               }}
               className="w-full p-3 bg-slate-900 text-xs text-amber-300 rounded-xl border border-slate-800 font-mono focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
             />
 
             {speedTypeFinished && (
               <div className="p-4 rounded-2xl bg-amber-950/80 border border-amber-500/40 text-center space-y-2 animate-in fade-in">
-                <p className="text-sm font-black text-emerald-400">⚡ Code Typed Perfectly!</p>
+                <p className="text-sm font-black text-emerald-400">
+                  {speedTypeAccuracy >= 90 ? '⚡ Typing Test Completed!' : '🏁 Test Finished! Practice for Higher Accuracy'}
+                </p>
                 <div className="flex justify-center gap-4 text-xs font-mono text-slate-300">
                   <span>Speed: <strong className="text-cyan-300">{speedTypeWpm} WPM</strong></span>
                   <span>Accuracy: <strong className="text-emerald-300">{speedTypeAccuracy}%</strong></span>
-                  <span>XP Awarded: <strong className="text-amber-300">+{Math.round(45 * gameXpMultiplier)} XP</strong></span>
+                  <span>XP Awarded: <strong className="text-amber-300">+{Math.round(50 * (speedTypeAccuracy / 100) * gameXpMultiplier)} XP</strong></span>
                 </div>
                 <button onClick={() => { setSpeedTypeModalOpen(false); setRoundTimerActive(false); }} className="w-full py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs mt-2">
                   Continue
@@ -2567,6 +3784,14 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
         gameId={activeGameTarget?.gameId}
         baseXp={activeGameTarget?.baseXp}
       />
+
+      {/* COPY-PASTE PREVENTION FLOATING TOAST BANNER */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-[100] bg-slate-950/95 text-rose-300 border border-rose-500/50 px-4 py-3 rounded-2xl text-xs font-bold shadow-2xl flex items-center space-x-2.5 animate-in fade-in slide-in-from-bottom-5">
+          <ShieldAlert className="w-4 h-4 text-rose-400 animate-pulse" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
 
     </div>
   );

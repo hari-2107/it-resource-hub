@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar, Legend } from 'recharts';
 import { SemesterTargetCalculator } from '../components/SemesterTargetCalculator';
+import { ProfessionalProfilesSection } from '../components/ProfessionalProfilesSection';
 import { getBorderObj, getTitleObj, getAvatarBgObj } from '../utils/cosmetics';
 
 
@@ -311,14 +312,16 @@ export const StudentProfile = ({ onPreviewMaterial, onOpenAdminForm, onOpenAdmin
   // Find class default timetable matching student's Year + Semester + Class Section
   const userSection = (currentUser?.classSection || 'IT-A').toLowerCase();
   const classDefaultTimetable = (timetables || []).find(t => 
-    t && t.year === currentUser?.year && 
-    t.semester === Number(currentUser?.semester) && 
+    t && (t.type || 'class') === 'class' &&
+    t.year === currentUser?.year && 
+    Number(t.semester) === Number(currentUser?.semester) && 
     (((t.classSection || '').toLowerCase() === userSection) || 
      (userSection.includes('a') && (t.classSection || '').toLowerCase().includes('a')))
   ) || (timetables || []).find(t => 
-    t && t.year === currentUser?.year && 
-    t.semester === Number(currentUser?.semester)
-  ) || timetables?.[0];
+    t && (t.type || 'class') === 'class' &&
+    t.year === currentUser?.year && 
+    Number(t.semester) === Number(currentUser?.semester)
+  ) || (timetables || []).find(t => (t.type || 'class') === 'class') || timetables?.[0];
 
   // Effective active timetable (customized or default)
   const studentTimetable = customTimetable || classDefaultTimetable;
@@ -557,8 +560,11 @@ export const StudentProfile = ({ onPreviewMaterial, onOpenAdminForm, onOpenAdmin
 
       {/* TAB 1: UNIFIED TIMETABLES VIEW (Class, Internal Exam, Semester Exam in Student Preferred Order) */}
       {profileTab === 'timetable' && (
-        <div className="space-y-6">
+        <div className="space-y-8">
           
+          {/* PROFESSIONAL PROFILES SECTION */}
+          <ProfessionalProfilesSection />
+
           {/* Quick Sub-Navigation / Preference Filter Bar */}
           <div className="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-none">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Display Order:</span>
@@ -1397,7 +1403,7 @@ export const StudentProfile = ({ onPreviewMaterial, onOpenAdminForm, onOpenAdmin
                 {[
                   { id: 'internal_marks', label: '📊 Internal Marks' },
                   { id: 'calculator', label: '🎯 Internal Marks Calculator' },
-                  { id: 'sgpa', label: '🎓 Semester SGPA' }
+                  { id: 'sgpa', label: '🎓 Semester' }
                 ].map((tab) => (
                   <button
                     key={tab.id}

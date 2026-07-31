@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Sparkles, Zap, Flame, Shield, Trophy, CheckCircle, ArrowRight } from 'lucide-react';
+import { useData } from '../context/DataContext';
 
 export const DIFFICULTY_LEVELS = [
   {
@@ -11,8 +12,7 @@ export const DIFFICULTY_LEVELS = [
     activeCard: 'border-emerald-400 bg-emerald-950/60 ring-2 ring-emerald-400/50 shadow-lg shadow-emerald-500/20',
     accentColor: 'emerald',
     icon: Shield,
-    multiplier: 1.0,
-    multiplierText: '1.0x Base XP',
+    defaultMultiplier: 1.0,
     description: 'Fundamental concepts, straightforward questions & syntax basics.'
   },
   {
@@ -24,8 +24,7 @@ export const DIFFICULTY_LEVELS = [
     activeCard: 'border-amber-400 bg-amber-950/60 ring-2 ring-amber-400/50 shadow-lg shadow-amber-500/20',
     accentColor: 'amber',
     icon: Zap,
-    multiplier: 1.5,
-    multiplierText: '1.5x Bonus XP',
+    defaultMultiplier: 1.5,
     description: 'Multi-step logic, moderate challenge & practical problem solving.'
   },
   {
@@ -37,8 +36,7 @@ export const DIFFICULTY_LEVELS = [
     activeCard: 'border-rose-400 bg-rose-950/60 ring-2 ring-rose-400/50 shadow-lg shadow-rose-500/20',
     accentColor: 'rose',
     icon: Flame,
-    multiplier: 2.0,
-    multiplierText: '2.0x Double XP',
+    defaultMultiplier: 2.0,
     description: 'Tricky edge cases, complex logic, async behavior & high-speed targets.'
   }
 ];
@@ -53,6 +51,15 @@ export const DifficultySelectorModal = ({
   gameId = 'general',
   baseXp = 50
 }) => {
+  const { siteConfig } = useData();
+  const xpSettings = siteConfig?.xpSettings || {};
+
+  const getMultiplierForDiff = (diffId) => {
+    if (diffId === 'beginner') return xpSettings.beginnerMultiplier || 1.0;
+    if (diffId === 'advanced') return xpSettings.advancedMultiplier || 2.0;
+    return xpSettings.intermediateMultiplier || 1.5;
+  };
+
   const storageKey = `brainzone_last_diff_${gameId}`;
   
   // State for chosen difficulty
@@ -80,11 +87,12 @@ export const DifficultySelectorModal = ({
       localStorage.setItem(storageKey, selectedDiff);
     } catch (e) {}
     
-    const diffObj = DIFFICULTY_LEVELS.find(d => d.id === selectedDiff) || DIFFICULTY_LEVELS[1];
-    onStartGame(selectedDiff, diffObj.multiplier);
+    const mult = getMultiplierForDiff(selectedDiff);
+    onStartGame(selectedDiff, mult);
   };
 
   const currentDiffObj = DIFFICULTY_LEVELS.find(d => d.id === selectedDiff) || DIFFICULTY_LEVELS[1];
+  const currentMult = getMultiplierForDiff(selectedDiff);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
@@ -129,7 +137,8 @@ export const DifficultySelectorModal = ({
             {DIFFICULTY_LEVELS.map(diff => {
               const isSelected = selectedDiff === diff.id;
               const IconComponent = diff.icon;
-              const potentialXp = Math.round(baseXp * diff.multiplier);
+              const mult = getMultiplierForDiff(diff.id);
+              const potentialXp = Math.round(baseXp * mult);
 
               return (
                 <div
@@ -150,7 +159,7 @@ export const DifficultySelectorModal = ({
                           <span>{diff.label}</span>
                         </span>
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${diff.badgeClass}`}>
-                          {diff.multiplierText}
+                          {mult}x XP Rate
                         </span>
                       </div>
                       <p className="text-xs text-slate-300 line-clamp-1">{diff.description}</p>
@@ -183,7 +192,7 @@ export const DifficultySelectorModal = ({
           <div className="text-xs text-slate-400 text-center sm:text-left">
             <span>Selected: </span>
             <strong className="text-white font-extrabold">{currentDiffObj.emoji} {currentDiffObj.label}</strong>
-            <span className="text-amber-400 font-bold ml-1.5">({currentDiffObj.multiplierText})</span>
+            <span className="text-amber-400 font-bold ml-1.5">({currentMult}x XP Rate)</span>
           </div>
 
           <button
