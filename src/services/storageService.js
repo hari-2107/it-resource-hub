@@ -1104,14 +1104,34 @@ export const StorageService = {
   getQuizQuestions: () => getItemParsed(LOCAL_STORAGE_KEYS.QUIZ_QUESTIONS, [
     { id: 'qq-1', q: "What does API stand for in software engineering?", options: ["Automated Program Interface", "Application Programming Interface", "Advanced Process Integration", "Application Protocol Instruction"], answer: 1, category: "Web Dev", difficulty: "beginner" },
     { id: 'qq-2', q: "Which data structure follows the Last-In, First-Out (LIFO) principle?", options: ["Queue", "Binary Tree", "Stack", "Linked List"], answer: 2, category: "Data Structures", difficulty: "beginner" },
-    { id: 'qq-3', q: "What default port does HTTPS protocol use?", options: ["80", "21", "8080", "443"], answer: 3, category: "Networking", difficulty: "intermediate" },
+    { id: 'qq-3', q: "What default port does HTTPS protocol use?", options: ["80", "21", "8080", "443"], answer: 3, category: "Networking", difficulty: "beginner" },
     { id: 'qq-4', q: "Which Big-O time complexity represents binary search algorithm?", options: ["O(N)", "O(log N)", "O(N^2)", "O(1)"], answer: 1, category: "Algorithms", difficulty: "intermediate" },
     { id: 'qq-5', q: "Which HTTP status code signifies 'Resource Not Found'?", options: ["200", "403", "404", "500"], answer: 2, category: "Web Dev", difficulty: "beginner" },
-    { id: 'qq-6', q: "What is the closure concept in JavaScript lexical scoping?", options: ["Function retaining outer scope references", "Closing a database connection", "Private class constructor", "Asynchronous promise completion"], answer: 0, category: "Web Dev", difficulty: "advanced" },
+    { id: 'qq-6', q: "What is a closure in JavaScript?", options: ["A function retaining access to its outer scope", "Closing a database connection", "Private class constructor", "Asynchronous promise completion"], answer: 0, category: "Web Dev", difficulty: "advanced" },
     { id: 'qq-7', q: "Which sorting algorithm guarantees O(N log N) worst-case time complexity?", options: ["Quick Sort", "Bubble Sort", "Merge Sort", "Insertion Sort"], answer: 2, category: "Algorithms", difficulty: "advanced" },
     { id: 'qq-8', q: "Which SQL clause filters aggregated query results after GROUP BY?", options: ["WHERE", "HAVING", "FILTER", "ORDER BY"], answer: 1, category: "Databases", difficulty: "intermediate" },
     { id: 'qq-9', q: "What protocol handles domain name to IP address resolution?", options: ["DHCP", "DNS", "ARP", "BGP"], answer: 1, category: "Networking", difficulty: "beginner" },
-    { id: 'qq-10', q: "What is the primary function of a mutex in concurrent programming?", options: ["Memory allocation", "Prevent race conditions via mutual exclusion", "Task scheduling", "Cache invalidation"], answer: 1, category: "OS & Systems", difficulty: "advanced" }
+    { id: 'qq-10', q: "What is the primary function of a mutex in concurrent programming?", options: ["Memory allocation", "Prevent race conditions via mutual exclusion", "Task scheduling", "Cache invalidation"], answer: 1, category: "OS & Systems", difficulty: "advanced" },
+    { id: 'qq-11', q: "What does HTML stand for?", options: ["Hyper Text Markup Language", "High Tech Multi Language", "Hyperlink Text Management Language", "Home Tool Markup Language"], answer: 0, category: "Web Dev", difficulty: "beginner" },
+    { id: 'qq-12', q: "Which Git command creates a new branch and switches to it in one step?", options: ["git branch -new", "git checkout -b", "git switch -create", "git merge -b"], answer: 1, category: "DevOps", difficulty: "beginner" },
+    { id: 'qq-13', q: "Which keyword is used to declare a block-scoped reassignable variable in JS?", options: ["var", "let", "const", "static"], answer: 1, category: "Web Dev", difficulty: "beginner" },
+    { id: 'qq-14', q: "What is the worst-case time complexity of inserting into a Hashtable?", options: ["O(1)", "O(N)", "O(log N)", "O(N^2)"], answer: 1, category: "Data Structures", difficulty: "intermediate" },
+    { id: 'qq-15', q: "Which SQL join returns all records from the left table and matched records from the right?", options: ["INNER JOIN", "LEFT JOIN", "RIGHT JOIN", "FULL OUTER JOIN"], answer: 1, category: "Databases", difficulty: "beginner" },
+    { id: 'qq-16', q: "What does CSS property 'display: flex' establish?", options: ["A Flexbox formatting context for children", "Grid layout system", "Absolute positioning container", "Inline inline-block flow"], answer: 0, category: "Web Dev", difficulty: "beginner" },
+    { id: 'qq-17', q: "In OOP, what principle allows a subclass to provide a specific implementation of a superclass method?", options: ["Encapsulation", "Polymorphism / Method Overriding", "Abstraction", "Multiple Inheritance"], answer: 1, category: "OOP", difficulty: "intermediate" },
+    { id: 'qq-18', q: "Which OSI model layer is responsible for routing IP packets across networks?", options: ["Data Link Layer", "Network Layer", "Transport Layer", "Session Layer"], answer: 1, category: "Networking", difficulty: "intermediate" },
+    { id: 'qq-19', q: "What is the main benefit of Virtual DOM in React?", options: ["Replaces Real DOM completely", "Minimizes expensive direct Real DOM updates via diffing", "Enables multithreaded JavaScript", "Stores application data in localStorage"], answer: 1, category: "Web Dev", difficulty: "intermediate" },
+    { id: 'qq-20', q: "Which component of an OS manages memory space allocations for processes?", options: ["CPU Scheduler", "Memory Management Unit (MMU)", "File System", "I/O Controller"], answer: 1, category: "OS & Systems", difficulty: "advanced" },
+    { id: 'qq-21', q: "What is the default port for HTTP traffic?", options: ["443", "80", "22", "3000"], answer: 1, category: "Networking", difficulty: "beginner" },
+    { id: 'qq-22', q: "Which data structure is typically used for Breadth-First Search (BFS) in a graph?", options: ["Stack", "Queue", "Heap", "Hash Set"], answer: 1, category: "Algorithms", difficulty: "intermediate" },
+    { id: 'qq-23', q: "What does REST stand for in web architecture?", options: ["Representational State Transfer", "Remote Execution System Task", "Relational Entity Service Protocol", "Responsive Enterprise Software Transfer"], answer: 0, category: "Web Dev", difficulty: "intermediate" },
+    { id: 'qq-24', q: "Which hash algorithm is considered cryptographically broken and insecure for passwords?", options: ["SHA-256", "MD5", "Bcrypt", "Argon2"], answer: 1, category: "Cybersecurity", difficulty: "intermediate" },
+    { id: 'qq-25', q: "In Docker, what file defines instructions for building a container image?", options: ["docker-compose.yml", "Dockerfile", "package.json", "Container.config"], answer: 1, category: "DevOps", difficulty: "beginner" },
+    { id: 'qq-26', q: "What algorithm is used by React to compare two Virtual DOM trees?", options: ["Dijkstra's Algorithm", "Heuristic O(N) Reconciliation Diffing", "Binary Search", "A* Pathfinding"], answer: 1, category: "Web Dev", difficulty: "advanced" },
+    { id: 'qq-27', q: "What is a Deadlock in operating systems?", options: ["Infinite loop in process code", "Processes permanently blocked waiting for resources held by each other", "CPU overheating shutdown", "Memory leak overflow"], answer: 1, category: "OS & Systems", difficulty: "advanced" },
+    { id: 'qq-28', q: "Which Git command downloads changes from remote and immediately merges into current branch?", options: ["git fetch", "git pull", "git push", "git clone"], answer: 1, category: "DevOps", difficulty: "beginner" },
+    { id: 'qq-29', q: "What is ACID in database transactions?", options: ["Atomicity, Consistency, Isolation, Durability", "Asynchronous, Concurrent, Indexed, Distributed", "Automated, Certified, Integrated, Data", "Array, Column, Index, Document"], answer: 0, category: "Databases", difficulty: "advanced" },
+    { id: 'qq-30', q: "Which HTTP method is idempotent and intended to update/replace an existing resource?", options: ["POST", "PUT", "DELETE", "GET"], answer: 1, category: "Web Dev", difficulty: "intermediate" }
   ]),
   saveQuizQuestion: (question) => {
     const list = StorageService.getQuizQuestions();
@@ -1152,56 +1172,15 @@ export const StorageService = {
 
   // Guess The Output Challenges
   getGuessOutputChallenges: () => getItemParsed(LOCAL_STORAGE_KEYS.GUESS_OUTPUT, [
-    {
-      id: 'go-1',
-      title: 'JavaScript String Concatenation',
-      language: 'javascript',
-      difficulty: 'beginner',
-      code: 'console.log(1 + "2" + 3);',
-      options: ['"123"', '"6"', '"15"', 'NaN'],
-      answer: 0,
-      explanation: 'In JavaScript, numbers added to strings are converted to strings: 1 + "2" = "12", then "12" + 3 = "123".'
-    },
-    {
-      id: 'go-2',
-      title: 'Python Default Arguments',
-      language: 'python',
-      difficulty: 'intermediate',
-      code: 'def add_item(val, items=[]):\n    items.append(val)\n    return items\n\nprint(add_item(1))\nprint(add_item(2))',
-      options: ['[1]\n[2]', '[1]\n[1, 2]', '[1, 2]\n[1, 2]', 'Error'],
-      answer: 1,
-      explanation: 'Default arguments in Python are evaluated once when the function is defined, sharing the mutable list object across calls.'
-    },
-    {
-      id: 'go-3',
-      title: 'C++ Post and Pre Increment',
-      language: 'cpp',
-      difficulty: 'advanced',
-      code: 'int a = 5;\nint b = a++ + ++a;\ncout << b;',
-      options: ['12', '11', '10', '13'],
-      answer: 0,
-      explanation: 'a++ evaluates to 5 (a becomes 6), ++a increments to 7. 5 + 7 = 12.'
-    },
-    {
-      id: 'go-4',
-      title: 'JavaScript Boolean Coercion',
-      language: 'javascript',
-      difficulty: 'beginner',
-      code: 'console.log(Boolean("") + Boolean("0"));',
-      options: ['0', '1', '2', 'false'],
-      answer: 1,
-      explanation: 'Boolean("") is false (0), Boolean("0") is true (1). 0 + 1 = 1.'
-    },
-    {
-      id: 'go-5',
-      title: 'JavaScript Event Loop Microtask',
-      language: 'javascript',
-      difficulty: 'advanced',
-      code: 'console.log(1);\nsetTimeout(() => console.log(2), 0);\nPromise.resolve().then(() => console.log(3));\nconsole.log(4);',
-      options: ['1, 4, 3, 2', '1, 2, 3, 4', '1, 4, 2, 3', '4, 1, 3, 2'],
-      answer: 0,
-      explanation: 'Sync code runs first (1, 4), then Microtasks (Promise: 3), then Macrotasks (setTimeout: 2).'
-    }
+    { id: 'go-b1', difficulty: 'beginner', title: 'JavaScript String Coercion', language: 'javascript', code: 'console.log(1 + "2" + 3);', options: ['"123"', '"6"', '"15"', 'NaN'], answer: 0, explanation: 'Numbers added to strings are converted to strings: 1 + "2" = "12", then "12" + 3 = "123".' },
+    { id: 'go-b2', difficulty: 'beginner', title: 'Typeof NaN Operator', language: 'javascript', code: 'console.log(typeof NaN);', options: ['"number"', '"nan"', '"undefined"', '"object"'], answer: 0, explanation: 'In JavaScript, NaN stands for "Not a Number" but its typeof evaluation is surprisingly "number".' },
+    { id: 'go-b6', difficulty: 'beginner', title: 'Array Destructuring Default Value', language: 'javascript', code: 'const [a = 1, b = 2] = [10];\nconsole.log(a, b);', options: ['10 2', '1 2', '10 undefined', '1 10'], answer: 0, explanation: 'a takes 10 from array. b has no matching item in [10], so it uses its default value 2.' },
+    { id: 'go-i1', difficulty: 'intermediate', title: 'Array Map & parseInt Trick', language: 'javascript', code: 'console.log(["10", "10", "10"].map(parseInt));', options: ['[10, NaN, 2]', '[10, 10, 10]', '[NaN, NaN, NaN]', '[10, 0, 1]'], answer: 0, explanation: 'map passes (element, index). parseInt("10", 0)=10, parseInt("10", 1)=NaN, parseInt("10", 2)=2 (binary).' },
+    { id: 'go-i4', difficulty: 'intermediate', title: 'Closure State Retention', language: 'javascript', code: 'function outer() {\n  let count = 0;\n  return () => ++count;\n}\nconst fn = outer();\nfn();\nconsole.log(fn());', options: ['2', '1', '0', 'undefined'], answer: 0, explanation: 'The returned inner arrow function forms a closure over count. First call makes count=1, second call returns 2.' },
+    { id: 'go-i9', difficulty: 'intermediate', title: 'Array Fill Shared Reference Trap', language: 'javascript', code: 'const arr = new Array(2).fill({});\narr[0].x = 99;\nconsole.log(arr[1].x);', options: ['99', 'undefined', '0', 'TypeError'], answer: 0, explanation: 'Array.prototype.fill({}) populates every slot with the exact same object reference. Mutating arr[0] mutates arr[1].' },
+    { id: 'go-a1', difficulty: 'advanced', title: 'Event Loop Microtask vs Macrotask', language: 'javascript', code: 'setTimeout(() => console.log("Timeout"), 0);\nPromise.resolve().then(() => console.log("Promise"));\nconsole.log("Sync");', options: ['Sync Promise Timeout', 'Sync Timeout Promise', 'Promise Sync Timeout', 'Timeout Sync Promise'], answer: 0, explanation: 'Synchronous code runs first ("Sync"), then microtasks run ("Promise"), then macrotasks run ("Timeout").' },
+    { id: 'go-a2', difficulty: 'advanced', title: 'Arrow Function this Context', language: 'javascript', code: 'const obj = {\n  val: 42,\n  getVal: () => this.val\n};\nconsole.log(obj.getVal());', options: ['undefined', '42', 'TypeError', '42 in strict mode'], answer: 0, explanation: 'Arrow functions do not bind their own "this". They inherit "this" from enclosing global scope where val is undefined.' },
+    { id: 'go-a11', difficulty: 'advanced', title: 'JS Proxy Get Trap Handler', language: 'javascript', code: 'const p = new Proxy({}, {\n  get: () => 42\n});\nconsole.log(p.foo);', options: ['42', 'undefined', 'TypeError', 'null'], answer: 0, explanation: 'Proxy get handler traps all property reads and returns 42 regardless of the key name accessed.' }
   ]),
   saveGuessOutputChallenge: (obj) => {
     const list = StorageService.getGuessOutputChallenges();
@@ -1223,36 +1202,15 @@ export const StorageService = {
 
   // Find The Bug Challenges
   getFindBugChallenges: () => getItemParsed(LOCAL_STORAGE_KEYS.FIND_BUG, [
-    {
-      id: 'fb-1',
-      title: 'Infinite Decrement Loop',
-      language: 'javascript',
-      difficulty: 'beginner',
-      code: 'function countToTen() {\n  for (let i = 0; i < 10; i--) {\n    console.log(i);\n  }\n}',
-      options: ['Line 2: i-- causes infinite loop', 'Line 1: Missing const keyword', 'Line 3: Syntax error in console.log', 'Line 2: Missing semicolon'],
-      answer: 0,
-      explanation: 'i-- decrements i away from 10, causing an infinite loop. It should be i++.'
-    },
-    {
-      id: 'fb-2',
-      title: 'Java Null Pointer Dereference',
-      language: 'java',
-      difficulty: 'intermediate',
-      code: 'String role = null;\nif (role.equals("ADMIN")) {\n  System.out.println("Access Granted");\n}',
-      options: ['Line 2: NullPointerException on null object', 'Line 1: Incompatible types', 'Line 2: String cannot use .equals()', 'Line 3: Missing semicolon'],
-      answer: 0,
-      explanation: 'Invoking .equals() on a null reference throws a NullPointerException. Safe approach: "ADMIN".equals(role).'
-    },
-    {
-      id: 'fb-3',
-      title: 'Async Unhandled Promise Rejection',
-      language: 'javascript',
-      difficulty: 'advanced',
-      code: 'async function fetchData() {\n  const res = fetch("/api/data");\n  return res.data.length;\n}',
-      options: ['Line 2: Missing await keyword before fetch call', 'Line 1: async functions cannot return integers', 'Line 3: .length property does not exist on Array', 'Line 2: Missing try/catch block'],
-      answer: 0,
-      explanation: 'fetch() returns a Promise object. Without await, res is a Promise, so res.data throws a TypeError.'
-    }
+    { id: 'fb-b1', difficulty: 'beginner', title: 'Infinite Decrement Loop', language: 'javascript', code: 'function countToTen() {\n  for (let i = 0; i < 10; i--) {\n    console.log(i);\n  }\n}', options: ['Line 2: i-- causes infinite loop', 'Line 1: Missing const keyword', 'Line 3: Syntax error in console.log', 'Line 2: Missing semicolon'], answer: 0, explanation: 'i-- decrements i away from 10, causing an infinite loop. It should be i++.' },
+    { id: 'fb-b2', difficulty: 'beginner', title: 'Assignment inside Condition', language: 'javascript', code: 'let isLoggedIn = false;\nif (isLoggedIn = true) {\n  console.log("Welcome back!");\n}', options: ['Line 2: Single = assigns value instead of comparing (== or ===)', 'Line 1: Must use const for booleans', 'Line 3: Missing quotes', 'Line 2: Syntax error'], answer: 0, explanation: 'Using single = in condition assigns true to isLoggedIn and evaluates to true. Should use === for comparison.' },
+    { id: 'fb-b6', difficulty: 'beginner', title: 'Array Length Truncation Bug', language: 'javascript', code: 'const arr = [10, 20, 30];\narr.length = 0;\nconsole.log(arr[0]);', options: ['Line 2: Setting length to 0 empties the array; arr[0] evaluates to undefined', 'Line 1: Const arrays cannot change length', 'Line 3: arr[0] throws a ReferenceError', 'Line 2: Length property is read-only'], answer: 0, explanation: 'Setting array length property to 0 deletes all elements, making arr[0] return undefined.' },
+    { id: 'fb-i1', difficulty: 'intermediate', title: 'Off-By-One Array Indexing', language: 'javascript', code: 'const items = ["Apple", "Banana", "Cherry"];\nfor (let i = 0; i <= items.length; i++) {\n  console.log(items[i].toUpperCase());\n}', options: ['Line 2: i <= items.length accesses out-of-bounds undefined at items[3]', 'Line 3: toUpperCase does not exist on strings', 'Line 1: Const arrays cannot be iterated', 'Line 2: i should start at 1'], answer: 0, explanation: 'items.length is 3. i <= 3 causes i=3 access items[3] (undefined), throwing TypeError on .toUpperCase(). Use i < items.length.' },
+    { id: 'fb-i4', difficulty: 'intermediate', title: 'Async Function Missing await', language: 'javascript', code: 'async function fetchUser() {\n  return { name: "Bob" };\n}\nconst user = fetchUser();\nconsole.log(user.name);', options: ['Line 4: fetchUser() returns a Promise, missing await keyword', 'Line 1: Async functions cannot return objects', 'Line 5: user.name is illegal', 'Line 2: Missing JSON parse'], answer: 0, explanation: 'Async functions always return a Promise. Calling fetchUser() without await leaves user as Promise { <pending> }, so user.name is undefined.' },
+    { id: 'fb-i9', difficulty: 'intermediate', title: 'Missing Return in Array Map Body', language: 'javascript', code: 'const nums = [1, 2, 3];\nconst doubled = nums.map(n => {\n  n * 2;\n});\nconsole.log(doubled);', options: ['Line 3: Missing return statement inside curly block returns [undefined, undefined, undefined]', 'Line 2: Map cannot double numbers', 'Line 1: nums must be let', 'Line 4: Doubled array cannot be logged'], answer: 0, explanation: 'Arrow functions with curly braces require an explicit return statement. Otherwise, it returns undefined for each element.' },
+    { id: 'fb-a1', difficulty: 'advanced', title: 'Promise Race Condition in Loop', language: 'javascript', code: 'async function processItems(items) {\n  items.forEach(async (item) => {\n    await saveToDb(item);\n  });\n  console.log("All Saved!");\n}', options: ['Line 2: forEach does not await async callbacks; console.log runs before saves finish', 'Line 3: saveToDb cannot be awaited inside loop', 'Line 1: processItems must be sync', 'Line 5: console.log is missing await'], answer: 0, explanation: 'Array.prototype.forEach ignores returned Promises. Use for...of or Promise.all(items.map(...)) to await completions.' },
+    { id: 'fb-a2', difficulty: 'advanced', title: 'Stale Closure in React Hook', language: 'javascript', code: 'const [count, setCount] = useState(0);\nuseEffect(() => {\n  const id = setInterval(() => {\n    setCount(count + 1);\n  }, 1000);\n  return () => clearInterval(id);\n}, []);', options: ['Line 4: count in closure is stale (0); count stays stuck at 1. Use setCount(c => c + 1)', 'Line 6: Cleanup function is illegal', 'Line 7: Empty dependency array causes memory leak', 'Line 1: useState requires initial string'], answer: 0, explanation: 'Empty dependency array [] captures initial count = 0. Every second setCount(0 + 1) sets count to 1. Use functional updater setCount(c => c + 1).' },
+    { id: 'fb-a11', difficulty: 'advanced', title: 'React Asynchronous State Batching Bug', language: 'javascript', code: 'function incrementTwice() {\n  setCount(count + 1);\n  setCount(count + 1);\n}', options: ['Line 3: Sequential state setters use same stale count reference, resulting in single increment. Use setCount(prev => prev + 1)', 'Line 2: setCount cannot be called twice', 'Line 1: Function must be async', 'Line 3: count + 1 is illegal'], answer: 0, explanation: 'State updates in React are batched asynchronously. Calling setCount(count + 1) twice in the same tick uses the same captured count value.' }
   ]),
   saveFindBugChallenge: (obj) => {
     const list = StorageService.getFindBugChallenges();

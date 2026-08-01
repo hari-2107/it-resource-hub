@@ -207,7 +207,7 @@ const getFunnyEcgResult = (score, total) => {
 };
 
 const GUESS_OUTPUT_CHALLENGES = [
-  // BEGINNER LEVEL (5 Questions)
+  // BEGINNER LEVEL (10 Questions)
   {
     id: 'go-b1',
     difficulty: 'beginner',
@@ -258,8 +258,58 @@ const GUESS_OUTPUT_CHALLENGES = [
     answer: 0,
     explanation: 'Loose equality (==) coerces string "0" to number 0 (true), but strict equality (===) checks types (false).'
   },
+  {
+    id: 'go-b6',
+    difficulty: 'beginner',
+    title: 'Array Destructuring Default Value',
+    language: 'javascript',
+    code: 'const [a = 1, b = 2] = [10];\nconsole.log(a, b);',
+    options: ['10 2', '1 2', '10 undefined', '1 10'],
+    answer: 0,
+    explanation: 'a takes 10 from array. b has no matching item in [10], so it uses its default value 2.'
+  },
+  {
+    id: 'go-b7',
+    difficulty: 'beginner',
+    title: 'Math.max Empty Arguments',
+    language: 'javascript',
+    code: 'console.log(Math.max());',
+    options: ['-Infinity', '0', 'Infinity', 'NaN'],
+    answer: 0,
+    explanation: 'Math.max() with no arguments returns -Infinity because any number compared to it is greater.'
+  },
+  {
+    id: 'go-b8',
+    difficulty: 'beginner',
+    title: 'String Negative Index Slice',
+    language: 'javascript',
+    code: 'const str = "JavaScript";\nconsole.log(str.slice(-4));',
+    options: ['"ript"', '"Java"', '"Script"', '"pt"'],
+    answer: 0,
+    explanation: 'Negative index -4 in slice extracts the last 4 characters of the string: "ript".'
+  },
+  {
+    id: 'go-b9',
+    difficulty: 'beginner',
+    title: 'Template Literal Expression',
+    language: 'javascript',
+    code: 'const a = 5;\nconsole.log(`Val: ${a + 5}`);',
+    options: ['"Val: 10"', '"Val: 55"', '"Val: a + 5"', 'SyntaxError'],
+    answer: 0,
+    explanation: 'Template literals evaluate JS expressions inside ${}. 5 + 5 = 10, producing "Val: 10".'
+  },
+  {
+    id: 'go-b10',
+    difficulty: 'beginner',
+    title: 'Array Includes Strict Type Check',
+    language: 'javascript',
+    code: 'console.log([1, 2, 3].includes("2"));',
+    options: ['false', 'true', 'undefined', 'TypeError'],
+    answer: 0,
+    explanation: 'Array.prototype.includes uses strict equality (SameValueZero). Number 2 !== String "2", returning false.'
+  },
 
-  // INTERMEDIATE LEVEL (8 Questions)
+  // INTERMEDIATE LEVEL (12 Questions)
   {
     id: 'go-i1',
     difficulty: 'intermediate',
@@ -340,8 +390,48 @@ const GUESS_OUTPUT_CHALLENGES = [
     answer: 0,
     explanation: 'Empty string "" is falsy, so Logical OR assignment name ||= "Default" assigns "Default".'
   },
+  {
+    id: 'go-i9',
+    difficulty: 'intermediate',
+    title: 'Array Fill Shared Reference Trap',
+    language: 'javascript',
+    code: 'const arr = new Array(2).fill({});\narr[0].x = 99;\nconsole.log(arr[1].x);',
+    options: ['99', 'undefined', '0', 'TypeError'],
+    answer: 0,
+    explanation: 'Array.prototype.fill({}) populates every slot with the exact same object reference. Mutating arr[0] mutates arr[1].'
+  },
+  {
+    id: 'go-i10',
+    difficulty: 'intermediate',
+    title: 'Object Destructuring Property Renaming',
+    language: 'javascript',
+    code: 'const user = { name: "Sam", age: 22 };\nconst { name: username } = user;\nconsole.log(username);',
+    options: ['"Sam"', 'undefined', 'ReferenceError', '22'],
+    answer: 0,
+    explanation: 'Destructuring syntax { name: username } renames property name to local variable username ("Sam").'
+  },
+  {
+    id: 'go-i11',
+    difficulty: 'intermediate',
+    title: 'Generator Function Yield Output',
+    language: 'javascript',
+    code: 'function* numGen() {\n  yield 10;\n  yield 20;\n}\nconst g = numGen();\nconsole.log(g.next().value);',
+    options: ['10', '20', 'undefined', '{ value: 10, done: false }'],
+    answer: 0,
+    explanation: 'g.next() returns object { value: 10, done: false }. Accessing .value yields 10.'
+  },
+  {
+    id: 'go-i12',
+    difficulty: 'intermediate',
+    title: 'Rest Parameter Array Type',
+    language: 'javascript',
+    code: 'function check(...items) {\n  return Array.isArray(items);\n}\nconsole.log(check(1, 2, 3));',
+    options: ['true', 'false', 'undefined', 'TypeError'],
+    answer: 0,
+    explanation: 'Rest parameters (...items) gather all remaining arguments into a true JavaScript Array object.'
+  },
 
-  // ADVANCED LEVEL (10 Questions)
+  // ADVANCED LEVEL (14 Questions)
   {
     id: 'go-a1',
     difficulty: 'advanced',
@@ -441,11 +531,51 @@ const GUESS_OUTPUT_CHALLENGES = [
     options: ['24', '9', '64', 'undefined'],
     answer: 0,
     explanation: 'Curried function multiplies 2 * 3 * 4 = 24.'
+  },
+  {
+    id: 'go-a11',
+    difficulty: 'advanced',
+    title: 'JS Proxy Get Trap Handler',
+    language: 'javascript',
+    code: 'const p = new Proxy({}, {\n  get: () => 42\n});\nconsole.log(p.foo);',
+    options: ['42', 'undefined', 'TypeError', 'null'],
+    answer: 0,
+    explanation: 'Proxy get handler traps all property reads and returns 42 regardless of the key name accessed.'
+  },
+  {
+    id: 'go-a12',
+    difficulty: 'advanced',
+    title: 'Async IIFE Return Promise',
+    language: 'javascript',
+    code: '(async () => 100)().then(val => console.log(val));',
+    options: ['100', 'Promise { 100 }', 'undefined', 'TypeError'],
+    answer: 0,
+    explanation: 'Async IIFE wraps the returned 100 in a resolved Promise, which passes 100 into .then() callback.'
+  },
+  {
+    id: 'go-a13',
+    difficulty: 'advanced',
+    title: 'Array Flat Depth Flattening',
+    language: 'javascript',
+    code: 'const arr = [1, [2, [3]]];\nconsole.log(arr.flat(1).length);',
+    options: ['3', '2', '4', '1'],
+    answer: 0,
+    explanation: 'arr.flat(1) flattens 1 level deep: [1, 2, [3]]. Its length is 3.'
+  },
+  {
+    id: 'go-a14',
+    difficulty: 'advanced',
+    title: 'Class Static Field Inheritance',
+    language: 'javascript',
+    code: 'class Parent {\n  static count = 10;\n}\nclass Child extends Parent {}\nconsole.log(Child.count);',
+    options: ['10', 'undefined', 'TypeError', '0'],
+    answer: 0,
+    explanation: 'Subclasses in JavaScript inherit static properties and methods from their parent class prototype.'
   }
 ];
 
 const FIND_BUG_CHALLENGES = [
-  // BEGINNER LEVEL (5 Questions)
+  // BEGINNER LEVEL (10 Questions)
   {
     id: 'fb-b1',
     difficulty: 'beginner',
@@ -496,8 +626,58 @@ const FIND_BUG_CHALLENGES = [
     answer: 0,
     explanation: 'String starts with double quote " but ends with single quote \', causing a SyntaxError.'
   },
+  {
+    id: 'fb-b6',
+    difficulty: 'beginner',
+    title: 'Array Length Truncation Bug',
+    language: 'javascript',
+    code: 'const arr = [10, 20, 30];\narr.length = 0;\nconsole.log(arr[0]);',
+    options: ['Line 2: Setting length to 0 empties the array; arr[0] evaluates to undefined', 'Line 1: Const arrays cannot change length', 'Line 3: arr[0] throws a ReferenceError', 'Line 2: Length property is read-only'],
+    answer: 0,
+    explanation: 'Setting array length property to 0 deletes all elements, making arr[0] return undefined.'
+  },
+  {
+    id: 'fb-b7',
+    difficulty: 'beginner',
+    title: 'Function Scope Variable Shadowing',
+    language: 'javascript',
+    code: 'let user = "Alice";\nfunction setGuest() {\n  let user = "Guest";\n}\nsetGuest();\nconsole.log(user);',
+    options: ['Line 3: Local let user shadows outer variable, so global user remains "Alice"', 'Line 4: Function setGuest cannot be executed', 'Line 5: User variable is undefined', 'Line 1: User must be const'],
+    answer: 0,
+    explanation: 'Declaring let user inside function creates a local variable instead of updating the outer variable.'
+  },
+  {
+    id: 'fb-b8',
+    difficulty: 'beginner',
+    title: 'String Concatenation Addition Bug',
+    language: 'javascript',
+    code: 'const price = "100";\nconst total = price + 50;\nconsole.log(total);',
+    options: ['Line 2: Adding string "100" to number 50 results in string "10050" instead of 150', 'Line 1: String cannot contain numbers', 'Line 3: Total is unprintable', 'Line 2: Type error is thrown'],
+    answer: 0,
+    explanation: 'The + operator with a string performs string concatenation. Use Number(price) + 50.'
+  },
+  {
+    id: 'fb-b9',
+    difficulty: 'beginner',
+    title: 'Reassigning Constant Variable',
+    language: 'javascript',
+    code: 'const count = 5;\ncount = count + 1;\nconsole.log(count);',
+    options: ['Line 2: Cannot reassign variable declared with const keyword (TypeError)', 'Line 1: const cannot hold numbers', 'Line 3: count is private', 'Line 2: Missing let keyword'],
+    answer: 0,
+    explanation: 'Variables declared with const cannot be reassigned. Use let if value needs to change.'
+  },
+  {
+    id: 'fb-b10',
+    difficulty: 'beginner',
+    title: 'Property Access on Null Object',
+    language: 'javascript',
+    code: 'const profile = null;\nconsole.log(profile.name);',
+    options: ['Line 2: Accessing property on null throws TypeError (Cannot read properties of null)', 'Line 1: profile must be object', 'Line 2: .name is reserved', 'Line 1: null is undefined'],
+    answer: 0,
+    explanation: 'Attempting to access a property on null throws TypeError. Should use optional chaining profile?.name.'
+  },
 
-  // INTERMEDIATE LEVEL (8 Questions)
+  // INTERMEDIATE LEVEL (12 Questions)
   {
     id: 'fb-i1',
     difficulty: 'intermediate',
@@ -578,8 +758,48 @@ const FIND_BUG_CHALLENGES = [
     answer: 0,
     explanation: 'Invalid JSON string passed to JSON.parse throws unhandled SyntaxError crash. Should wrap in try/catch.'
   },
+  {
+    id: 'fb-i9',
+    difficulty: 'intermediate',
+    title: 'Missing Return in Array Map Body',
+    language: 'javascript',
+    code: 'const nums = [1, 2, 3];\nconst doubled = nums.map(n => {\n  n * 2;\n});\nconsole.log(doubled);',
+    options: ['Line 3: Missing return statement inside curly block returns [undefined, undefined, undefined]', 'Line 2: Map cannot double numbers', 'Line 1: nums must be let', 'Line 4: Doubled array cannot be logged'],
+    answer: 0,
+    explanation: 'Arrow functions with curly braces require an explicit return statement. Otherwise, it returns undefined for each element.'
+  },
+  {
+    id: 'fb-i10',
+    difficulty: 'intermediate',
+    title: 'forEach Parameter Reassignment Bug',
+    language: 'javascript',
+    code: 'const users = [{ name: "Alice" }];\nusers.forEach(u => {\n  u = { name: "Bob" };\n});',
+    options: ['Line 3: Reassigning parameter u does not mutate the original object inside array', 'Line 2: forEach cannot iterate objects', 'Line 1: Array cannot hold objects', 'Line 4: Missing return value'],
+    answer: 0,
+    explanation: 'Reassigning local variable u changes local binding only. To modify object, update property directly (u.name = "Bob").'
+  },
+  {
+    id: 'fb-i11',
+    difficulty: 'intermediate',
+    title: 'Floating Point Strict Equality Trap',
+    language: 'javascript',
+    code: 'function isPointThree(a, b) {\n  return (a + b) === 0.3;\n}\nconsole.log(isPointThree(0.1, 0.2));',
+    options: ['Line 2: 0.1 + 0.2 equals 0.30000000000000004 in binary float arithmetic (returns false)', 'Line 1: Function cannot return boolean', 'Line 4: Function is undefined', 'Line 2: === must be =='],
+    answer: 0,
+    explanation: '0.1 + 0.2 evaluates to 0.30000000000000004, so === 0.3 returns false. Use Math.abs((a + b) - 0.3) < Number.EPSILON.'
+  },
+  {
+    id: 'fb-i12',
+    difficulty: 'intermediate',
+    title: 'Unbound Method Passing Bug',
+    language: 'javascript',
+    code: 'const user = {\n  name: "Alex",\n  getName() { return this.name; }\n};\nconst fn = user.getName;\nconsole.log(fn());',
+    options: ['Line 5: Extracting method loses its object context (this becomes undefined/window)', 'Line 3: getName must be arrow function', 'Line 1: Const object cannot have methods', 'Line 6: fn is not a function'],
+    answer: 0,
+    explanation: 'Assigning a method to a standalone variable detaches it from its parent object, causing this to lose reference. Use user.getName.bind(user).'
+  },
 
-  // ADVANCED LEVEL (10 Questions)
+  // ADVANCED LEVEL (14 Questions)
   {
     id: 'fb-a1',
     difficulty: 'advanced',
@@ -679,6 +899,46 @@ const FIND_BUG_CHALLENGES = [
     options: ['Line 3: arguments.callee is forbidden in strict mode and throws TypeError', 'Line 1: "use strict" is invalid', 'Line 2: recurse cannot be empty', 'Line 3: arguments is reserved variable'],
     answer: 0,
     explanation: 'ES5 strict mode disallows arguments.callee for security and optimization reasons. Named function expressions should be used instead.'
+  },
+  {
+    id: 'fb-a11',
+    difficulty: 'advanced',
+    title: 'React Asynchronous State Batching Bug',
+    language: 'javascript',
+    code: 'function incrementTwice() {\n  setCount(count + 1);\n  setCount(count + 1);\n}',
+    options: ['Line 3: Sequential state setters use same stale count reference, resulting in single increment. Use setCount(prev => prev + 1)', 'Line 2: setCount cannot be called twice', 'Line 1: Function must be async', 'Line 3: count + 1 is illegal'],
+    answer: 0,
+    explanation: 'State updates in React are batched asynchronously. Calling setCount(count + 1) twice in the same tick uses the same captured count value.'
+  },
+  {
+    id: 'fb-a12',
+    difficulty: 'advanced',
+    title: 'React Hook Uncleaned Interval Memory Leak',
+    language: 'javascript',
+    code: 'useEffect(() => {\n  const id = setInterval(updateData, 1000);\n}, []);',
+    options: ['Line 2: Missing cleanup return () => clearInterval(id), causing memory leak & duplicate timers on re-render', 'Line 3: Empty dependency array is forbidden', 'Line 1: useEffect must return promise', 'Line 2: 1000ms is too fast'],
+    answer: 0,
+    explanation: 'Intervals started inside useEffect persist in background unless cleaned up with return () => clearInterval(id).'
+  },
+  {
+    id: 'fb-a13',
+    difficulty: 'advanced',
+    title: 'Global Prototype Pollution Mutation',
+    language: 'javascript',
+    code: 'Array.prototype.last = function() {\n  return this[this.length - 1];\n};',
+    options: ['Line 1: Modifying built-in Array prototype causes global side-effects and library conflicts', 'Line 2: this.length - 1 is out of bounds', 'Line 3: Prototype functions must return arrays', 'Line 1: Array is a const object'],
+    answer: 0,
+    explanation: 'Extending built-in prototypes globally polluted object interfaces and can break third-party scripts or future JS specifications.'
+  },
+  {
+    id: 'fb-a14',
+    difficulty: 'advanced',
+    title: 'Uncaught Exception in Promise Executor',
+    language: 'javascript',
+    code: 'new Promise((resolve, reject) => {\n  setTimeout(() => {\n    throw new Error("Failed!");\n  }, 1000);\n});',
+    options: ['Line 3: Errors thrown inside async setTimeout callbacks bypass Promise catch handlers and crash as uncaught exceptions', 'Line 1: Promise executor cannot use arrow function', 'Line 2: setTimeout is forbidden in promises', 'Line 4: Reject parameter must be used'],
+    answer: 0,
+    explanation: 'Synchronous try/catch inside Promise constructor cannot catch errors thrown inside asynchronous event loops like setTimeout. Must call reject(err) instead.'
   }
 ];
 
@@ -805,11 +1065,36 @@ const INITIAL_ACHIEVEMENT_BADGES = [
 ];
 
 const DAILY_QUIZ_QUESTIONS = [
-  { id: 1, q: "What does API stand for in software engineering?", options: ["Automated Program Interface", "Application Programming Interface", "Advanced Process Integration", "Application Protocol Instruction"], answer: 1, category: "Web Dev" },
-  { id: 2, q: "Which data structure follows the Last-In, First-Out (LIFO) principle?", options: ["Queue", "Binary Tree", "Stack", "Linked List"], answer: 2, category: "Data Structures" },
-  { id: 3, q: "What default port does HTTPS protocol use?", options: ["80", "21", "8080", "443"], answer: 3, category: "Networking" },
-  { id: 4, q: "Which Big-O time complexity represents binary search algorithm?", options: ["O(N)", "O(log N)", "O(N^2)", "O(1)"], answer: 1, category: "Algorithms" },
-  { id: 5, q: "Which HTTP status code signifies 'Resource Not Found'?", options: ["200", "403", "404", "500"], answer: 2, category: "Web Dev" }
+  { id: 'qq-1', q: "What does API stand for in software engineering?", options: ["Automated Program Interface", "Application Programming Interface", "Advanced Process Integration", "Application Protocol Instruction"], answer: 1, category: "Web Dev", difficulty: "beginner" },
+  { id: 'qq-2', q: "Which data structure follows the Last-In, First-Out (LIFO) principle?", options: ["Queue", "Binary Tree", "Stack", "Linked List"], answer: 2, category: "Data Structures", difficulty: "beginner" },
+  { id: 'qq-3', q: "What default port does HTTPS protocol use?", options: ["80", "21", "8080", "443"], answer: 3, category: "Networking", difficulty: "beginner" },
+  { id: 'qq-4', q: "Which Big-O time complexity represents binary search algorithm?", options: ["O(N)", "O(log N)", "O(N^2)", "O(1)"], answer: 1, category: "Algorithms", difficulty: "intermediate" },
+  { id: 'qq-5', q: "Which HTTP status code signifies 'Resource Not Found'?", options: ["200", "403", "404", "500"], answer: 2, category: "Web Dev", difficulty: "beginner" },
+  { id: 'qq-6', q: "What is a closure in JavaScript?", options: ["A function retaining access to its outer scope", "Closing a database connection", "Private class constructor", "Asynchronous promise completion"], answer: 0, category: "Web Dev", difficulty: "advanced" },
+  { id: 'qq-7', q: "Which sorting algorithm guarantees O(N log N) worst-case time complexity?", options: ["Quick Sort", "Bubble Sort", "Merge Sort", "Insertion Sort"], answer: 2, category: "Algorithms", difficulty: "advanced" },
+  { id: 'qq-8', q: "Which SQL clause filters aggregated query results after GROUP BY?", options: ["WHERE", "HAVING", "FILTER", "ORDER BY"], answer: 1, category: "Databases", difficulty: "intermediate" },
+  { id: 'qq-9', q: "What protocol handles domain name to IP address resolution?", options: ["DHCP", "DNS", "ARP", "BGP"], answer: 1, category: "Networking", difficulty: "beginner" },
+  { id: 'qq-10', q: "What is the primary function of a mutex in concurrent programming?", options: ["Memory allocation", "Prevent race conditions via mutual exclusion", "Task scheduling", "Cache invalidation"], answer: 1, category: "OS & Systems", difficulty: "advanced" },
+  { id: 'qq-11', q: "What does HTML stand for?", options: ["Hyper Text Markup Language", "High Tech Multi Language", "Hyperlink Text Management Language", "Home Tool Markup Language"], answer: 0, category: "Web Dev", difficulty: "beginner" },
+  { id: 'qq-12', q: "Which Git command creates a new branch and switches to it in one step?", options: ["git branch -new", "git checkout -b", "git switch -create", "git merge -b"], answer: 1, category: "DevOps", difficulty: "beginner" },
+  { id: 'qq-13', q: "Which keyword is used to declare a block-scoped reassignable variable in JS?", options: ["var", "let", "const", "static"], answer: 1, category: "Web Dev", difficulty: "beginner" },
+  { id: 'qq-14', q: "What is the worst-case time complexity of inserting into a Hashtable?", options: ["O(1)", "O(N)", "O(log N)", "O(N^2)"], answer: 1, category: "Data Structures", difficulty: "intermediate" },
+  { id: 'qq-15', q: "Which SQL join returns all records from the left table and matched records from the right?", options: ["INNER JOIN", "LEFT JOIN", "RIGHT JOIN", "FULL OUTER JOIN"], answer: 1, category: "Databases", difficulty: "beginner" },
+  { id: 'qq-16', q: "What does CSS property 'display: flex' establish?", options: ["A Flexbox formatting context for children", "Grid layout system", "Absolute positioning container", "Inline inline-block flow"], answer: 0, category: "Web Dev", difficulty: "beginner" },
+  { id: 'qq-17', q: "In OOP, what principle allows a subclass to provide a specific implementation of a superclass method?", options: ["Encapsulation", "Polymorphism / Method Overriding", "Abstraction", "Multiple Inheritance"], answer: 1, category: "OOP", difficulty: "intermediate" },
+  { id: 'qq-18', q: "Which OSI model layer is responsible for routing IP packets across networks?", options: ["Data Link Layer", "Network Layer", "Transport Layer", "Session Layer"], answer: 1, category: "Networking", difficulty: "intermediate" },
+  { id: 'qq-19', q: "What is the main benefit of Virtual DOM in React?", options: ["Replaces Real DOM completely", "Minimizes expensive direct Real DOM updates via diffing", "Enables multithreaded JavaScript", "Stores application data in localStorage"], answer: 1, category: "Web Dev", difficulty: "intermediate" },
+  { id: 'qq-20', q: "Which component of an OS manages memory space allocations for processes?", options: ["CPU Scheduler", "Memory Management Unit (MMU)", "File System", "I/O Controller"], answer: 1, category: "OS & Systems", difficulty: "advanced" },
+  { id: 'qq-21', q: "What is the default port for HTTP traffic?", options: ["443", "80", "22", "3000"], answer: 1, category: "Networking", difficulty: "beginner" },
+  { id: 'qq-22', q: "Which data structure is typically used for Breadth-First Search (BFS) in a graph?", options: ["Stack", "Queue", "Heap", "Hash Set"], answer: 1, category: "Algorithms", difficulty: "intermediate" },
+  { id: 'qq-23', q: "What does REST stand for in web architecture?", options: ["Representational State Transfer", "Remote Execution System Task", "Relational Entity Service Protocol", "Responsive Enterprise Software Transfer"], answer: 0, category: "Web Dev", difficulty: "intermediate" },
+  { id: 'qq-24', q: "Which hash algorithm is considered cryptographically broken and insecure for passwords?", options: ["SHA-256", "MD5", "Bcrypt", "Argon2"], answer: 1, category: "Cybersecurity", difficulty: "intermediate" },
+  { id: 'qq-25', q: "In Docker, what file defines instructions for building a container image?", options: ["docker-compose.yml", "Dockerfile", "package.json", "Container.config"], answer: 1, category: "DevOps", difficulty: "beginner" },
+  { id: 'qq-26', q: "What algorithm is used by React to compare two Virtual DOM trees?", options: ["Dijkstra's Algorithm", "Heuristic O(N) Reconciliation Diffing", "Binary Search", "A* Pathfinding"], answer: 1, category: "Web Dev", difficulty: "advanced" },
+  { id: 'qq-27', q: "What is a Deadlock in operating systems?", options: ["Infinite loop in process code", "Processes permanently blocked waiting for resources held by each other", "CPU overheating shutdown", "Memory leak overflow"], answer: 1, category: "OS & Systems", difficulty: "advanced" },
+  { id: 'qq-28', q: "Which Git command downloads changes from remote and immediately merges into current branch?", options: ["git fetch", "git pull", "git push", "git clone"], answer: 1, category: "DevOps", difficulty: "beginner" },
+  { id: 'qq-29', q: "What is ACID in database transactions?", options: ["Atomicity, Consistency, Isolation, Durability", "Asynchronous, Concurrent, Indexed, Distributed", "Automated, Certified, Integrated, Data", "Array, Column, Index, Document"], answer: 0, category: "Databases", difficulty: "advanced" },
+  { id: 'qq-30', q: "Which HTTP method is idempotent and intended to update/replace an existing resource?", options: ["POST", "PUT", "DELETE", "GET"], answer: 1, category: "Web Dev", difficulty: "intermediate" }
 ];
 
 const WHEEL_SEGMENTS = [
@@ -1201,9 +1486,25 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
     }
 
     setTangoSolved(true);
-    const earned = Math.round(50 * gameXpMultiplier);
-    updateUserProfile({ funPoints: funPoints + earned });
-    setTangoFeedback({ success: true, msg: `🎉 Perfect! Tango Grid Legitimly Solved (+${earned} XP)!` });
+    setRoundTimerActive(false);
+    const timeSpent = (roundTimerMax || 180) - roundTimer;
+
+    const result = processGameAttemptCompletion({
+      gameId: 'tango',
+      level: gameDifficulty,
+      score: 100,
+      maxScore: 100,
+      timeTakenSec: timeSpent,
+      accuracyPercent: 100,
+      isPerfect: true,
+      isFastSpeed: timeSpent < 60
+    });
+
+    if (result.isAlreadyCompleted) {
+      setTangoFeedback({ success: true, msg: `🎉 Tango Grid Solved! (Practice Mode • Leaderboard Updated)` });
+    } else {
+      setTangoFeedback({ success: true, msg: `🎉 Perfect! Tango Grid Solved (+${result.earnedXp} XP)!` });
+    }
     return true;
   };
 
@@ -1214,9 +1515,17 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
       if (diffLevel === 'advanced') return q.difficulty === 'advanced';
       return !q.difficulty || q.difficulty === 'intermediate';
     });
-    const pool = diffQuestions.length > 0 ? diffQuestions : allQuestions;
+    
+    // Build a pool prioritizing selected difficulty, capped at 15 unique questions max
+    let pool = diffQuestions;
+    if (pool.length < 15) {
+      const remaining = allQuestions.filter(q => !pool.some(pq => pq.id === q.id));
+      pool = [...pool, ...remaining];
+    }
+    // Take max 15 unique questions for this sprint session
+    const shuffledPool = shuffleArray(pool).slice(0, 15);
 
-    setChallengeQuizPool(pool);
+    setChallengeQuizPool(shuffledPool);
     setChallengeIndex(0);
     setChallengeScore(0);
     setChallengeTimer(60);
@@ -1227,13 +1536,20 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
 
   const handleAnswerChallenge = (optionIndex) => {
     const pool = challengeQuizPool.length > 0 ? challengeQuizPool : ((quizQuestions && quizQuestions.length > 0) ? quizQuestions : DAILY_QUIZ_QUESTIONS);
-    const currentQ = pool[challengeIndex % pool.length];
+    const currentQ = pool[challengeIndex];
 
     if (currentQ && optionIndex === currentQ.answer) {
       setChallengeScore(prev => prev + 1);
     }
-    // Continuous 60s sprint: always advance to next question; time limit of 60s controls when sprint ends!
-    setChallengeIndex(prev => prev + 1);
+
+    const nextIdx = challengeIndex + 1;
+    const maxQuestions = Math.min(15, pool.length);
+
+    if (nextIdx >= maxQuestions) {
+      finishChallenge();
+    } else {
+      setChallengeIndex(nextIdx);
+    }
   };
 
   // Universal Difficulty Selector Launcher
@@ -1252,14 +1568,198 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
     }
   };
 
+  // Universal Game Attempt & Reward Logic (No XP farming, per-difficulty single XP claim, practice replays)
+  const processGameAttemptCompletion = ({
+    gameId,
+    level,
+    score = 0,
+    maxScore = 100,
+    timeTakenSec = 0,
+    accuracyPercent = 100,
+    isPerfect = false,
+    isFastSpeed = false
+  }) => {
+    const normGameId = (gameId === 'speedtype') ? 'type' : gameId;
+    const levelKey = (level || gameDifficulty || 'intermediate').toLowerCase();
+
+    const gameStats = currentUser?.gameStats || {};
+    const gameData = gameStats[normGameId] || {};
+    const completedMap = currentUser?.completedGameLevels?.[normGameId] || {};
+
+    const isAlreadyCompleted = Boolean(
+      gameData[`${levelKey}Completed`] || 
+      completedMap[levelKey]
+    );
+
+    const baseLevelXp = levelKey === 'beginner' ? 80 : levelKey === 'intermediate' ? 120 : 160;
+
+    let earnedXp = 0;
+    let messages = [];
+
+    // 1. XP AWARDED ONLY THE FIRST TIME A DIFFICULTY IS COMPLETED
+    if (!isAlreadyCompleted) {
+      earnedXp += baseLevelXp;
+      messages.push(`+${baseLevelXp} XP (${levelKey.toUpperCase()} First Completion)`);
+    } else {
+      messages.push(`${levelKey.charAt(0).toUpperCase() + levelKey.slice(1)} already completed. Practice mode active. No additional level XP awarded.`);
+    }
+
+    // 2. DAILY FIRST PLAY BONUS (+10 XP)
+    const todayStr = new Date().toISOString().split('T')[0];
+    const dailyDates = gameData.dailyFirstPlayDates || {};
+    if (dailyDates[todayStr] !== true) {
+      earnedXp += 10;
+      messages.push(`+10 XP (Daily First Play Bonus)`);
+    }
+
+    // 3. ONE-TIME SPECIAL BONUSES
+    const unlockedBonuses = gameData.unlockedBonuses || {};
+    let newUnlockedBonuses = { ...unlockedBonuses };
+
+    if (isPerfect && !unlockedBonuses[`${levelKey}_perfect`]) {
+      earnedXp += 25;
+      newUnlockedBonuses[`${levelKey}_perfect`] = true;
+      messages.push(`+25 XP (One-time Perfect Score Bonus)`);
+    }
+
+    if (isFastSpeed && !unlockedBonuses[`${levelKey}_speed`]) {
+      earnedXp += 20;
+      newUnlockedBonuses[`${levelKey}_speed`] = true;
+      messages.push(`+20 XP (One-time Speed Bonus)`);
+    }
+
+    if (!isAlreadyCompleted && !unlockedBonuses[`${levelKey}_firstTry`]) {
+      earnedXp += 30;
+      newUnlockedBonuses[`${levelKey}_firstTry`] = true;
+      messages.push(`+30 XP (One-time First Try Bonus)`);
+    }
+
+    // 4. UPDATE BEST STATS & LEADERBOARD SCORE
+    const capKey = levelKey.charAt(0).toUpperCase() + levelKey.slice(1);
+    const prevBestScore = Number(gameData[`best${capKey}Score`] || 0);
+    const prevBestTime = Number(gameData[`best${capKey}Time`] || 9999);
+    const prevBestAccuracy = Number(gameData[`best${capKey}Accuracy`] || 0);
+    const prevAttempts = Number(gameData[`attempts${capKey}`] || 0);
+
+    const newBestScore = Math.max(prevBestScore, score);
+    const newBestTime = (timeTakenSec > 0) ? Math.min(prevBestTime, timeTakenSec) : (prevBestTime < 9999 ? prevBestTime : timeTakenSec);
+    const newBestAccuracy = Math.max(prevBestAccuracy, accuracyPercent);
+
+    const updatedGameData = {
+      ...gameData,
+      gameId: normGameId,
+      [`${levelKey}Completed`]: true,
+      [`best${capKey}Score`]: newBestScore,
+      [`best${capKey}Time`]: newBestTime < 9999 ? newBestTime : timeTakenSec,
+      [`best${capKey}Accuracy`]: newBestAccuracy,
+      [`attempts${capKey}`]: prevAttempts + 1,
+      lastPlayed: new Date().toISOString(),
+      completedDates: {
+        ...(gameData.completedDates || {}),
+        [levelKey]: gameData.completedDates?.[levelKey] || todayStr
+      },
+      dailyFirstPlayDates: {
+        ...dailyDates,
+        [todayStr]: true
+      },
+      unlockedBonuses: newUnlockedBonuses
+    };
+
+    const updatedCompletedMap = {
+      ...(currentUser?.completedGameLevels || {}),
+      [normGameId]: {
+        ...(currentUser?.completedGameLevels?.[normGameId] || {}),
+        [levelKey]: true
+      }
+    };
+
+    const updatedUserDoc = {
+      funPoints: (currentUser?.funPoints || 450) + earnedXp,
+      streak: currentUser?.lastSpinDate !== todayStr ? streak + 1 : streak,
+      gameStats: {
+        ...gameStats,
+        [normGameId]: updatedGameData
+      },
+      completedGameLevels: updatedCompletedMap
+    };
+
+    // SAVE IMMEDIATELY BEFORE RETURNING SUCCESS
+    updateUserProfile(updatedUserDoc);
+
+    return {
+      earnedXp,
+      isAlreadyCompleted,
+      messages,
+      levelKey,
+      score,
+      timeTakenSec,
+      accuracyPercent,
+      isNewBestScore: score > prevBestScore,
+      isNewBestTime: timeTakenSec < prevBestTime
+    };
+  };
+
+  const renderGameCardProgress = (gId) => {
+    const normId = (gId === 'speedtype') ? 'type' : gId;
+    const gameStats = currentUser?.gameStats || {};
+    const gameData = gameStats[normId] || {};
+    const completedMap = currentUser?.completedGameLevels?.[normId] || {};
+
+    const bComp = Boolean(gameData.beginnerCompleted || completedMap.beginner);
+    const iComp = Boolean(gameData.intermediateCompleted || completedMap.intermediate);
+    const aComp = Boolean(gameData.advancedCompleted || completedMap.advanced);
+
+    const completedCount = (bComp ? 1 : 0) + (iComp ? 1 : 0) + (aComp ? 1 : 0);
+
+    return (
+      <div className="p-3 bg-slate-900/90 rounded-2xl border border-slate-800 space-y-2">
+        <div className="flex items-center justify-between text-[11px] font-bold text-slate-300">
+          <span className="uppercase tracking-wider text-[10px] text-slate-400">Difficulty Progress</span>
+          <span className="text-amber-400 font-mono font-extrabold">{completedCount}/3 Completed</span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-1.5 text-[10px] font-bold">
+          <div className={`p-1.5 rounded-xl border flex flex-col items-center justify-center text-center ${
+            bComp ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300' : 'bg-slate-950/60 border-slate-800 text-slate-500'
+          }`}>
+            <span>🟢 Beginner</span>
+            <span className="text-[9px] font-extrabold">{bComp ? '✓ Done' : 'XP Available'}</span>
+          </div>
+
+          <div className={`p-1.5 rounded-xl border flex flex-col items-center justify-center text-center ${
+            iComp ? 'bg-amber-500/15 border-amber-500/40 text-amber-300' : 'bg-slate-950/60 border-slate-800 text-slate-500'
+          }`}>
+            <span>🟡 Intermed</span>
+            <span className="text-[9px] font-extrabold">{iComp ? '✓ Done' : 'XP Available'}</span>
+          </div>
+
+          <div className={`p-1.5 rounded-xl border flex flex-col items-center justify-center text-center ${
+            aComp ? 'bg-rose-500/15 border-rose-500/40 text-rose-300' : 'bg-slate-950/60 border-slate-800 text-slate-500'
+          }`}>
+            <span>🔴 Advanced</span>
+            <span className="text-[9px] font-extrabold">{aComp ? '✓ Done' : 'XP Available'}</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const finishChallenge = () => {
     setChallengeFinished(true);
     setChallengeActive(false);
-    const baseEarned = (challengeScore * 30) + (challengeTimer > 20 ? 50 : 20);
-    const earnedXp = Math.round(baseEarned * gameXpMultiplier);
-    updateUserProfile({
-      funPoints: funPoints + earnedXp,
-      streak: currentUser?.lastSpinDate !== todayDateStr ? streak + 1 : streak
+
+    const accuracy = Math.round((challengeScore / Math.max(1, challengeIndex + 1)) * 100);
+    const timeSpent = 60 - challengeTimer;
+
+    processGameAttemptCompletion({
+      gameId: '60sec',
+      level: gameDifficulty,
+      score: challengeScore * 10,
+      maxScore: 150,
+      timeTakenSec: timeSpent,
+      accuracyPercent: accuracy,
+      isPerfect: challengeScore >= 15,
+      isFastSpeed: challengeTimer > 20
     });
   };
 
@@ -1631,9 +2131,11 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                   <span>⏱️ 60-Second Challenge</span>
                 </h3>
                 <p className="text-xs text-slate-300 leading-relaxed">
-                  Answer 5 rapid-fire questions under 60 seconds. Faster accuracy earns bonus multiplier XP!
+                  Answer up to 15 rapid-fire questions in 60 seconds. Faster accuracy earns bonus multiplier XP!
                 </p>
               </div>
+
+              {renderGameCardProgress('60sec')}
 
               <div className="my-2 p-4 bg-slate-900/80 rounded-2xl border border-slate-800 text-center space-y-2">
                 <div className="flex items-center justify-center space-x-2 text-cyan-400">
@@ -1669,8 +2171,17 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                     Daily Poll
                   </span>
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-900 text-amber-300 border border-amber-500/30 flex items-center space-x-1">
-                    <Users className="w-3 h-3 text-amber-400" />
-                    <span>{totalPollVotes} {totalPollVotes === 1 ? 'user' : 'users'} voted</span>
+                    {hasVotedActivePoll ? (
+                      <>
+                        <Users className="w-3 h-3 text-amber-400" />
+                        <span>{totalPollVotes} {totalPollVotes === 1 ? 'user' : 'users'} voted</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3 h-3 text-amber-400" />
+                        <span>Vote to see results</span>
+                      </>
+                    )}
                   </span>
                 </div>
                 <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
@@ -1687,17 +2198,17 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         onClick={() => handleVotePoll('A')}
-                        className="p-3 rounded-2xl bg-slate-900 border border-slate-800 hover:border-amber-500/60 text-xs font-bold text-slate-200 hover:text-white transition-all text-center group/opt flex flex-col items-center justify-center space-y-1"
+                        className="p-3 rounded-2xl bg-slate-900 border border-slate-800 hover:border-amber-500/60 hover:bg-amber-500/10 text-xs font-bold text-slate-200 hover:text-white transition-all text-center group/opt flex flex-col items-center justify-center space-y-1"
                       >
                         <span className="text-white font-black">{activePoll.optionA}</span>
-                        <span className="text-[10px] text-amber-400 font-semibold">{activePoll.votesA || 0} votes ({percentA}%)</span>
+                        <span className="text-[10px] text-amber-400/80 font-medium group-hover/opt:text-amber-300 transition-colors">Click to Vote</span>
                       </button>
                       <button
                         onClick={() => handleVotePoll('B')}
-                        className="p-3 rounded-2xl bg-slate-900 border border-slate-800 hover:border-cyan-500/60 text-xs font-bold text-slate-200 hover:text-white transition-all text-center group/opt flex flex-col items-center justify-center space-y-1"
+                        className="p-3 rounded-2xl bg-slate-900 border border-slate-800 hover:border-cyan-500/60 hover:bg-cyan-500/10 text-xs font-bold text-slate-200 hover:text-white transition-all text-center group/opt flex flex-col items-center justify-center space-y-1"
                       >
                         <span className="text-white font-black">{activePoll.optionB}</span>
-                        <span className="text-[10px] text-cyan-400 font-semibold">{activePoll.votesB || 0} votes ({percentB}%)</span>
+                        <span className="text-[10px] text-cyan-400/80 font-medium group-hover/opt:text-cyan-300 transition-colors">Click to Vote</span>
                       </button>
                     </div>
                   </div>
@@ -1727,7 +2238,7 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
               </div>
 
               <div className="text-[10px] text-center text-slate-400 font-semibold flex items-center justify-center space-x-1">
-                <span>{hasVotedActivePoll ? `✓ Voted (${totalPollVotes} total votes) • +25 XP Claimed` : `👥 ${totalPollVotes} users voted so far • Click an option to vote (+25 XP)!`}</span>
+                <span>{hasVotedActivePoll ? `✓ Voted (${totalPollVotes} total votes) • +25 XP Claimed` : `👥 Cast your vote to reveal live results (+25 XP)!`}</span>
               </div>
             </div>
 
@@ -1747,6 +2258,8 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                   Choose your topic and test your core IT knowledge across Web Dev, AI/ML, Networks & Security!
                 </p>
               </div>
+
+              {renderGameCardProgress('quiz')}
 
               <div className="my-2 p-3 bg-slate-900/80 rounded-2xl border border-slate-800 space-y-2">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">Select Category</p>
@@ -1811,6 +2324,8 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                 </p>
               </div>
 
+              {renderGameCardProgress('guess')}
+
               <div className="my-2 p-3 bg-slate-950 rounded-2xl border border-slate-800 font-mono text-[11px] text-cyan-300 space-y-1">
                 <div className="text-[9px] text-slate-500 font-sans uppercase">Snippet Preview</div>
                 <code>{guessList[0].code}</code>
@@ -1862,6 +2377,8 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                   Spot syntax errors, infinite loops, and logical bugs hidden inside real-world code!
                 </p>
               </div>
+
+              {renderGameCardProgress('bug')}
 
               <div className="my-2 p-3 bg-slate-950 rounded-2xl border border-slate-800 font-mono text-[11px] text-rose-300 space-y-1">
                 <div className="text-[9px] text-slate-500 font-sans uppercase">Bug Hunt Preview</div>
@@ -1915,6 +2432,8 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                 </p>
               </div>
 
+              {renderGameCardProgress('ecg')}
+
               <div className="my-2 p-3 bg-slate-950 rounded-2xl border border-slate-800 text-center font-mono text-lg font-black text-emerald-400">
                 HTTP {ECG_CHALLENGES[0].code}
               </div>
@@ -1966,6 +2485,8 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                 </p>
               </div>
 
+              {renderGameCardProgress('tango')}
+
               <div className="my-2 p-3 bg-slate-950 rounded-2xl border border-slate-800 text-center space-x-2 text-base">
                 <span>☀️</span> <span>🌙</span> <span>☀️</span> <span>🌙</span>
               </div>
@@ -2010,6 +2531,8 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                   Type code syntax snippets with high accuracy and speed to earn WPM multiplier XP!
                 </p>
               </div>
+
+              {renderGameCardProgress('type')}
 
               <div className="my-2 p-3 bg-slate-950 rounded-2xl border border-slate-800 font-mono text-[11px] text-amber-300 line-clamp-1">
                 <code>{SPEED_TYPE_PROMPTS[0].snippet}</code>
@@ -2432,6 +2955,90 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                 )}
               </div>
 
+              {/* 🎮 GAME MASTERY & PER-DIFFICULTY STATS (PER USER) */}
+              <div className="glass-card rounded-3xl p-6 border border-indigo-500/30 bg-gradient-to-b from-indigo-950/20 to-slate-950 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div>
+                    <h3 className="text-base font-extrabold text-white flex items-center space-x-2">
+                      <Gamepad2 className="w-5 h-5 text-indigo-400" />
+                      <span>Game Mastery & Difficulty Stats</span>
+                    </h3>
+                    <p className="text-xs text-slate-400">Track per-difficulty completion, best scores, accuracy & completion times</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[
+                    { id: '60sec', name: '60-Second Challenge', icon: '⏱️' },
+                    { id: 'quiz', name: 'Quick Quiz', icon: '🧠' },
+                    { id: 'guess', name: 'Guess the Output', icon: '💻' },
+                    { id: 'bug', name: 'Find the Bug', icon: '🐞' },
+                    { id: 'ecg', name: 'Error Code Guessing (ECG)', icon: '⚡' },
+                    { id: 'tango', name: 'Tango Logic Grid', icon: '🧩' },
+                    { id: 'type', name: 'Speed Type Challenge', icon: '⌨️' }
+                  ].map(g => {
+                    const gStats = currentUser?.gameStats?.[g.id] || {};
+                    const cMap = currentUser?.completedGameLevels?.[g.id] || {};
+
+                    const bDone = Boolean(gStats.beginnerCompleted || cMap.beginner);
+                    const iDone = Boolean(gStats.intermediateCompleted || cMap.intermediate);
+                    const aDone = Boolean(gStats.advancedCompleted || cMap.advanced);
+
+                    const bScore = gStats.bestBeginnerScore || 0;
+                    const iScore = gStats.bestIntermediateScore || 0;
+                    const aScore = gStats.bestAdvancedScore || 0;
+
+                    const bTime = gStats.bestBeginnerTime ? `${gStats.bestBeginnerTime}s` : '--';
+                    const iTime = gStats.bestIntermediateTime ? `${gStats.bestIntermediateTime}s` : '--';
+                    const aTime = gStats.bestAdvancedTime ? `${gStats.bestAdvancedTime}s` : '--';
+
+                    const totalAttempts = (gStats.attemptsBeginner || 0) + (gStats.attemptsIntermediate || 0) + (gStats.attemptsAdvanced || 0);
+
+                    return (
+                      <div key={g.id} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="font-extrabold text-white text-xs flex items-center gap-2">
+                            <span>{g.icon}</span>
+                            <span>{g.name}</span>
+                          </span>
+                          <span className="text-[10px] font-mono text-slate-400">
+                            Attempts: <strong className="text-amber-400">{totalAttempts}</strong>
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2 text-[10px]">
+                          <div className={`p-2 rounded-xl border text-center space-y-1 ${bDone ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300' : 'bg-slate-950 border-slate-800 text-slate-500'}`}>
+                            <div className="font-bold flex items-center justify-center gap-1">
+                              <span>🟢</span>
+                              <span>{bDone ? '✓ Done' : 'Beginner'}</span>
+                            </div>
+                            <p className="text-[9px] text-slate-300">Best: {bScore} pts</p>
+                            <p className="text-[9px] text-slate-400">Time: {bTime}</p>
+                          </div>
+
+                          <div className={`p-2 rounded-xl border text-center space-y-1 ${iDone ? 'bg-amber-500/10 border-amber-500/40 text-amber-300' : 'bg-slate-950 border-slate-800 text-slate-500'}`}>
+                            <div className="font-bold flex items-center justify-center gap-1">
+                              <span>🟡</span>
+                              <span>{iDone ? '✓ Done' : 'Intermed'}</span>
+                            </div>
+                            <p className="text-[9px] text-slate-300">Best: {iScore} pts</p>
+                            <p className="text-[9px] text-slate-400">Time: {iTime}</p>
+                          </div>
+
+                          <div className={`p-2 rounded-xl border text-center space-y-1 ${aDone ? 'bg-rose-500/10 border-rose-500/40 text-rose-300' : 'bg-slate-950 border-slate-800 text-slate-500'}`}>
+                            <div className="font-bold flex items-center justify-center gap-1">
+                              <span>🔴</span>
+                              <span>{aDone ? '✓ Done' : 'Advanced'}</span>
+                            </div>
+                            <p className="text-[9px] text-slate-300">Best: {aScore} pts</p>
+                            <p className="text-[9px] text-slate-400">Time: {aTime}</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
 
             </div>
 
@@ -2664,7 +3271,7 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
             
             {(() => {
               const pool = challengeQuizPool.length > 0 ? challengeQuizPool : ((quizQuestions && quizQuestions.length > 0) ? quizQuestions : DAILY_QUIZ_QUESTIONS);
-              const currentQ = pool[challengeIndex % pool.length];
+              const currentQ = pool[challengeIndex];
 
               return !challengeFinished ? (
                 <>
@@ -2680,7 +3287,7 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                           {gameDifficulty || 'intermediate'}
                         </span>
                       </h3>
-                      <p className="text-xs text-slate-400">Question #{challengeIndex + 1} • Continuous 60s Sprint ({pool.length} Qs in pool)</p>
+                      <p className="text-xs text-slate-400">Question #{challengeIndex + 1} of {Math.min(15, pool.length)} • 60s Sprint</p>
                     </div>
                     <div className="flex items-center space-x-1 text-amber-400 font-mono text-lg font-black bg-amber-500/10 px-3 py-1 rounded-xl border border-amber-500/30">
                       <Clock className="w-4 h-4 animate-pulse" />
@@ -2769,16 +3376,28 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                           <button
                             key={idx}
                             onClick={() => {
-                              setSelectedQuizOption(idx);
-                              if (idx === currentQ?.answer) {
+                              const isCorrect = idx === currentQ?.answer;
+                              const nextScore = isCorrect ? quizScore + 1 : quizScore;
+                              if (isCorrect) {
                                 setQuizScore(prev => prev + 1);
                               }
                               if (quizIndex < pool.length - 1) {
                                 setQuizIndex(prev => prev + 1);
                               } else {
                                 setQuizFinished(true);
-                                const earned = Math.round(80 * gameXpMultiplier);
-                                updateUserProfile({ funPoints: funPoints + earned });
+                                setRoundTimerActive(false);
+                                const accuracy = Math.round((nextScore / Math.max(1, pool.length)) * 100);
+                                const timeSpent = roundTimerMax - roundTimer;
+                                processGameAttemptCompletion({
+                                  gameId: 'quiz',
+                                  level: gameDifficulty,
+                                  score: nextScore * 10,
+                                  maxScore: pool.length * 10,
+                                  timeTakenSec: timeSpent,
+                                  accuracyPercent: accuracy,
+                                  isPerfect: nextScore === pool.length,
+                                  isFastSpeed: timeSpent < 30
+                                });
                               }
                             }}
                             className="w-full p-3 rounded-2xl border border-slate-800 bg-slate-900 text-xs font-semibold text-left text-slate-200 hover:bg-purple-500/20 hover:border-purple-500/40 transition-all"
@@ -2793,7 +3412,16 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                       <Trophy className="w-12 h-12 text-amber-400 mx-auto" />
                       <h4 className="text-lg font-bold text-white">Quiz Complete!</h4>
                       <p className="text-2xl font-black text-purple-300">{quizScore} / {pool.length} Correct</p>
-                      <p className="text-xs font-bold text-amber-400">+{Math.round(80 * gameXpMultiplier)} XP Awarded!</p>
+                      
+                      {currentUser?.gameStats?.quiz?.[`${gameDifficulty}Completed`] ? (
+                        <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs space-y-1">
+                          <p className="font-extrabold">ℹ️ {gameDifficulty.toUpperCase()} Completed • Practice Mode</p>
+                          <p className="text-[11px] text-slate-300">Best Score, Accuracy & Leaderboard stats updated!</p>
+                        </div>
+                      ) : (
+                        <p className="text-xs font-bold text-amber-400">+{gameDifficulty === 'beginner' ? 80 : gameDifficulty === 'intermediate' ? 120 : 160} XP Awarded!</p>
+                      )}
+
                       <button onClick={() => setQuickQuizOpen(false)} className="w-full py-2.5 rounded-xl bg-purple-600 text-white font-bold text-xs">
                         Done
                       </button>
@@ -2817,25 +3445,23 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
         const currentQ = activeGuessList[guessIndex % activeGuessList.length];
         const funnyResult = getFunnyGuessResult(guessScore, activeGuessList.length);
 
-        const baseQXp = siteConfig?.xpSettings?.guessQuestionXP ?? 20;
-        const baseBonusXp = siteConfig?.xpSettings?.guessWeeklyBonusXP ?? 50;
-        const qXpAmount = Math.round(baseQXp * gameXpMultiplier);
-        const weeklyBonusAmount = Math.round(baseBonusXp * gameXpMultiplier);
-
         const handleFinishGuess = () => {
           setGuessFinished(true);
           setRoundTimerActive(false);
 
-          if (!alreadyClaimedThisWeek) {
-            const updatedCompletions = {
-              ...guessWeeklyCompletions,
-              [gameDifficulty]: currentWeekId
-            };
-            updateUserProfile({
-              funPoints: (currentUser?.funPoints || 450) + weeklyBonusAmount,
-              guessWeeklyCompletions: updatedCompletions
-            });
-          }
+          const accuracy = Math.round((guessScore / Math.max(1, activeGuessList.length)) * 100);
+          const timeSpent = roundTimerMax - roundTimer;
+
+          processGameAttemptCompletion({
+            gameId: 'guess',
+            level: gameDifficulty,
+            score: guessScore * 10,
+            maxScore: activeGuessList.length * 10,
+            timeTakenSec: timeSpent,
+            accuracyPercent: accuracy,
+            isPerfect: guessScore === activeGuessList.length,
+            isFastSpeed: timeSpent < 45
+          });
         };
 
         return (
@@ -3037,16 +3663,19 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
           setBugFinished(true);
           setRoundTimerActive(false);
 
-          if (!alreadyClaimedThisWeek) {
-            const updatedCompletions = {
-              ...bugWeeklyCompletions,
-              [gameDifficulty]: currentWeekId
-            };
-            updateUserProfile({
-              funPoints: (currentUser?.funPoints || 450) + weeklyBonusAmount,
-              bugWeeklyCompletions: updatedCompletions
-            });
-          }
+          const accuracy = Math.round((bugScore / Math.max(1, activeBugList.length)) * 100);
+          const timeSpent = roundTimerMax - roundTimer;
+
+          processGameAttemptCompletion({
+            gameId: 'bug',
+            level: gameDifficulty,
+            score: bugScore * 10,
+            maxScore: activeBugList.length * 10,
+            timeTakenSec: timeSpent,
+            accuracyPercent: accuracy,
+            isPerfect: bugScore === activeBugList.length,
+            isFastSpeed: timeSpent < 45
+          });
         };
 
         return (
@@ -3334,16 +3963,19 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
           setEcgFinished(true);
           setRoundTimerActive(false);
 
-          if (!alreadyClaimedThisWeek) {
-            const updatedCompletions = {
-              ...ecgWeeklyCompletions,
-              [gameDifficulty]: currentWeekId
-            };
-            updateUserProfile({
-              funPoints: (currentUser?.funPoints || 450) + weeklyBonusAmount,
-              ecgWeeklyCompletions: updatedCompletions
-            });
-          }
+          const accuracy = Math.round((ecgScore / Math.max(1, activeEcgList.length)) * 100);
+          const timeSpent = roundTimerMax - roundTimer;
+
+          processGameAttemptCompletion({
+            gameId: 'ecg',
+            level: gameDifficulty,
+            score: ecgScore * 10,
+            maxScore: activeEcgList.length * 10,
+            timeTakenSec: timeSpent,
+            accuracyPercent: accuracy,
+            isPerfect: ecgScore === activeEcgList.length,
+            isFastSpeed: timeSpent < 40
+          });
         };
 
         return (
@@ -3665,23 +4297,27 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
               </div>
             </div>
 
-            {/* Code Character Highlight Display Box */}
-            <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 font-mono text-xs leading-relaxed space-y-2 select-none overflow-x-auto">
-              <div className="text-[9px] text-slate-500 font-sans uppercase font-bold tracking-wider">
-                Type the snippet accurately below:
+            {/* Direct Interactive Code Typing Box (Monkeytype-Style Direct Snippet Typing) */}
+            <div className="relative p-5 bg-slate-950 rounded-2xl border-2 border-amber-500/50 shadow-lg shadow-amber-500/10 font-mono text-xs leading-relaxed space-y-3 overflow-hidden group focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-500/20">
+              <div className="flex items-center justify-between text-[10px] text-amber-400 font-sans font-bold uppercase tracking-wider">
+                <span>⚡ Type directly on the code snippet below (Backspace disabled)</span>
+                <span className="text-[10px] text-slate-400 font-mono">
+                  {speedTypeInput.length} / {speedTypePrompt.snippet.length} Chars
+                </span>
               </div>
-              <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800 whitespace-pre-wrap tracking-wide font-mono text-sm leading-relaxed">
+
+              <div className="relative p-4 bg-slate-900/90 rounded-xl border border-slate-800 whitespace-pre-wrap font-mono text-sm leading-relaxed select-none min-h-[140px]">
                 {speedTypePrompt.snippet.split('').map((char, i) => {
                   const typedChar = speedTypeInput[i];
                   let charStyle = "text-slate-500";
                   if (typedChar !== undefined) {
                     if (typedChar === char) {
-                      charStyle = "text-emerald-400 bg-emerald-500/10 font-bold";
+                      charStyle = "text-emerald-400 bg-emerald-500/20 font-bold";
                     } else {
-                      charStyle = "text-rose-400 bg-rose-500/30 font-bold underline decoration-rose-500";
+                      charStyle = "text-rose-300 bg-rose-500/40 font-bold underline decoration-rose-500";
                     }
                   } else if (i === speedTypeInput.length) {
-                    charStyle = "bg-amber-400/40 text-white font-black underline animate-pulse";
+                    charStyle = "bg-amber-400 text-slate-950 font-black animate-pulse shadow-sm shadow-amber-400/50";
                   }
 
                   return (
@@ -3690,69 +4326,78 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                     </span>
                   );
                 })}
+
+                {/* Hidden Overlay Textarea to Capture Input Directly On Snippet Box */}
+                <textarea
+                  autoFocus
+                  rows={1}
+                  disabled={speedTypeFinished || roundTimer === 0}
+                  value={speedTypeInput}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Backspace') {
+                      e.preventDefault();
+                    }
+                  }}
+                  onChange={(e) => {
+                    let val = e.target.value;
+
+                    // Block backspace deletion
+                    if (val.length < speedTypeInput.length) {
+                      return;
+                    }
+
+                    // Prevent typing beyond prompt snippet length
+                    if (val.length > speedTypePrompt.snippet.length) {
+                      val = val.substring(0, speedTypePrompt.snippet.length);
+                    }
+
+                    setSpeedTypeInput(val);
+
+                    if (!speedTypeStartTime) {
+                      setSpeedTypeStartTime(Date.now());
+                    }
+
+                    // Live WPM & Accuracy calculation
+                    const promptStr = speedTypePrompt.snippet;
+                    let correctChars = 0;
+                    for (let i = 0; i < val.length; i++) {
+                      if (val[i] === promptStr[i]) correctChars++;
+                    }
+
+                    const typedLen = Math.max(1, val.length);
+                    const acc = Math.round((correctChars / typedLen) * 100);
+                    setSpeedTypeAccuracy(acc);
+
+                    const elapsedSeconds = Math.max(1, (Date.now() - (speedTypeStartTime || Date.now())) / 1000);
+                    const calcWpm = Math.round((correctChars / 5) / (elapsedSeconds / 60));
+                    setSpeedTypeWpm(calcWpm);
+
+                    // Completion check when full snippet length is typed
+                    if (val.length >= promptStr.length) {
+                      setSpeedTypeFinished(true);
+                      setRoundTimerActive(false);
+                      const timeSpent = Math.max(1, Math.round(elapsedSeconds));
+
+                      processGameAttemptCompletion({
+                        gameId: 'type',
+                        level: gameDifficulty,
+                        score: calcWpm,
+                        maxScore: 100,
+                        timeTakenSec: timeSpent,
+                        accuracyPercent: acc,
+                        isPerfect: acc >= 100,
+                        isFastSpeed: calcWpm >= 60
+                      });
+                    }
+                  }}
+                  onPaste={(e) => {
+                    e.preventDefault();
+                    triggerToast("🚫 Pasting into typing input is disabled!");
+                  }}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-text resize-none bg-transparent"
+                />
               </div>
             </div>
-
-            {/* Interactive Real-Time Typing Textarea */}
-            <textarea
-              rows={4}
-              disabled={speedTypeFinished || roundTimer === 0}
-              placeholder="⚡ Start typing here (Backspace is disabled)..."
-              value={speedTypeInput}
-              onKeyDown={(e) => {
-                // Disable Backspace in real exam keyboard mode
-                if (e.key === 'Backspace') {
-                  e.preventDefault();
-                }
-              }}
-              onChange={(e) => {
-                let val = e.target.value;
-
-                // Block backspace deletion (prevent shortening input length)
-                if (val.length < speedTypeInput.length) {
-                  return;
-                }
-
-                // Prevent typing beyond prompt snippet length
-                if (val.length > speedTypePrompt.snippet.length) {
-                  val = val.substring(0, speedTypePrompt.snippet.length);
-                }
-
-                setSpeedTypeInput(val);
-
-                if (!speedTypeStartTime) {
-                  setSpeedTypeStartTime(Date.now());
-                }
-
-                // Live WPM & Accuracy calculation
-                const promptStr = speedTypePrompt.snippet;
-                let correctChars = 0;
-                for (let i = 0; i < val.length; i++) {
-                  if (val[i] === promptStr[i]) correctChars++;
-                }
-
-                const typedLen = Math.max(1, val.length);
-                const acc = Math.round((correctChars / typedLen) * 100);
-                setSpeedTypeAccuracy(acc);
-
-                const elapsedSeconds = Math.max(1, (Date.now() - (speedTypeStartTime || Date.now())) / 1000);
-                const calcWpm = Math.round((correctChars / 5) / (elapsedSeconds / 60));
-                setSpeedTypeWpm(calcWpm);
-
-                // Completion check when full snippet length is typed
-                if (val.length >= promptStr.length) {
-                  setSpeedTypeFinished(true);
-                  setRoundTimerActive(false);
-                  const earned = Math.round(50 * (acc / 100) * gameXpMultiplier);
-                  updateUserProfile({ funPoints: funPoints + earned });
-                }
-              }}
-              onPaste={(e) => {
-                e.preventDefault();
-                triggerToast("🚫 Pasting into typing input is disabled!");
-              }}
-              className="w-full p-3 bg-slate-900 text-xs text-amber-300 rounded-xl border border-slate-800 font-mono focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-            />
 
             {speedTypeFinished && (
               <div className="p-4 rounded-2xl bg-amber-950/80 border border-amber-500/40 text-center space-y-2 animate-in fade-in">
