@@ -11,6 +11,7 @@ import {
   Award, 
   CheckCircle2, 
   ChevronRight, 
+  ChevronLeft,
   Share2, 
   Zap, 
   Gamepad2, 
@@ -35,8 +36,10 @@ import {
   Sliders,
   CheckCircle,
   Lock,
-  ShieldAlert
+  ShieldAlert,
+  Coffee
 } from 'lucide-react';
+import { JavaLearningPage } from './JavaLearningPage';
 
 import { 
   PROFILE_BORDERS, 
@@ -1118,7 +1121,7 @@ const selectWeightedSegment = () => {
   return 0;
 };
 
-export const BrainZonePage = ({ onOpenAdminForm }) => {
+export const BrainZonePage = ({ onOpenAdminForm, defaultSubTab = 'games' }) => {
   const { currentUser, updateUserProfile, isAdmin } = useAuth();
   const { 
     registeredUsers, 
@@ -1132,6 +1135,9 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
     findBugChallenges,
     addOrUpdateFindBugChallenge,
     removeFindBugChallenge,
+    ecgChallenges,
+    tangoPuzzles,
+    speedTypePrompts,
     addOrUpdateQuizQuestion,
     removeQuizQuestion,
     addThisOrThatPoll,
@@ -1141,12 +1147,18 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
     siteConfig
   } = useData();
 
-  // Active Main Tab state: 'games' | 'goals' | 'leaderboard'
-  const [activeTab, setActiveTab] = useState('games');
+  // Active Main Tab state: 'games' | 'learnjava' | 'goals' | 'leaderboard'
+  const [activeTab, setActiveTab] = useState(defaultSubTab);
+
+  useEffect(() => {
+    if (defaultSubTab) {
+      setActiveTab(defaultSubTab);
+    }
+  }, [defaultSubTab]);
 
   // User Stats state
-  const funPoints = currentUser?.funPoints || 450;
-  const streak = currentUser?.streak || 5;
+  const funPoints = currentUser?.funPoints ?? 0;
+  const streak = currentUser?.streak ?? 1;
   const equippedBorderId = currentUser?.equippedBorder || currentUser?.equippedBorderId || 'cyber_neon';
   const equippedTitleId = currentUser?.equippedTitleId || currentUser?.equippedTitle || 'title_novice';
   const equippedAvatarBgId = currentUser?.equippedAvatarBgId || currentUser?.equippedAvatarBackgroundId || 'bg_slate';
@@ -1317,14 +1329,110 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
   // Leaderboard Filters State: 'weekly' | 'monthly' | 'class'
   const [leaderboardFilter, setLeaderboardFilter] = useState('weekly');
 
-  // Weekly Mission State
+  // Weekly Mission State & Dynamic ISO Week Tracking
+  const currentWeekBatch = getISOWeekId();
   const activeWeeklyMissions = (contextMissions && contextMissions.length > 0) ? contextMissions : [
-    { id: 'm-1', title: 'Complete 3 Quick Quizzes', target: 3, progress: 2, reward: 75 },
-    { id: 'm-2', title: 'Play Spin & Learn 3 times', target: 3, progress: 2, reward: 50 },
-    { id: 'm-3', title: 'Complete 2 Coding Challenges', target: 2, progress: 1, reward: 100 }
+    { id: 'm-1', title: 'Complete 3 Quick Quizzes', target: 3, reward: 75, category: 'quiz' },
+    { id: 'm-2', title: 'Play Spin & Learn 3 times', target: 3, reward: 50, category: 'spin' },
+    { id: 'm-3', title: 'Complete 2 Arcade Challenges', target: 2, reward: 100, category: 'game' }
   ];
   const activeBadges = (contextBadges && contextBadges.length > 0) ? contextBadges : INITIAL_ACHIEVEMENT_BADGES;
-  const [claimedWeeklyBonus, setClaimedWeeklyBonus] = useState(false);
+
+  // Retrieve user's weekly mission progress for current week (auto-resets when week changes!)
+  const userWeeklyData = currentUser?.weeklyMissionsData?.[currentWeekBatch] || {
+    progress: {},
+    claimed: {},
+    claimedBonus: false
+  };
+
+  const currentMissionProgress = userWeeklyData.progress || {};
+  const currentMissionClaimed = userWeeklyData.claimed || {};
+  const isWeeklyBonusClaimed = Boolean(userWeeklyData.claimedBonus);
+
+  // Check if ALL active weekly missions are completed
+  const areAllMissionsCompleted = activeWeeklyMissions.length > 0 && activeWeeklyMissions.every(m => {
+    const userProg = currentMissionProgress[m.id] || 0;
+    return userProg >= (m.target || 1);
+  });
+
+  // Record Mission Progress Event
+  const recordMissionProgress = (categoryOrId, count = 1) => {
+    if (!currentUser) return;
+    const weekKey = getISOWeekId();
+    const allData = currentUser.weeklyMissionsData || {};
+    const weekData = allData[weekKey] || { progress: {}, claimed: {}, claimedBonus: false };
+    const newProgress = { ...(weekData.progress || {}) };
+
+    activeWeeklyMissions.forEach(m => {
+      const matchCat = m.category ? m.category === categoryOrId : false;
+      const matchId = m.id === categoryOrId;
+      const matchKeyword = 
+        (categoryOrId === 'quiz' && (m.title.toLowerCase().includes('quiz') || m.id === 'm-1')) ||
+        (categoryOrId === 'spin' && (m.title.toLowerCase().includes('spin') || m.id === 'm-2')) ||
+        (categoryOrId === 'game' && (m.title.toLowerCase().includes('challenge') || m.title.toLowerCase().includes('coding') || m.title.toLowerCase().includes('game') || m.id === 'm-3')) ||
+        (categoryOrId === 'poll' && (m.title.toLowerCase().includes('poll') || m.id === 'm-4'));
+
+      if (matchCat || matchId || matchKeyword) {
+        newProgress[m.id] = (newProgress[m.id] || 0) + count;
+      }
+    });
+
+    updateUserProfile({
+      weeklyMissionsData: {
+        ...allData,
+        [weekKey]: {
+          ...weekData,
+          progress: newProgress
+        }
+      }
+    });
+  };
+
+  // Claim Individual Mission Reward (Strictly enabled ONLY when user completed tasks!)
+  const handleClaimMissionReward = (mission) => {
+    const weekKey = getISOWeekId();
+    const allData = currentUser?.weeklyMissionsData || {};
+    const weekData = allData[weekKey] || { progress: {}, claimed: {}, claimedBonus: false };
+
+    const userProg = weekData.progress?.[mission.id] || 0;
+    if (userProg < mission.target) return; // Strict Lock
+    if (weekData.claimed?.[mission.id]) return; // Already claimed
+
+    const rewardXP = mission.reward || 50;
+
+    updateUserProfile({
+      funPoints: funPoints + rewardXP,
+      weeklyMissionsData: {
+        ...allData,
+        [weekKey]: {
+          ...weekData,
+          claimed: {
+            ...(weekData.claimed || {}),
+            [mission.id]: true
+          }
+        }
+      }
+    });
+  };
+
+  // Claim Weekly Bonus (+200 XP)
+  const handleClaimWeeklyBonus = () => {
+    if (!areAllMissionsCompleted || isWeeklyBonusClaimed) return;
+    const weekKey = getISOWeekId();
+    const allData = currentUser?.weeklyMissionsData || {};
+    const weekData = allData[weekKey] || { progress: {}, claimed: {}, claimedBonus: false };
+
+    updateUserProfile({
+      funPoints: funPoints + 200,
+      weeklyMissionsData: {
+        ...allData,
+        [weekKey]: {
+          ...weekData,
+          claimedBonus: true
+        }
+      }
+    });
+  };
 
   // Admin Management Modal State inside BrainZone
   const [adminManagerOpen, setAdminManagerOpen] = useState(false);
@@ -1339,34 +1447,91 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
   const levelTargetXP = 200;
   const levelPercent = Math.min(100, Math.round((levelProgressXP / levelTargetXP) * 100));
 
-  // Current Daily Poll
-  const activePoll = (thisOrThatPolls && thisOrThatPolls.length > 0) ? thisOrThatPolls[0] : {
-    id: 'tot-1',
-    question: 'Which backend tech stack do you prefer for high-scale web apps?',
-    optionA: 'Node.js / Express 🚀',
-    optionB: 'Python / FastAPI 🐍',
-    votesA: 48,
-    votesB: 36
-  };
+  // Current Daily Poll List (multi-question game support)
+  const [currentPollIndex, setCurrentPollIndex] = useState(0);
+  const [localVotedPolls, setLocalVotedPolls] = useState({});
 
-  const hasVotedActivePoll = Boolean(votedPolls[activePoll.id]);
-  const userVoteChoice = votedPolls[activePoll.id];
+  const defaultPollList = [
+    {
+      id: 'tot-1',
+      question: 'Which backend tech stack do you prefer for high-scale web apps?',
+      optionA: 'Node.js / Express 🚀',
+      optionB: 'Python / FastAPI 🐍',
+      votesA: 48,
+      votesB: 36,
+      category: 'Backend Dev'
+    },
+    {
+      id: 'tot-2',
+      question: 'Frontend Styling Philosophy:',
+      optionA: 'Tailwind CSS Utility-First 🎨',
+      optionB: 'Vanilla CSS / Custom Modules 💎',
+      votesA: 72,
+      votesB: 28,
+      category: 'UI Engineering'
+    },
+    {
+      id: 'tot-3',
+      question: 'Ideal Database Choice for Social Media Platforms:',
+      optionA: 'PostgreSQL Relational 🐘',
+      optionB: 'MongoDB Document NoSQL 🍃',
+      votesA: 55,
+      votesB: 45,
+      category: 'Database'
+    },
+    {
+      id: 'tot-4',
+      question: 'Primary Code Editor & Development IDE:',
+      optionA: 'VS Code Studio 💻',
+      optionB: 'JetBrains IntelliJ / Neovim ⚡',
+      votesA: 84,
+      votesB: 32,
+      category: 'Developer Tools'
+    }
+  ];
 
-  const totalPollVotes = (activePoll.votesA || 0) + (activePoll.votesB || 0);
-  const percentA = totalPollVotes > 0 ? Math.round(((activePoll.votesA || 0) / totalPollVotes) * 100) : 50;
+  const activePollList = (thisOrThatPolls && thisOrThatPolls.length > 0) ? thisOrThatPolls : defaultPollList;
+  const activePoll = activePollList[currentPollIndex] || activePollList[0];
+
+  const userVotedStore = (typeof currentUser?.votedThisOrThatDates === 'object' && currentUser?.votedThisOrThatDates !== null)
+    ? currentUser.votedThisOrThatDates
+    : {};
+
+  const mergedVotedPolls = { ...userVotedStore, ...localVotedPolls };
+
+  const hasVotedActivePoll = Boolean(mergedVotedPolls[activePoll?.id]);
+  const userVoteChoice = mergedVotedPolls[activePoll?.id];
+
+  const totalPollVotes = (activePoll?.votesA || 0) + (activePoll?.votesB || 0);
+  const percentA = totalPollVotes > 0 ? Math.round(((activePoll?.votesA || 0) / totalPollVotes) * 100) : 50;
   const percentB = 100 - percentA;
+
+  const totalUserPollVotesCount = Object.keys(mergedVotedPolls || {}).length;
 
   // Handle Voting in This or That
   const handleVotePoll = (option) => {
-    if (hasVotedActivePoll) return;
+    if (!activePoll || hasVotedActivePoll) return;
     
-    const updatedVoted = { ...votedPolls, [activePoll.id]: option };
+    // 1. Immediately update local state for instant re-render!
+    const newVoted = { ...mergedVotedPolls, [activePoll.id]: option };
+    setLocalVotedPolls(newVoted);
+
+    // 2. Increment activePoll votes locally for immediate percentage calculation
+    if (option === 'A') {
+      activePoll.votesA = (activePoll.votesA || 0) + 1;
+    } else if (option === 'B') {
+      activePoll.votesB = (activePoll.votesB || 0) + 1;
+    }
+
+    // 3. Save to user profile & data store
     updateUserProfile({
-      votedThisOrThatDates: updatedVoted,
+      votedThisOrThatDates: newVoted,
       funPoints: funPoints + 25
     });
 
-    if (voteThisOrThatPoll) {
+    recordMissionProgress('poll', 1);
+
+    if (typeof voteThisOrThatPoll === 'function') {
       voteThisOrThatPoll(activePoll.id, option);
     }
   };
@@ -1393,9 +1558,12 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
       }, 1000);
     } else if (roundTimerActive && roundTimer === 0) {
       setRoundTimerActive(false);
+      if (speedTypeModalOpen && !speedTypeFinished) {
+        handleFinishSpeedType(speedTypeInput, true);
+      }
     }
     return () => clearInterval(intervalId);
-  }, [roundTimerActive, roundTimer]);
+  }, [roundTimerActive, roundTimer, speedTypeModalOpen, speedTypeFinished, speedTypeInput, speedTypePrompt, speedTypeStartTime, roundTimerMax, gameDifficulty]);
 
   // Tango Interactive Board Engine
   const initTangoBoard = (size, fixedObj = {}) => {
@@ -1506,6 +1674,42 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
       setTangoFeedback({ success: true, msg: `🎉 Perfect! Tango Grid Solved (+${result.earnedXp} XP)!` });
     }
     return true;
+  };
+
+  const handleFinishSpeedType = (overrideInput, isTimeUp = false) => {
+    if (speedTypeFinished) return;
+    setSpeedTypeFinished(true);
+    setRoundTimerActive(false);
+
+    const inputVal = overrideInput !== undefined ? overrideInput : speedTypeInput;
+    const promptStr = speedTypePrompt?.snippet || '';
+
+    let correctChars = 0;
+    for (let i = 0; i < inputVal.length; i++) {
+      if (inputVal[i] === promptStr[i]) correctChars++;
+    }
+
+    const typedLen = Math.max(1, inputVal.length);
+    const acc = Math.round((correctChars / typedLen) * 100);
+    const elapsedSeconds = isTimeUp
+      ? (roundTimerMax || 60)
+      : Math.max(1, (Date.now() - (speedTypeStartTime || Date.now())) / 1000);
+
+    const calcWpm = Math.round((correctChars / 5) / (elapsedSeconds / 60));
+
+    setSpeedTypeAccuracy(acc);
+    setSpeedTypeWpm(calcWpm);
+
+    processGameAttemptCompletion({
+      gameId: 'type',
+      level: gameDifficulty,
+      score: calcWpm,
+      maxScore: 100,
+      timeTakenSec: Math.round(elapsedSeconds),
+      accuracyPercent: acc,
+      isPerfect: acc >= 100 && inputVal.length >= promptStr.length,
+      isFastSpeed: calcWpm >= 60
+    });
   };
 
   const start60SecChallenge = (diffLevel = gameDifficulty || 'intermediate') => {
@@ -1674,8 +1878,7 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
     };
 
     const updatedUserDoc = {
-      funPoints: (currentUser?.funPoints || 450) + earnedXp,
-      streak: currentUser?.lastSpinDate !== todayStr ? streak + 1 : streak,
+      funPoints: (currentUser?.funPoints ?? 0) + earnedXp,
       gameStats: {
         ...gameStats,
         [normGameId]: updatedGameData
@@ -1685,6 +1888,7 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
 
     // SAVE IMMEDIATELY BEFORE RETURNING SUCCESS
     updateUserProfile(updatedUserDoc);
+    recordMissionProgress(normGameId === 'quiz' ? 'quiz' : 'game', 1);
 
     return {
       earnedXp,
@@ -1780,14 +1984,14 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
     const totalSpinDegrees = wheelRotation + 1800 + delta;
 
     setWheelRotation(totalSpinDegrees);
+    recordMissionProgress('spin', 1);
 
     setTimeout(() => {
       setIsSpinning(false);
       setSpinResult(winningSeg.banner);
 
       const nextProfile = {
-        lastSpinDate: todayDateStr,
-        streak: currentUser?.lastSpinDate !== todayDateStr ? streak + 1 : streak
+        lastSpinDate: todayDateStr
       };
 
       if (winningSeg.id === '10xp' || winningSeg.id === '25xp' || winningSeg.id === 'badge') {
@@ -1835,6 +2039,15 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
 
   // Find Bug Challenge list
   const bugList = (findBugChallenges && findBugChallenges.length > 0) ? findBugChallenges : FIND_BUG_CHALLENGES;
+
+  // Error Code Guessing list
+  const ecgList = (ecgChallenges && ecgChallenges.length > 0) ? ecgChallenges : ECG_CHALLENGES;
+
+  // Tango Logic Grid list
+  const tangoList = (tangoPuzzles && tangoPuzzles.length > 0) ? tangoPuzzles : TANGO_PUZZLES;
+
+  // Speed Type Prompt list
+  const typeList = (speedTypePrompts && speedTypePrompts.length > 0) ? speedTypePrompts : SPEED_TYPE_PROMPTS;
 
   // Leaderboard Aggregates & Users (Merged with currentUser and rich cosmetics)
   const baseRoster = (registeredUsers && registeredUsers.length > 0)
@@ -2163,61 +2376,85 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
               </button>
             </div>
 
-            {/* CARD 3: 🗳️ THIS OR THAT (DAILY POLL) */}
+            {/* CARD 3: 🗳️ THIS OR THAT (MULTI-QUESTION DAILY POLL GAME) */}
             <div className="glass-card rounded-3xl p-6 border border-amber-500/30 bg-gradient-to-b from-amber-950/30 via-slate-950 to-slate-950 space-y-4 relative overflow-hidden flex flex-col justify-between group hover:border-amber-500/60 transition-all">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                    Daily Poll
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-900 text-amber-300 border border-amber-500/30 flex items-center space-x-1">
-                    {hasVotedActivePoll ? (
-                      <>
-                        <Users className="w-3 h-3 text-amber-400" />
-                        <span>{totalPollVotes} {totalPollVotes === 1 ? 'user' : 'users'} voted</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-3 h-3 text-amber-400" />
-                        <span>Vote to see results</span>
-                      </>
+                  <div className="flex items-center space-x-2">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                      Poll Q{currentPollIndex + 1} of {activePollList.length}
+                    </span>
+                    {activePoll?.category && (
+                      <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-900 text-slate-400 border border-slate-800">
+                        {activePoll.category}
+                      </span>
                     )}
-                  </span>
+                  </div>
+
+                  {/* Question Navigation Arrows */}
+                  <div className="flex items-center space-x-1">
+                    <button
+                      disabled={currentPollIndex === 0}
+                      onClick={() => setCurrentPollIndex(prev => Math.max(0, prev - 1))}
+                      className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed border border-slate-800 transition-colors"
+                      title="Previous Question"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      disabled={currentPollIndex >= activePollList.length - 1}
+                      onClick={() => setCurrentPollIndex(prev => Math.min(activePollList.length - 1, prev + 1))}
+                      className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed border border-slate-800 transition-colors"
+                      title="Next Question"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-                <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
+
+                <h3 className="text-lg font-extrabold text-white flex items-center justify-between">
                   <span>🗳️ This or That</span>
+                  <span className="text-xs text-amber-400 font-mono font-bold">
+                    {hasVotedActivePoll ? `✓ Voted` : `+25 XP`}
+                  </span>
                 </h3>
-                <p className="text-xs text-slate-300 leading-relaxed line-clamp-2">
-                  "{activePoll.question}"
+                
+                <p className="text-xs text-slate-300 leading-relaxed font-medium min-h-[36px]">
+                  "{activePoll?.question || 'Which tech stack do you prefer?'}"
                 </p>
               </div>
 
-              <div className="space-y-2 my-1">
+              <div className="space-y-3 my-1">
                 {!hasVotedActivePoll ? (
                   <div className="space-y-2">
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-3">
                       <button
-                        onClick={() => handleVotePoll('A')}
-                        className="p-3 rounded-2xl bg-slate-900 border border-slate-800 hover:border-amber-500/60 hover:bg-amber-500/10 text-xs font-bold text-slate-200 hover:text-white transition-all text-center group/opt flex flex-col items-center justify-center space-y-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleVotePoll('A');
+                        }}
+                        className="p-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-amber-500/60 hover:bg-amber-500/10 text-xs font-bold text-slate-200 hover:text-white transition-all text-center flex items-center justify-center cursor-pointer active:scale-95 shadow-md hover:shadow-amber-500/10"
                       >
-                        <span className="text-white font-black">{activePoll.optionA}</span>
-                        <span className="text-[10px] text-amber-400/80 font-medium group-hover/opt:text-amber-300 transition-colors">Click to Vote</span>
+                        <span className="text-white font-extrabold text-sm">{activePoll?.optionA}</span>
                       </button>
+
                       <button
-                        onClick={() => handleVotePoll('B')}
-                        className="p-3 rounded-2xl bg-slate-900 border border-slate-800 hover:border-cyan-500/60 hover:bg-cyan-500/10 text-xs font-bold text-slate-200 hover:text-white transition-all text-center group/opt flex flex-col items-center justify-center space-y-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleVotePoll('B');
+                        }}
+                        className="p-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-cyan-500/60 hover:bg-cyan-500/10 text-xs font-bold text-slate-200 hover:text-white transition-all text-center flex items-center justify-center cursor-pointer active:scale-95 shadow-md hover:shadow-cyan-500/10"
                       >
-                        <span className="text-white font-black">{activePoll.optionB}</span>
-                        <span className="text-[10px] text-cyan-400/80 font-medium group-hover/opt:text-cyan-300 transition-colors">Click to Vote</span>
+                        <span className="text-white font-extrabold text-sm">{activePoll?.optionB}</span>
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-2.5 p-3.5 bg-slate-900/90 rounded-2xl border border-slate-800">
+                  <div className="space-y-2.5 p-3.5 bg-slate-900/90 rounded-2xl border border-slate-800 animate-in fade-in">
                     <div className="space-y-1">
                       <div className="flex justify-between text-[11px] font-bold text-amber-300">
-                        <span>{activePoll.optionA} {userVoteChoice === 'A' ? '✓ Your Vote' : ''}</span>
-                        <span>{activePoll.votesA || 0} votes ({percentA}%)</span>
+                        <span>{activePoll?.optionA} {userVoteChoice === 'A' ? '✓ Your Choice' : ''}</span>
+                        <span>{activePoll?.votesA || 0} votes ({percentA}%)</span>
                       </div>
                       <div className="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800">
                         <div className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full transition-all duration-500" style={{ width: `${percentA}%` }} />
@@ -2226,19 +2463,32 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
 
                     <div className="space-y-1">
                       <div className="flex justify-between text-[11px] font-bold text-cyan-300">
-                        <span>{activePoll.optionB} {userVoteChoice === 'B' ? '✓ Your Vote' : ''}</span>
-                        <span>{activePoll.votesB || 0} votes ({percentB}%)</span>
+                        <span>{activePoll?.optionB} {userVoteChoice === 'B' ? '✓ Your Choice' : ''}</span>
+                        <span>{activePoll?.votesB || 0} votes ({percentB}%)</span>
                       </div>
                       <div className="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800">
                         <div className="h-full bg-gradient-to-r from-cyan-500 to-cyan-400 rounded-full transition-all duration-500" style={{ width: `${percentB}%` }} />
                       </div>
                     </div>
+
+                    {currentPollIndex < activePollList.length - 1 && (
+                      <button
+                        onClick={() => setCurrentPollIndex(prev => prev + 1)}
+                        className="w-full py-1.5 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center justify-center space-x-1.5 transition-all mt-1"
+                      >
+                        <span>Next Question ({currentPollIndex + 2}/{activePollList.length})</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
 
-              <div className="text-[10px] text-center text-slate-400 font-semibold flex items-center justify-center space-x-1">
-                <span>{hasVotedActivePoll ? `✓ Voted (${totalPollVotes} total votes) • +25 XP Claimed` : `👥 Cast your vote to reveal live results (+25 XP)!`}</span>
+              <div className="text-[10px] text-slate-400 font-semibold flex items-center justify-between border-t border-slate-800/80 pt-2">
+                <span>Voted: {totalUserPollVotesCount} / {activePollList.length} Polls</span>
+                <span className="text-amber-400 font-bold">
+                  {hasVotedActivePoll ? `✓ +25 XP Awarded` : `Vote to reveal %`}
+                </span>
               </div>
             </div>
 
@@ -2422,7 +2672,7 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                     System Codes
                   </span>
-                  <span className="text-[10px] text-slate-400 font-semibold">{ECG_CHALLENGES.length} Codes</span>
+                  <span className="text-[10px] text-slate-400 font-semibold">{ecgList.length} Codes</span>
                 </div>
                 <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
                   <span>⚡ ECG (Error Code Guessing)</span>
@@ -2435,7 +2685,7 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
               {renderGameCardProgress('ecg')}
 
               <div className="my-2 p-3 bg-slate-950 rounded-2xl border border-slate-800 text-center font-mono text-lg font-black text-emerald-400">
-                HTTP {ECG_CHALLENGES[0].code}
+                HTTP {ecgList[0]?.code || '404'}
               </div>
 
               <button
@@ -2446,8 +2696,8 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                   description: 'Guess HTTP codes and system error messages across Beginner, Intermediate, or Advanced levels!',
                   baseXp: 70,
                   onStart: (diff) => {
-                    const filtered = ECG_CHALLENGES.filter(c => c.difficulty === diff);
-                    const questions = shuffleArray(filtered.length > 0 ? filtered : ECG_CHALLENGES);
+                    const filtered = ecgList.filter(c => c.difficulty === diff);
+                    const questions = shuffleArray(filtered.length > 0 ? filtered : ecgList);
                     setActiveEcgList(questions);
                     setEcgIndex(0);
                     setEcgScore(0);
@@ -2475,7 +2725,7 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
                     Logic Grid
                   </span>
-                  <span className="text-[10px] text-slate-400 font-semibold">{TANGO_PUZZLES.length} Grids</span>
+                  <span className="text-[10px] text-slate-400 font-semibold">{tangoList.length} Grids</span>
                 </div>
                 <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
                   <span>🧩 Tango Logic Grid</span>
@@ -2499,7 +2749,7 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                   description: 'Fill grid rows and columns with Sun and Moon symbols. Beginner = 4x4, Intermediate = 6x6, Advanced = 8x8 grid!',
                   baseXp: 100,
                   onStart: (diff) => {
-                    const puzzle = TANGO_PUZZLES.find(p => p.difficulty === diff) || TANGO_PUZZLES[0];
+                    const puzzle = tangoList.find(p => p.difficulty === diff) || tangoList[0];
                     initTangoBoard(puzzle.size, puzzle.fixed || {});
                     const secs = getTimerSecondsForDiff(diff) * 2; // Extra time for grid puzzle
                     setRoundTimer(secs);
@@ -2522,7 +2772,7 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40">
                     Typing Speed
                   </span>
-                  <span className="text-[10px] text-slate-400 font-semibold">60 WPM Target</span>
+                  <span className="text-[10px] text-slate-400 font-semibold">{typeList.length} Prompts</span>
                 </div>
                 <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
                   <span>⌨️ Speed Type Challenge</span>
@@ -2535,7 +2785,7 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
               {renderGameCardProgress('type')}
 
               <div className="my-2 p-3 bg-slate-950 rounded-2xl border border-slate-800 font-mono text-[11px] text-amber-300 line-clamp-1">
-                <code>{SPEED_TYPE_PROMPTS[0].snippet}</code>
+                <code>{typeList[0]?.snippet || 'console.log("Type fast!");'}</code>
               </div>
 
               <button
@@ -2546,7 +2796,7 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                   description: 'Type code snippets fast. Higher difficulty requires higher WPM targets and longer code snippets!',
                   baseXp: 90,
                   onStart: (diff) => {
-                    const promptObj = SPEED_TYPE_PROMPTS.find(p => p.difficulty === diff) || SPEED_TYPE_PROMPTS[0];
+                    const promptObj = typeList.find(p => p.difficulty === diff) || typeList[0];
                     setSpeedTypePrompt(promptObj);
                     setSpeedTypeInput('');
                     setSpeedTypeStartTime(null);
@@ -2568,6 +2818,15 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
             </div>
 
           </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* SUB-GROUP TAB: ☕ LEARN JAVA ACADEMY */}
+      {/* ========================================================================= */}
+      {activeTab === 'learnjava' && (
+        <div className="space-y-6 animate-in fade-in">
+          <JavaLearningPage />
         </div>
       )}
 
@@ -2654,50 +2913,94 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
               
               {/* 🎯 WEEKLY MISSIONS */}
               <div className="glass-card rounded-3xl p-6 border border-emerald-500/30 bg-gradient-to-b from-emerald-950/20 to-slate-950 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
                   <div>
                     <h3 className="text-base font-extrabold text-white flex items-center space-x-2">
                       <Target className="w-5 h-5 text-emerald-400" />
                       <span>Weekly Missions</span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-900 text-slate-400 border border-slate-800">
+                        {currentWeekBatch}
+                      </span>
                     </h3>
-                    <p className="text-xs text-slate-400">Complete all weekly goals to claim +200 XP bonus reward</p>
+                    <p className="text-xs text-slate-400">Complete tasks to unlock claimable rewards. Resets every week!</p>
                   </div>
 
                   <button
-                    disabled={claimedWeeklyBonus}
-                    onClick={() => {
-                      updateUserProfile({ funPoints: funPoints + 200 });
-                      setClaimedWeeklyBonus(true);
-                    }}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                      claimedWeeklyBonus
-                        ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
-                        : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30'
+                    disabled={!areAllMissionsCompleted || isWeeklyBonusClaimed}
+                    onClick={handleClaimWeeklyBonus}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 whitespace-nowrap ${
+                      isWeeklyBonusClaimed
+                        ? 'bg-slate-900 text-slate-500 border border-slate-800 cursor-not-allowed'
+                        : areAllMissionsCompleted
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black shadow-lg shadow-emerald-500/30 animate-pulse'
+                        : 'bg-slate-900 text-slate-500 border border-slate-800 cursor-not-allowed'
                     }`}
                   >
-                    {claimedWeeklyBonus ? '✓ Bonus Claimed (+200 XP)' : 'Claim Weekly Bonus (+200 XP)'}
+                    <Star className={`w-3.5 h-3.5 ${areAllMissionsCompleted && !isWeeklyBonusClaimed ? 'fill-slate-950' : 'text-slate-500'}`} />
+                    <span>
+                      {isWeeklyBonusClaimed
+                        ? '✓ Bonus Claimed (+200 XP)'
+                        : areAllMissionsCompleted
+                        ? 'Claim Weekly Bonus (+200 XP)'
+                        : 'Complete All Missions for Bonus (+200 XP)'}
+                    </span>
                   </button>
                 </div>
 
                 <div className="space-y-3">
-                  {activeWeeklyMissions.map(m => (
-                    <div key={m.id} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-white flex items-center gap-2">
-                          <CheckCircle2 className={`w-4 h-4 ${(m.progress || 0) >= m.target ? 'text-emerald-400' : 'text-slate-600'}`} />
-                          {m.title}
-                        </span>
-                        <span className="text-slate-400 font-mono font-bold">{m.progress || 0} / {m.target} Completed</span>
-                      </div>
+                  {activeWeeklyMissions.map(m => {
+                    const userProg = currentMissionProgress[m.id] || 0;
+                    const isCompleted = userProg >= m.target;
+                    const isClaimed = Boolean(currentMissionClaimed[m.id]);
 
-                      <div className="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden border border-slate-800">
-                        <div
-                          className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all"
-                          style={{ width: `${Math.min(100, ((m.progress || 0) / m.target) * 100)}%` }}
-                        />
+                    return (
+                      <div key={m.id} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                          <div className="flex items-center space-x-2">
+                            <CheckCircle2 className={`w-4 h-4 flex-shrink-0 ${isCompleted ? 'text-emerald-400' : 'text-slate-600'}`} />
+                            <span className="font-bold text-white">{m.title}</span>
+                          </div>
+
+                          <div className="flex items-center space-x-3 self-start sm:self-auto">
+                            <span className="text-slate-400 font-mono font-bold text-[11px]">
+                              {Math.min(userProg, m.target)} / {m.target} Completed
+                            </span>
+
+                            {isClaimed ? (
+                              <button
+                                disabled
+                                className="px-3 py-1 rounded-lg text-[11px] font-bold bg-slate-900 text-slate-500 border border-slate-800 cursor-not-allowed"
+                              >
+                                ✓ Claimed (+{m.reward || 50} XP)
+                              </button>
+                            ) : isCompleted ? (
+                              <button
+                                onClick={() => handleClaimMissionReward(m)}
+                                className="px-3 py-1 rounded-lg text-[11px] font-extrabold bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-lg shadow-emerald-500/20 animate-pulse transition-all"
+                              >
+                                Claim +{m.reward || 50} XP
+                              </button>
+                            ) : (
+                              <span className="px-3 py-1 rounded-lg text-[11px] font-semibold bg-slate-900 text-slate-500 border border-slate-800/80">
+                                In Progress
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden border border-slate-800">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${
+                              isCompleted
+                                ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
+                                : 'bg-gradient-to-r from-purple-500 to-indigo-500'
+                            }`}
+                            style={{ width: `${Math.min(100, (userProg / m.target) * 100)}%` }}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -3080,6 +3383,137 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
             </div>
           </div>
 
+          {/* 🏆 HALL OF FAME PODIUM CARD */}
+          <div className="glass-card rounded-3xl p-6 border border-amber-500/40 bg-gradient-to-b from-amber-950/40 via-purple-950/20 to-slate-950 space-y-6 shadow-2xl relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-amber-500/20 pb-4">
+              <div>
+                <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                  👑 Department Wall of Honor
+                </span>
+                <h3 className="text-xl font-black text-white mt-1 flex items-center space-x-2">
+                  <Crown className="w-6 h-6 text-amber-400" />
+                  <span>BrainZone Hall of Fame</span>
+                </h3>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <span className="px-3 py-1 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-bold flex items-center space-x-1">
+                  <Award className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Top Champions</span>
+                </span>
+              </div>
+            </div>
+
+            {/* Top 3 Hall of Fame Podium Display */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* 🥈 2ND PLACE (SILVER ELITE) */}
+              {sortedLeaderboardUsers[1] && (() => {
+                const u2 = sortedLeaderboardUsers[1];
+                const b2 = getBorderObj(u2.equippedBorder || 'default');
+                const bg2 = getAvatarBgObj(u2.equippedAvatarBgId || 'bg_slate');
+                const t2 = getTitleObj(u2.equippedTitleId || 'title_novice');
+                return (
+                  <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-700/80 flex flex-col justify-between items-center text-center space-y-3 shadow-lg relative overflow-hidden group hover:border-slate-400 transition-all">
+                    <div className="absolute top-2 left-2 px-2.5 py-0.5 rounded-full text-[9px] font-black bg-slate-300 text-slate-950 flex items-center space-x-1">
+                      <span>🥈 2nd Place</span>
+                    </div>
+
+                    <div className="pt-4">
+                      <div className={`w-14 h-14 rounded-2xl p-0.5 border-2 ${b2.color} shadow-lg mx-auto`}>
+                        <div className={`w-full h-full rounded-[12px] ${bg2.gradient} flex items-center justify-center font-black text-lg text-white`}>
+                          {u2.name?.charAt(0) || '2'}
+                        </div>
+                      </div>
+
+                      <h4 className="text-sm font-extrabold text-white mt-2 group-hover:text-slate-200 transition-colors">
+                        {u2.name}
+                      </h4>
+                      <p className="text-[10px] text-slate-400 font-bold">{u2.classSection || 'IT-B'}</p>
+                    </div>
+
+                    <div className="w-full pt-2 border-t border-slate-800 space-y-1">
+                      <div className="text-xs font-black text-slate-200 font-mono">{u2.funPoints ?? 0} XP</div>
+                      <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold border ${t2.badgeBg}`}>
+                        🏷️ {t2.title}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* 👑 1ST PLACE (GOLD CHAMPION) */}
+              {sortedLeaderboardUsers[0] && (() => {
+                const u1 = sortedLeaderboardUsers[0];
+                const b1 = getBorderObj(u1.equippedBorder || 'default');
+                const bg1 = getAvatarBgObj(u1.equippedAvatarBgId || 'bg_slate');
+                const t1 = getTitleObj(u1.equippedTitleId || 'title_novice');
+                return (
+                  <div className="p-5 rounded-2xl bg-gradient-to-b from-amber-950/60 to-slate-900 border-2 border-amber-500/60 flex flex-col justify-between items-center text-center space-y-3 shadow-xl shadow-amber-500/10 relative overflow-hidden group hover:border-amber-400 transition-all md:-translate-y-2">
+                    <div className="absolute top-2 left-2 px-3 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950 shadow-md flex items-center space-x-1 animate-pulse">
+                      <Crown className="w-3 h-3 text-slate-950" />
+                      <span>👑 1st Champion</span>
+                    </div>
+
+                    <div className="pt-4">
+                      <div className={`w-16 h-16 rounded-2xl p-0.5 border-2 ${b1.color} shadow-xl shadow-amber-500/20 mx-auto ring-4 ring-amber-500/30`}>
+                        <div className={`w-full h-full rounded-[12px] ${bg1.gradient} flex items-center justify-center font-black text-xl text-white`}>
+                          {u1.name?.charAt(0) || '1'}
+                        </div>
+                      </div>
+
+                      <h4 className="text-base font-black text-amber-300 mt-2.5 group-hover:text-amber-200 transition-colors">
+                        {u1.name}
+                      </h4>
+                      <p className="text-[10px] text-amber-400/80 font-bold">{u1.classSection || 'IT-A'} • Grand Champion</p>
+                    </div>
+
+                    <div className="w-full pt-2 border-t border-amber-500/30 space-y-1">
+                      <div className="text-sm font-black text-amber-300 font-mono">{u1.funPoints ?? 0} XP</div>
+                      <span className={`inline-block px-2.5 py-0.5 rounded text-[10px] font-extrabold border ${t1.badgeBg}`}>
+                        🏷️ {t1.title}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* 🥉 3RD PLACE (BRONZE MASTER) */}
+              {sortedLeaderboardUsers[2] && (() => {
+                const u3 = sortedLeaderboardUsers[2];
+                const b3 = getBorderObj(u3.equippedBorder || 'default');
+                const bg3 = getAvatarBgObj(u3.equippedAvatarBgId || 'bg_slate');
+                const t3 = getTitleObj(u3.equippedTitleId || 'title_novice');
+                return (
+                  <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-700/80 flex flex-col justify-between items-center text-center space-y-3 shadow-lg relative overflow-hidden group hover:border-amber-700 transition-all">
+                    <div className="absolute top-2 left-2 px-2.5 py-0.5 rounded-full text-[9px] font-black bg-amber-700 text-white flex items-center space-x-1">
+                      <span>🥉 3rd Place</span>
+                    </div>
+
+                    <div className="pt-4">
+                      <div className={`w-14 h-14 rounded-2xl p-0.5 border-2 ${b3.color} shadow-lg mx-auto`}>
+                        <div className={`w-full h-full rounded-[12px] ${bg3.gradient} flex items-center justify-center font-black text-lg text-white`}>
+                          {u3.name?.charAt(0) || '3'}
+                        </div>
+                      </div>
+
+                      <h4 className="text-sm font-extrabold text-white mt-2 group-hover:text-amber-200 transition-colors">
+                        {u3.name}
+                      </h4>
+                      <p className="text-[10px] text-slate-400 font-bold">{u3.classSection || 'IT-C'}</p>
+                    </div>
+
+                    <div className="w-full pt-2 border-t border-slate-800 space-y-1">
+                      <div className="text-xs font-black text-amber-400 font-mono">{u3.funPoints ?? 0} XP</div>
+                      <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold border ${t3.badgeBg}`}>
+                        🏷️ {t3.title}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+
           {/* YOUR RANKING HIGHLIGHT CARD WITH SURROUNDING CONTEXT */}
           <div className="glass-card rounded-3xl p-5 border border-amber-500/40 bg-gradient-to-r from-amber-950/30 via-slate-950 to-slate-950 space-y-4 shadow-xl">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-amber-500/20 pb-3">
@@ -3155,7 +3589,7 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                       </div>
 
                       <div className="flex items-center space-x-3 text-[11px] font-bold flex-shrink-0">
-                        <span className="text-rose-400 flex items-center"><Flame className="w-3 h-3 mr-0.5 fill-rose-400" />{usr.streak || 5}d</span>
+                        <span className="text-rose-400 flex items-center"><Flame className="w-3 h-3 mr-0.5 fill-rose-400" />{usr.streak ?? 1}d</span>
                         <span className="text-amber-400 font-mono font-black">{usr.funPoints || 300} XP</span>
                       </div>
                     </div>
@@ -3228,7 +3662,7 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
 
                     <div className="flex items-center space-x-6 text-xs font-bold self-end sm:self-auto">
                       <span className="flex items-center text-rose-400">
-                        <Flame className="w-3.5 h-3.5 mr-1 fill-rose-400" /> {user.streak || 5}d
+                        <Flame className="w-3.5 h-3.5 mr-1 fill-rose-400" /> {user.streak ?? 1}d
                       </span>
                       <span className="text-amber-400 font-black text-sm">
                         {user.funPoints || 300} XP
@@ -3261,6 +3695,8 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
 
         </div>
       )}
+
+
 
       {/* ========================================================================= */}
       {/* MODAL 1: ⏱️ 60-SECOND CHALLENGE MODAL */}
@@ -3542,7 +3978,7 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                             if (isCorrect) {
                               setGuessScore(prev => prev + 1);
                               updateUserProfile({
-                                funPoints: (currentUser?.funPoints || 450) + qXpAmount
+                                funPoints: (currentUser?.funPoints ?? 0) + qXpAmount
                               });
                             }
                           }}
@@ -3756,7 +4192,7 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                             if (isCorrect) {
                               setBugScore(prev => prev + 1);
                               updateUserProfile({
-                                funPoints: (currentUser?.funPoints || 450) + qXpAmount
+                                funPoints: (currentUser?.funPoints ?? 0) + qXpAmount
                               });
                             }
                           }}
@@ -4053,7 +4489,7 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
                             if (isCorrect) {
                               setEcgScore(prev => prev + 1);
                               updateUserProfile({
-                                funPoints: (currentUser?.funPoints || 450) + qXpAmount
+                                funPoints: (currentUser?.funPoints ?? 0) + qXpAmount
                               });
                             }
                           }}
@@ -4374,20 +4810,7 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
 
                     // Completion check when full snippet length is typed
                     if (val.length >= promptStr.length) {
-                      setSpeedTypeFinished(true);
-                      setRoundTimerActive(false);
-                      const timeSpent = Math.max(1, Math.round(elapsedSeconds));
-
-                      processGameAttemptCompletion({
-                        gameId: 'type',
-                        level: gameDifficulty,
-                        score: calcWpm,
-                        maxScore: 100,
-                        timeTakenSec: timeSpent,
-                        accuracyPercent: acc,
-                        isPerfect: acc >= 100,
-                        isFastSpeed: calcWpm >= 60
-                      });
+                      handleFinishSpeedType(val, false);
                     }
                   }}
                   onPaste={(e) => {
@@ -4400,18 +4823,98 @@ export const BrainZonePage = ({ onOpenAdminForm }) => {
             </div>
 
             {speedTypeFinished && (
-              <div className="p-4 rounded-2xl bg-amber-950/80 border border-amber-500/40 text-center space-y-2 animate-in fade-in">
-                <p className="text-sm font-black text-emerald-400">
-                  {speedTypeAccuracy >= 90 ? '⚡ Typing Test Completed!' : '🏁 Test Finished! Practice for Higher Accuracy'}
-                </p>
-                <div className="flex justify-center gap-4 text-xs font-mono text-slate-300">
-                  <span>Speed: <strong className="text-cyan-300">{speedTypeWpm} WPM</strong></span>
-                  <span>Accuracy: <strong className="text-emerald-300">{speedTypeAccuracy}%</strong></span>
-                  <span>XP Awarded: <strong className="text-amber-300">+{Math.round(50 * (speedTypeAccuracy / 100) * gameXpMultiplier)} XP</strong></span>
+              <div className="p-5 rounded-3xl bg-slate-950 border border-amber-500/50 space-y-4 animate-in fade-in shadow-2xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                  <div className="flex items-center space-x-2">
+                    <Trophy className="w-5 h-5 text-amber-400 animate-bounce" />
+                    <h4 className="text-sm font-black text-white">
+                      {roundTimer === 0 ? "⏰ Time's Up! Test Completed" : "⚡ Typing Challenge Completed!"}
+                    </h4>
+                  </div>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase self-start sm:self-auto ${
+                    speedTypeWpm >= 50 && speedTypeAccuracy >= 90
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                      : speedTypeAccuracy >= 80
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                      : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                  }`}>
+                    {speedTypeWpm >= 50 && speedTypeAccuracy >= 90
+                      ? '⭐ S-Class Speed Demon'
+                      : speedTypeAccuracy >= 80
+                      ? '🥇 Pro Coder'
+                      : '⚡ Consistent Typer'}
+                  </span>
                 </div>
-                <button onClick={() => { setSpeedTypeModalOpen(false); setRoundTimerActive(false); }} className="w-full py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs mt-2">
-                  Continue
-                </button>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                  <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 space-y-0.5">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase">Typing Speed</span>
+                    <p className="text-lg font-black text-cyan-400">{speedTypeWpm} WPM</p>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 space-y-0.5">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase">Accuracy</span>
+                    <p className={`text-lg font-black ${speedTypeAccuracy >= 90 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                      {speedTypeAccuracy}%
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 space-y-0.5">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase">Characters</span>
+                    <p className="text-lg font-black text-indigo-300">
+                      {speedTypeInput.length} / {speedTypePrompt.snippet.length}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 space-y-0.5">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase">XP Earned</span>
+                    <p className="text-lg font-black text-amber-300">
+                      +{Math.round(50 * (speedTypeAccuracy / 100) * gameXpMultiplier)} XP
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800/80 text-xs text-slate-300 space-y-1">
+                  <p className="font-bold text-white flex items-center space-x-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>Performance Summary</span>
+                  </p>
+                  <p className="text-slate-400 text-[11px]">
+                    {speedTypeAccuracy >= 90
+                      ? 'Outstanding precision! You typed with minimal errors and high coding velocity.'
+                      : speedTypeAccuracy >= 75
+                      ? 'Good attempt! Try practicing without looking at the keyboard to boost your accuracy.'
+                      : 'Keep practicing! Accuracy is key for fast syntax typing.'}
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+                  <button
+                    onClick={() => {
+                      const randomNext = typeList[Math.floor(Math.random() * typeList.length)];
+                      setSpeedTypePrompt(randomNext);
+                      setSpeedTypeInput('');
+                      setSpeedTypeStartTime(null);
+                      setSpeedTypeFinished(false);
+                      setSpeedTypeWpm(0);
+                      setSpeedTypeAccuracy(100);
+                      const secs = gameDifficulty === 'beginner' ? 60 : gameDifficulty === 'advanced' ? 90 : 75;
+                      setRoundTimer(secs);
+                      setRoundTimerMax(secs);
+                      setRoundTimerActive(true);
+                    }}
+                    className="w-full sm:w-1/2 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 transition-all"
+                  >
+                    🔄 Try Another Snippet
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setSpeedTypeModalOpen(false);
+                      setRoundTimerActive(false);
+                    }}
+                    className="w-full sm:w-1/2 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-black text-xs shadow-lg shadow-amber-600/30 transition-all"
+                  >
+                    ✓ Complete & Close
+                  </button>
+                </div>
               </div>
             )}
           </div>

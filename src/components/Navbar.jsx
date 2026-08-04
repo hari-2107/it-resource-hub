@@ -30,12 +30,13 @@ import {
   Trash2,
   CheckCircle2,
   RotateCcw,
-  Brain
+  Brain,
+  Coffee
 } from 'lucide-react';
 
 export const Navbar = ({ activeTab, setActiveTab, onOpenAdminForm, onOpenAdminManagement, onOpenUserDirectory, onOpenSuggestionModal }) => {
   const { currentUser, isAdmin, logout, updateUserProfile } = useAuth();
-  const { announcements, suggestions, reports, allMaterials, interviewExperiences, siteConfig } = useData();
+  const { announcements, suggestions, reports, allMaterials, interviewExperiences, siteConfig, pageControls } = useData();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [announcementsOpen, setAnnouncementsOpen] = useState(false);
@@ -88,6 +89,10 @@ export const Navbar = ({ activeTab, setActiveTab, onOpenAdminForm, onOpenAdminMa
 
   const navLinks = rawNavLinks.filter(link => {
     if (link.id === 'brainzone' && !brainZoneEnabled && !isAdmin) {
+      return false;
+    }
+    const ctrl = pageControls ? pageControls[link.id] : null;
+    if (ctrl && (ctrl.status === 'hidden' || ctrl.visible === false) && !isAdmin) {
       return false;
     }
     return true;

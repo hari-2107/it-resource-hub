@@ -38,7 +38,7 @@ export const Home = ({ onNavigate, onPreviewMaterial }) => {
 
   // Priority sorted announcements (Pinned > High > Medium > Low)
   const priorityWeight = { 'High': 3, 'Medium': 2, 'Low': 1 };
-  const sortedAnnouncements = [...announcements].sort((a, b) => {
+  const sortedAnnouncements = [...(announcements || [])].sort((a, b) => {
     if (a.isPinned && !b.isPinned) return -1;
     if (!a.isPinned && b.isPinned) return 1;
     const pA = priorityWeight[a.priority] || 1;
@@ -49,7 +49,7 @@ export const Home = ({ onNavigate, onPreviewMaterial }) => {
   const latestAnnouncements = sortedAnnouncements.slice(0, 3);
 
   // Featured AI tools
-  const featuredTools = aiTools.filter(t => t.featured || true).slice(0, 4);
+  const featuredTools = (aiTools || []).filter(t => t.featured || true).slice(0, 4);
 
   return (
     <div className="space-y-12 pb-12">

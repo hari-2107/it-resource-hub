@@ -943,24 +943,51 @@ export const INITIAL_TIMETABLES = [
 
 export const DEMO_USERS = {
   student: {
-    uid: 'demo-student-123',
+    uid: 'u1',
+    id: 'u1',
     name: 'Alex Morgan',
-    email: 'student@it.edu',
+    registerNumber: '922524205001',
+    email: 'alex.morgan@it.edu',
     role: 'student',
     year: '3rd Year',
     semester: 5,
     classSection: 'IT-A',
-    registeredDate: '2026-01-15'
+    funPoints: 0,
+    streak: 1,
+    equippedBorder: 'default',
+    equippedTitleId: 'title_novice',
+    equippedAvatarBgId: 'bg_slate',
+    unlockedBorderIds: ['default'],
+    unlockedTitleIds: ['title_novice'],
+    unlockedAvatarBgIds: ['bg_slate'],
+    hasSeenWelcome: true,
+    viewedTopics: [],
+    githubUrl: 'https://github.com/alexmorgan-dev',
+    linkedinUrl: 'https://linkedin.com/in/alexmorgan-it',
+    leetcodeUrl: 'https://leetcode.com/alexmorgan',
+    portfolioUrl: 'https://alexmorgan.dev',
+    resumeUrl: 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf'
   },
   admin: {
-    uid: 'demo-admin-999',
+    uid: 'admin-sangaiah-2007',
+    id: 'admin-sangaiah-2007',
     name: 'Admin',
+    registerNumber: '922524205000',
     email: 'admin@it.edu',
     role: 'admin',
     year: '4th Year',
     semester: 7,
     classSection: 'Administrator',
-    registeredDate: '2025-08-01'
+    funPoints: 0,
+    equippedBorder: 'admin_supreme',
+    equippedTitleId: 'title_admin_supreme',
+    equippedAvatarBgId: 'bg_admin_royal',
+    unlockedBorderIds: ['admin_supreme', 'default', 'cyber_neon', 'golden_legend', 'emerald_shield', 'cosmic_purple', 'quantum_violet', 'crimson_master', 'titanium_aura'],
+    unlockedTitleIds: ['title_admin_supreme', 'title_novice', 'title_quiz_master', 'title_bug_hunter', 'title_code_architect', 'title_algorithm_boss', 'title_cyber_hero', 'title_legendary_dev'],
+    unlockedAvatarBgIds: ['bg_admin_royal', 'bg_slate', 'bg_indigo', 'bg_emerald', 'bg_amber', 'bg_sunset', 'bg_galaxy'],
+    registeredDate: '2026-01-01',
+    hasSeenWelcome: true,
+    viewedTopics: []
   }
 };
 
@@ -1304,6 +1331,17 @@ export const INITIAL_THIS_OR_THAT = [
     votesB: 45,
     category: 'Database',
     createdAt: '2026-07-27'
+  },
+  {
+    id: 'tot-4',
+    date: '2026-07-26',
+    question: 'Primary Code Editor & Development IDE:',
+    optionA: 'VS Code Studio 💻',
+    optionB: 'JetBrains IntelliJ / Neovim ⚡',
+    votesA: 84,
+    votesB: 32,
+    category: 'Developer Tools',
+    createdAt: '2026-07-26'
   }
 ];
 
@@ -1335,6 +1373,8 @@ export const INITIAL_IT_FACTS = [
   }
 ];
 
+
+
 export const INITIAL_LEADERBOARD_USERS = [
   { id: 'usr-1', uid: 'u1', name: 'Alex Morgan', classSection: 'IT-A', funPoints: 1420, streak: 14, equippedBorder: 'cyber_neon', equippedTitleId: 'title_code_architect', equippedAvatarBgId: 'bg_indigo', unlockedBorderIds: ['default', 'cyber_neon'], unlockedTitleIds: ['title_novice', 'title_code_architect'], unlockedAvatarBgIds: ['bg_slate', 'bg_indigo'], role: 'student' },
   { id: 'usr-2', uid: 'u2', name: 'Priya Sharma', classSection: 'IT-B', funPoints: 1280, streak: 11, equippedBorder: 'golden_legend', equippedTitleId: 'title_quiz_master', equippedAvatarBgId: 'bg_emerald', unlockedBorderIds: ['default', 'cyber_neon', 'golden_legend'], unlockedTitleIds: ['title_novice', 'title_quiz_master'], unlockedAvatarBgIds: ['bg_slate', 'bg_emerald'], role: 'student' },
@@ -1346,4 +1386,495 @@ export const INITIAL_LEADERBOARD_USERS = [
   { id: 'usr-8', uid: 'u8', name: 'Gokul Krishna', classSection: 'IT-B', funPoints: 750, streak: 3, equippedBorder: 'default', equippedTitleId: 'title_novice', equippedAvatarBgId: 'bg_slate', unlockedBorderIds: ['default'], unlockedTitleIds: ['title_novice'], unlockedAvatarBgIds: ['bg_slate'], role: 'student' }
 ];
 
+export const INITIAL_JAVA_LEVELS = [
+  {
+    id: 'level_1',
+    levelNumber: 1,
+    title: 'Java Basics',
+    description: 'Master core Java fundamentals: JVM architecture, variables, primitive types, Scanner class I/O, output formatting, operators, type casting, and basic conditionals.',
+    passingScorePercent: 70,
+    xpReward: 150,
+    badgeIdOnComplete: 'java_basics_master',
+    conceptSections: [
+      {
+        id: 'c1_1',
+        heading: '1. What is Java (JVM, JDK, JRE)',
+        explanation: `Java is a high-level, class-based, object-oriented programming language designed around the principle of **"Write Once, Run Anywhere" (WORA)**. When you write Java code, it is compiled into platform-independent **Bytecode** (\`.class\` file), which can run on any device with a Java Virtual Machine.
 
+Key Components Explained:
+- **JVM (Java Virtual Machine)**: The core execution engine. It loads, verifies, and executes Java bytecode by translating it into native machine code specific to the host OS (Windows, Mac, Linux).
+- **JRE (Java Runtime Environment)**: Includes the JVM + core class libraries (\`rt.jar\`, etc.). It provides everything required to **run** a compiled Java application, but does not include development tools.
+- **JDK (Java Development Kit)**: The complete software development environment. It contains the JRE + development tools like the compiler (\`javac\`), debugger (\`jdb\`), and archiver (\`jar\`).`,
+        codeExample: `public class Main {
+    public static void main(String[] args) {
+        // Your Java journey begins here!
+        System.out.println("Hello, World!");
+        System.out.println("JVM executes this bytecode across platforms.");
+    }
+}`
+      },
+      {
+        id: 'c1_2',
+        heading: '2. Variables & Data Types',
+        explanation: `Variables are named containers for storing data in memory. Java is a **statically-typed language**, meaning every variable must be declared with a specific data type before it can be used.
+
+Primitive Data Types:
+- \`int\`: Stores integers (whole numbers) without decimals (e.g., \`100\`, \`-42\`). Size: 4 bytes.
+- \`double\`: Stores floating-point numbers with high precision (e.g., \`3.14159\`, \`-0.005\`). Size: 8 bytes.
+- \`char\`: Stores a single Unicode character enclosed in single quotes (e.g., \`'A'\`, \`'$'\`). Size: 2 bytes.
+- \`boolean\`: Stores truth values: \`true\` or \`false\`. Size: 1 bit.
+
+Reference Data Type:
+- \`String\`: Represents a sequence of characters enclosed in double quotes (e.g., \`"Hello Java"\`).`,
+        codeExample: `public class VariablesDemo {
+    public static void main(String[] args) {
+        int studentId = 101;
+        double gpa = 3.92;
+        char grade = 'A';
+        boolean isEnrolled = true;
+        String studentName = "Ananya Sharma";
+
+        System.out.println("Student Name: " + studentName);
+        System.out.println("ID: " + studentId + " | GPA: " + gpa);
+        System.out.println("Grade: " + grade + " | Active: " + isEnrolled);
+    }
+}`
+      },
+      {
+        id: 'c1_3',
+        heading: '3. Taking Input in Java — Scanner Class in Depth',
+        explanation: `To accept input from the console, Java provides the **\`Scanner\`** class located in the \`java.util\` package.
+
+How to set up Scanner:
+\`import java.util.Scanner;\`
+\`Scanner sc = new Scanner(System.in);\`.
+
+Common Scanner Methods:
+- \`sc.nextInt()\`: Reads an integer.
+- \`sc.nextDouble()\`: Reads a double.
+- \`sc.next()\`: Reads a single word/token (stops at whitespace).
+- \`sc.nextLine()\`: Reads an entire line of text (including spaces) until you press Enter.
+
+⚠️ **THE SCANNER BUFFER TRAP (Critical Gotcha!)**:
+When you call \`sc.nextInt()\` or \`sc.nextDouble()\`, it reads only the numeric characters and leaves the newline character (\`\\n\`) inside the input buffer.
+If you call \`sc.nextLine()\` immediately after \`sc.nextInt()\`, \`nextLine()\` will read that leftover \`\\n\` and instantly return an empty string!
+
+**Fix**: Always consume the leftover newline by inserting an extra \`sc.nextLine();\` after reading numbers, before reading strings.`,
+        codeExample: `import java.util.Scanner;
+
+public class ScannerDemo {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+        System.out.print("Enter your Roll Number: ");
+        int rollNo = sc.nextInt();
+
+        // BUFFER FIX: Consume leftover newline character!
+        sc.nextLine(); 
+
+        System.out.print("Enter your Full Name: ");
+        String fullName = sc.nextLine();
+
+        System.out.print("Enter your GPA: ");
+        double gpa = sc.nextDouble();
+
+        System.out.println("\\n--- Summary ---");
+        System.out.println("Roll No: " + rollNo);
+        System.out.println("Name: " + fullName);
+        System.out.println("GPA: " + gpa);
+
+        sc.close();
+    }
+}`
+      },
+      {
+        id: 'c1_4',
+        heading: '4. Output in Java — println vs print vs printf',
+        explanation: `Java provides multiple ways to print output to the console via \`System.out\`:
+
+1. \`System.out.println()\`: Prints the text and automatically appends a newline (\`\\n\`) at the end, so subsequent prints start on a new line.
+2. \`System.out.print()\`: Prints the text without adding a newline, keeping the cursor on the same line.
+3. \`System.out.printf()\`: Performs **formatted printing** using format specifiers:
+   - \`%d\`: Integer
+   - \`%f\`: Floating-point number (e.g., \`%.2f\` formats to 2 decimal places)
+   - \`%s\`: String
+   - \`%c\`: Character
+   - \`%n\`: Platform-independent newline`,
+        codeExample: `public class OutputDemo {
+    public static void main(String[] args) {
+        // print vs println
+        System.out.print("Hello ");
+        System.out.print("World! ");
+        System.out.println("(Same line above)");
+        System.out.println("Next line starts here.");
+
+        // printf formatted output
+        String product = "Java Book";
+        int qty = 2;
+        double price = 499.99;
+
+        System.out.printf("Item: %s | Qty: %d | Total: ₹%.2f%n", product, qty, (qty * price));
+    }
+}`
+      },
+      {
+        id: 'c1_5',
+        heading: '5. Operators (Arithmetic, Relational, Logical)',
+        explanation: `Operators perform operations on variables and values.
+
+1. **Arithmetic Operators**:
+   - \`+\` (Addition), \`-\` (Subtraction), \`*\` (Multiplication), \`/\` (Division), \`%\` (Modulus / Remainder).
+   - *Note*: Integer division (e.g., \`17 / 5\`) truncates the fractional part to produce \`3\`.
+
+2. **Relational (Comparison) Operators**:
+   - \`==\` (Equal to), \`!=\` (Not equal to), \`>\` (Greater than), \`<\` (Less than), \`>=\` (Greater than or equal), \`<=\` (Less than or equal).
+   - Evaluates to a boolean (\`true\` or \`false\`).
+
+3. **Logical Operators**:
+   - \`&&\` (Logical AND): Returns \`true\` if **both** operands are true.
+   - \`||\` (Logical OR): Returns \`true\` if **at least one** operand is true.
+   - \`!\` (Logical NOT): Inverts the boolean state (\`!true\` is \`false\`).`,
+        codeExample: `public class OperatorsDemo {
+    public static void main(String[] args) {
+        int a = 17, b = 5;
+
+        System.out.println("Integer Division (17 / 5): " + (a / b)); // Output: 3
+        System.out.println("Modulus Remainder (17 % 5): " + (a % b)); // Output: 2
+
+        boolean hasId = true;
+        int age = 20;
+
+        boolean canVote = (age >= 18) && hasId;
+        System.out.println("Eligible to vote: " + canVote); // true
+    }
+}`
+      },
+      {
+        id: 'c1_6',
+        heading: '6. Type Casting (Implicit vs Explicit)',
+        explanation: `Type casting is when you assign a value of one primitive data type to another type.
+
+1. **Implicit Casting (Widening)**:
+   - Converting a smaller data type to a larger size type automatically by Java.
+   - Sequence: \`byte\` ➔ \`short\` ➔ \`char\` ➔ \`int\` ➔ \`long\` ➔ \`float\` ➔ \`double\`.
+   - Safe because no data loss occurs.
+
+2. **Explicit Casting (Narrowing)**:
+   - Converting a larger data type to a smaller size type manually using parentheses \`(targetType)\`.
+   - Sequence: \`double\` ➔ \`float\` ➔ \`long\` ➔ \`int\` ➔ \`char\` ➔ \`short\` ➔ \`byte\`.
+   - Requires explicit syntax and may cause truncation or precision loss!`,
+        codeExample: `public class TypeCastingDemo {
+    public static void main(String[] args) {
+        // Implicit (Widening)
+        int numInt = 42;
+        double numDouble = numInt; // Automatic 42.0
+        System.out.println("Implicit Double: " + numDouble);
+
+        // Explicit (Narrowing)
+        double decimalVal = 99.85;
+        int castedInt = (int) decimalVal; // Truncates decimal part -> 99
+        System.out.println("Explicit Int: " + castedInt);
+    }
+}`
+      },
+      {
+        id: 'c1_7',
+        heading: '7. Basic If-Else Conditionals',
+        explanation: `Conditional statements allow your program to execute different blocks of code based on logical conditions.
+
+Syntax:
+\`\`\`java
+if (condition1) {
+    // executes if condition1 is true
+} else if (condition2) {
+    // executes if condition2 is true
+} else {
+    // executes if all above conditions are false
+}
+\`\`\``,
+        codeExample: `public class ConditionalsDemo {
+    public static void main(String[] args) {
+        int score = 85;
+
+        if (score >= 90) {
+            System.out.println("Grade: A+ (Outstanding)");
+        } else if (score >= 80) {
+            System.out.println("Grade: A (Excellent)");
+        } else if (score >= 60) {
+            System.out.println("Grade: B (Good)");
+        } else {
+            System.out.println("Grade: C (Needs Improvement)");
+        }
+    }
+}`
+      }
+    ],
+    practiceProblems: [
+      {
+        id: 'p1',
+        question: 'Write/Identify the correct Scanner code to read two integers from console and print their sum in the format "Sum = [value]".',
+        type: 'code-logic',
+        options: [
+          `Scanner sc = new Scanner(System.in);\nint a = sc.nextInt();\nint b = sc.nextInt();\nSystem.out.println("Sum = " + (a + b));`,
+          `Scanner sc = new Scanner(System.in);\nString a = sc.nextLine();\nString b = sc.nextLine();\nSystem.out.println("Sum = " + a + b);`,
+          `Scanner sc = new Scanner(System.in);\nint a = sc.next();\nint b = sc.next();\nSystem.out.println("Sum = " + (a + b));`,
+          `Scanner sc = new Scanner(System.in);\nint a = sc.read();\nint b = sc.read();\nSystem.out.println("Sum = " + a + b);`
+        ],
+        correctAnswer: 0,
+        explanation: 'sc.nextInt() correctly parses integers from console input, and wrapping (a + b) in parentheses ensures numeric addition rather than string concatenation.'
+      },
+      {
+        id: 'p2',
+        question: 'A student runs the following code but full_name is skipped as empty string. Why?\n\nint age = sc.nextInt();\nString name = sc.nextLine();',
+        type: 'mcq',
+        options: [
+          'nextInt() cannot be used before nextLine() in Java.',
+          'nextInt() leaves the newline character (\\n) in the buffer, which nextLine() immediately consumes.',
+          'sc.nextLine() requires a string parameter.',
+          'Scanner must be closed before reading strings.'
+        ],
+        correctAnswer: 1,
+        explanation: 'nextInt() reads only the digits and leaves the \\n in the input buffer. nextLine() reads up to the \\n, so it immediately reads that leftover newline and returns empty string. Adding sc.nextLine() after nextInt() fixes the trap!'
+      },
+      {
+        id: 'p3',
+        question: 'Predict the exact output of: System.out.println(15 / 4 + " " + (15.0 / 4));',
+        type: 'code-logic',
+        options: [
+          '3.75 3.75',
+          '3 3.75',
+          '3 3',
+          '3.75 3'
+        ],
+        correctAnswer: 1,
+        explanation: '15 / 4 performs integer division resulting in 3 (fractional part dropped). 15.0 / 4 involves a double literal, causing floating-point division which yields 3.75.'
+      },
+      {
+        id: 'p4',
+        question: 'Which System.out.printf() call correctly outputs price = 12.3456 formatted to 2 decimal places with a rupee sign ₹?',
+        type: 'mcq',
+        options: [
+          'System.out.printf("₹%d%n", price);',
+          'System.out.printf("₹%.2f%n", price);',
+          'System.out.printf("₹%s.2%n", price);',
+          'System.out.printf("₹%2f%n", price);'
+        ],
+        correctAnswer: 1,
+        explanation: '%.2f is the format specifier for floating-point values rounded to 2 decimal places.'
+      },
+      {
+        id: 'p5',
+        question: 'What is the output of: int res = (int) 4.8 + (int) 3.7; System.out.println(res);',
+        type: 'code-logic',
+        options: [
+          '8',
+          '7',
+          '8.5',
+          '7.0'
+        ],
+        correctAnswer: 1,
+        explanation: '(int) 4.8 truncates to 4, and (int) 3.7 truncates to 3. 4 + 3 = 7.'
+      }
+    ],
+    quizQuestions: [
+      {
+        id: 'q1',
+        question: 'Which component of Java compiles .java source code files into .class bytecode files?',
+        type: 'mcq',
+        options: [
+          'JRE (Java Runtime Environment)',
+          'JVM (Java Virtual Machine)',
+          'JDK Compiler (javac)',
+          'JIT Compiler'
+        ],
+        correctAnswer: 2,
+        explanation: 'javac is the Java compiler included inside the JDK that turns Java source code into bytecode.'
+      },
+      {
+        id: 'q2',
+        question: 'What is the default data type of a literal decimal number like 3.14 in Java?',
+        type: 'mcq',
+        options: [
+          'float',
+          'double',
+          'int',
+          'Decimal'
+        ],
+        correctAnswer: 1,
+        explanation: 'In Java, floating-point literals are by default of type double (64-bit).'
+      },
+      {
+        id: 'q3',
+        question: 'What will sc.next() read if the user inputs "Java Programming Language"?',
+        type: 'code-logic',
+        options: [
+          '"Java Programming Language"',
+          '"Java"',
+          '"J"',
+          '"Java Programming"'
+        ],
+        correctAnswer: 1,
+        explanation: 'sc.next() reads input up to the first whitespace delimiter, so it reads only "Java". Use sc.nextLine() to read the whole line.'
+      },
+      {
+        id: 'q4',
+        question: 'What is the output of the following Java code snippet?\n\ndouble d = 25.9;\nint i = (int) d;\nSystem.out.println(i * 2);',
+        type: 'code-logic',
+        options: [
+          '51.8',
+          '50',
+          '51',
+          '52'
+        ],
+        correctAnswer: 1,
+        explanation: '(int) 25.9 truncates the decimal to 25. 25 * 2 = 50.'
+      },
+      {
+        id: 'q5',
+        question: 'What is the key difference between System.out.print() and System.out.println()?',
+        type: 'mcq',
+        options: [
+          'print() formats text, println() does not',
+          'println() appends a newline character at the end of output, while print() does not',
+          'println() works only for String variables',
+          'print() is deprecated in Java 21'
+        ],
+        correctAnswer: 1,
+        explanation: 'println() moves the cursor to the start of a new line after printing, whereas print() keeps the cursor on the same line.'
+      },
+      {
+        id: 'q6',
+        question: 'What will be printed by the following code?\n\nint x = 10;\nint y = 20;\nif (x > 5 && y < 15) {\n    System.out.println("Alpha");\n} else if (x == 10 || y == 10) {\n    System.out.println("Beta");\n} else {\n    System.out.println("Gamma");\n}',
+        type: 'code-logic',
+        options: [
+          'Alpha',
+          'Beta',
+          'Gamma',
+          'Alpha Beta'
+        ],
+        correctAnswer: 1,
+        explanation: 'x > 5 is true but y < 15 is false, so the first condition fails. In the else-if, x == 10 is true, so "Beta" is printed.'
+      },
+      {
+        id: 'q7',
+        question: 'Predict the output of: System.out.println(10 + 20 + "Java" + 10 + 20);',
+        type: 'code-logic',
+        options: [
+          '30Java30',
+          '30Java1020',
+          '1020Java1020',
+          '30Java30'
+        ],
+        correctAnswer: 1,
+        explanation: 'Left-to-right evaluation: 10 + 20 = 30. Then 30 + "Java" = "30Java". Once a String is encountered, subsequent + operators perform String concatenation: "30Java" + 10 + 20 = "30Java1020".'
+      },
+      {
+        id: 'q8',
+        question: 'Which statement should be inserted between reading integer zip and reading String city to prevent city from reading empty string?\n\nint zip = sc.nextInt();\n// INSERT FIX HERE\nString city = sc.nextLine();',
+        type: 'code-logic',
+        options: [
+          'sc.close();',
+          'sc.nextLine();',
+          'sc.skip();',
+          'sc.flush();'
+        ],
+        correctAnswer: 1,
+        explanation: 'sc.nextLine(); consumes the leftover newline token left in the buffer by nextInt().'
+      }
+    ]
+  },
+  {
+    id: 'level_2',
+    levelNumber: 2,
+    title: 'Control Flow',
+    description: 'Loops (for, while, do-while), break/continue, switch statements, and nested loop patterns.',
+    passingScorePercent: 70,
+    xpReward: 175,
+    badgeIdOnComplete: 'java_control_flow_master',
+    conceptSections: [],
+    practiceProblems: [],
+    quizQuestions: [],
+    comingSoon: true
+  },
+  {
+    id: 'level_3',
+    levelNumber: 3,
+    title: 'Functions & Arrays',
+    description: 'Method declaration, parameters, return values, 1D/2D arrays, array traversal, and helper utilities.',
+    passingScorePercent: 70,
+    xpReward: 200,
+    badgeIdOnComplete: 'java_arrays_master',
+    conceptSections: [],
+    practiceProblems: [],
+    quizQuestions: [],
+    comingSoon: true
+  },
+  {
+    id: 'level_4',
+    levelNumber: 4,
+    title: 'OOP Fundamentals',
+    description: 'Classes, Objects, Constructors, Encapsulation, `this` keyword, getters/setters, and access modifiers.',
+    passingScorePercent: 70,
+    xpReward: 225,
+    badgeIdOnComplete: 'java_oop_master',
+    conceptSections: [],
+    practiceProblems: [],
+    quizQuestions: [],
+    comingSoon: true
+  },
+  {
+    id: 'level_5',
+    levelNumber: 5,
+    title: 'OOP Advanced',
+    description: 'Inheritance (`extends`, `super`), Polymorphism (Overloading vs Overriding), Abstraction, and Interfaces.',
+    passingScorePercent: 70,
+    xpReward: 250,
+    badgeIdOnComplete: 'java_oop_advanced_master',
+    conceptSections: [],
+    practiceProblems: [],
+    quizQuestions: [],
+    comingSoon: true
+  },
+  {
+    id: 'level_6',
+    levelNumber: 6,
+    title: 'Collections & Exceptions',
+    description: 'ArrayList, HashMap, HashSet, try-catch-finally, custom exceptions, and basic I/O streams.',
+    passingScorePercent: 70,
+    xpReward: 275,
+    badgeIdOnComplete: 'java_collections_master',
+    conceptSections: [],
+    practiceProblems: [],
+    quizQuestions: [],
+    comingSoon: true
+  },
+  {
+    id: 'level_7',
+    levelNumber: 7,
+    title: 'DSA-Ready Java',
+    description: 'Recursion basics, Time/Space Complexity (Big O), Sorting/Searching algorithms, and LeetCode problem solving setup.',
+    passingScorePercent: 70,
+    xpReward: 300,
+    badgeIdOnComplete: 'java_dsa_ready_master',
+    conceptSections: [],
+    practiceProblems: [],
+    quizQuestions: [],
+    comingSoon: true
+  }
+];
+
+export const INITIAL_PAGE_CONTROLS = {
+  home: { id: 'home', name: 'Home', status: 'live', title: '', message: '', displayMode: 'full_lock', roleTarget: 'everyone', disabledFeatures: [], visible: true },
+  materials: { id: 'materials', name: 'Materials', status: 'live', title: '', message: '', displayMode: 'full_lock', roleTarget: 'everyone', disabledFeatures: [], visible: true },
+  aitools: { id: 'aitools', name: 'AI Tools', status: 'live', title: '', message: '', displayMode: 'full_lock', roleTarget: 'everyone', disabledFeatures: [], visible: true },
+  brainzone: { id: 'brainzone', name: 'BrainZone', status: 'live', title: '', message: '', displayMode: 'full_lock', roleTarget: 'everyone', disabledFeatures: [], visible: true },
+  placement: { id: 'placement', name: 'Placement', status: 'live', title: '', message: '', displayMode: 'full_lock', roleTarget: 'everyone', disabledFeatures: [], visible: true },
+  events: { id: 'events', name: 'Events', status: 'live', title: '', message: '', displayMode: 'full_lock', roleTarget: 'everyone', disabledFeatures: [], visible: true },
+  announcements: { id: 'announcements', name: 'Notices', status: 'live', title: '', message: '', displayMode: 'full_lock', roleTarget: 'everyone', disabledFeatures: [], visible: true },
+  profile: { id: 'profile', name: 'Profile', status: 'live', title: '', message: '', displayMode: 'full_lock', roleTarget: 'everyone', disabledFeatures: [], visible: true },
+  timetables: { id: 'timetables', name: 'Timetables', status: 'live', title: '', message: '', displayMode: 'full_lock', roleTarget: 'everyone', disabledFeatures: [], visible: true },
+  learnjava: { id: 'learnjava', name: 'Java Academy (Learn Java)', status: 'live', title: '', message: '', displayMode: 'full_lock', roleTarget: 'everyone', disabledFeatures: [], visible: true },
+  aichat: { id: 'aichat', name: 'AI Chat Assistant', status: 'live', title: '', message: '', displayMode: 'full_lock', roleTarget: 'everyone', disabledFeatures: [], visible: true },
+  resumebuilder: { id: 'resumebuilder', name: 'Resume Builder', status: 'live', title: '', message: '', displayMode: 'full_lock', roleTarget: 'everyone', disabledFeatures: [], visible: true },
+  marks: { id: 'marks', name: 'Self Marks Tracker', status: 'live', title: '', message: '', displayMode: 'full_lock', roleTarget: 'everyone', disabledFeatures: [], visible: true }
+};

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -18,14 +18,23 @@ import {
   ChevronRight,
   ShieldCheck,
   Edit2,
-  Trash2
+  Trash2,
+  Coffee
 } from 'lucide-react';
+import { JavaLearningPage } from './JavaLearningPage';
+import { PageControlGuard } from '../components/PageControlGuard';
 
-export const PlacementPrepHub = ({ onOpenAdminForm, onOpenShareExperience }) => {
-  const { placementCompanies, interviewExperiences, placementResources, removePlacementCompany, removeInterviewExperience } = useData();
+export const PlacementPrepHub = ({ onOpenAdminForm, onOpenShareExperience, defaultSubTab = 'companies' }) => {
+  const { placementCompanies, interviewExperiences, placementResources, removePlacementCompany, removeInterviewExperience, pageControls } = useData();
   const { isAdmin } = useAuth();
 
-  const [activeTab, setActiveTab] = useState('companies');
+  const [activeTab, setActiveTab] = useState(defaultSubTab);
+
+  useEffect(() => {
+    if (defaultSubTab) {
+      setActiveTab(defaultSubTab);
+    }
+  }, [defaultSubTab]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCompanyId, setSelectedCompanyId] = useState(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState('All');
@@ -125,10 +134,27 @@ export const PlacementPrepHub = ({ onOpenAdminForm, onOpenShareExperience }) => 
           <BookOpen className="w-4 h-4" />
           <span>Prep Resource Kit ({(placementResources || []).length})</span>
         </button>
+
+        <button
+          onClick={() => setActiveTab('learnjava')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 whitespace-nowrap ${
+            activeTab === 'learnjava'
+              ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/30'
+              : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+          }`}
+        >
+          <Coffee className="w-4 h-4 text-amber-300" />
+          <span>Learn Java Academy</span>
+          {pageControls?.learnjava?.status === 'maintenance' && (
+            <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-amber-500/30 text-amber-200 border border-amber-500/40 animate-pulse">
+              Maintenance
+            </span>
+          )}
+        </button>
       </div>
 
       {/* SEARCH BAR */}
-      {activeTab !== 'resources' && (
+      {activeTab !== 'resources' && activeTab !== 'learnjava' && (
         <div className="relative">
           <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-500" />
           <input
@@ -440,6 +466,15 @@ export const PlacementPrepHub = ({ onOpenAdminForm, onOpenShareExperience }) => 
             ))}
           </div>
 
+        </div>
+      )}
+
+      {/* TAB 4: ☕ LEARN JAVA ACADEMY */}
+      {activeTab === 'learnjava' && (
+        <div className="pt-2 animate-in fade-in">
+          <PageControlGuard pageId="learnjava" onGoHome={() => setActiveTab('companies')}>
+            <JavaLearningPage />
+          </PageControlGuard>
         </div>
       )}
 

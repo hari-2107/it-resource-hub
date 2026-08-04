@@ -34,27 +34,37 @@ import {
   GraduationCap,
   Eye,
   User,
-  Activity
+  Activity,
+  ExternalLink
 } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { StorageService } from '../services/storageService';
+import { exportToCSV, exportToWordDoc, exportToPDFReport, generateSingleStudentHTML } from '../utils/exportUtils';
 
 // Format last active time string
 const formatLastActive = (dateString) => {
-  if (!dateString) return { text: 'Joined recently', isInactive: false };
+  if (!dateString) return { text: 'Joined recently', isInactive: false, formattedTime: 'N/A' };
   const now = new Date();
   const lastDate = new Date(dateString);
+  if (isNaN(lastDate.getTime())) return { text: 'Joined recently', isInactive: false, formattedTime: 'N/A' };
+
   const diffTime = Math.abs(now - lastDate);
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
   const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
   const diffMinutes = Math.floor(diffTime / (1000 * 60));
 
-  if (diffMinutes < 5) return { text: 'Active Just now', isInactive: false };
-  if (diffHours < 24) return { text: `Active Today (${diffHours}h ago)`, isInactive: false };
-  if (diffDays === 1) return { text: 'Active 1 day ago', isInactive: false };
-  if (diffDays < 30) return { text: `Active ${diffDays} days ago`, isInactive: false };
-  return { text: `Inactive (${diffDays}d ago)`, isInactive: true };
+  const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
+  const dateOptions = { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true };
+  const formattedTime = lastDate.toLocaleDateString(undefined, dateOptions);
+  const clockTime = lastDate.toLocaleTimeString(undefined, timeOptions);
+
+  if (diffMinutes < 2) return { text: '🟢 Active Right Now', isInactive: false, formattedTime };
+  if (diffMinutes < 60) return { text: `Active ${diffMinutes}m ago (${clockTime})`, isInactive: false, formattedTime };
+  if (diffHours < 24) return { text: `Active Today at ${clockTime}`, isInactive: false, formattedTime };
+  if (diffDays === 1) return { text: `Active Yesterday at ${clockTime}`, isInactive: false, formattedTime };
+  if (diffDays < 30) return { text: `Active ${diffDays}d ago (${formattedTime})`, isInactive: false, formattedTime };
+  return { text: `Inactive (${diffDays}d ago • ${formattedTime})`, isInactive: true, formattedTime };
 };
 
 export const UserDirectoryManager = ({ onClose, isModal = false }) => {
@@ -268,7 +278,7 @@ export const UserDirectoryManager = ({ onClose, isModal = false }) => {
   // Render Full Profile View Component if a user is selected for Full View
   if (fullProfileUser) {
     const isSelf = checkIsSelf(fullProfileUser);
-    const activeStatus = formatLastActive(fullProfileUser.lastLoginAt || fullProfileUser.createdAt);
+    const activeStatus = formatLastActive(fullProfileUser.lastActiveAt || fullProfileUser.lastLoginAt || fullProfileUser.createdAt);
     const userKey = fullProfileUser.uid || fullProfileUser.id || fullProfileUser.email;
     const userMarks = StorageService.getStudentMarks(userKey);
 
@@ -297,7 +307,7 @@ export const UserDirectoryManager = ({ onClose, isModal = false }) => {
       t.year === fullProfileUser.year || t.classSection === fullProfileUser.classSection
     ) || timetables[0] || null;
 
-    const userXP = fullProfileUser.funPoints || fullProfileUser.xp || 150;
+    const userXP = fullProfileUser.funPoints ?? fullProfileUser.xp ?? 0;
     const userLevel = fullProfileUser.level || Math.floor(userXP / 200) + 1;
     const currentStreak = fullProfileUser.loginStreak || fullProfileUser.streak || 1;
     const bestStreak = fullProfileUser.bestStreak || Math.max(currentStreak, 7);
@@ -315,8 +325,68 @@ export const UserDirectoryManager = ({ onClose, isModal = false }) => {
             <span>Back to User Directory</span>
           </button>
 
-          {/* Admin Safeguarded Actions */}
-          <div className="flex items-center space-x-2 self-end sm:self-center">
+          {/* Admin Safeguarded Actions & Export */}
+          <div className="flex items-center space-x-2 self-end sm:self-center relative">
+            {/* Export Menu Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setProfileExportMenuOpen(prev => !prev)}
+                className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs flex items-center space-x-1.5 shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+              >
+                <Download className="w-4 h-4" />
+                <span>📥 Export Student Data</span>
+                <ChevronDown className="w-3.5 h-3.5 ml-0.5" />
+              </button>
+
+              {profileExportMenuOpen && (
+                <div className="absolute right-0 mt-2 w-52 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-2 z-50 animate-in fade-in space-y-1 text-left">
+                  <div className="px-2 py-1 text-[10px] font-bold uppercase text-slate-400 border-b border-slate-800">
+                    Select Export Format
+                  </div>
+                  <button
+                    onClick={() => {
+                      setProfileExportMenuOpen(false);
+                      exportToCSV([{
+                        Name: fullProfileUser.name,
+                        RegisterNumber: fullProfileUser.registerNumber || '',
+                        Section: fullProfileUser.classSection || 'IT-A',
+                        Email: fullProfileUser.email || '',
+                        Role: fullProfileUser.role || 'student',
+                        XP_Score: userXP,
+                        Streak_Days: currentStreak,
+                        LastActive: fullProfileUser.lastActiveAt || fullProfileUser.lastLoginAt || ''
+                      }], `${fullProfileUser.name?.replace(/\s+/g, '_')}_Data.csv`);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-200 hover:bg-amber-500/20 hover:text-amber-300 transition-colors flex items-center space-x-2 cursor-pointer"
+                  >
+                    <span>📊 Excel / CSV (.csv)</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setProfileExportMenuOpen(false);
+                      const html = generateSingleStudentHTML(fullProfileUser);
+                      exportToWordDoc(`${fullProfileUser.name} - Official Student Profile`, html, `${fullProfileUser.name?.replace(/\s+/g, '_')}_Report.doc`);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-200 hover:bg-cyan-500/20 hover:text-cyan-300 transition-colors flex items-center space-x-2 cursor-pointer"
+                  >
+                    <span>📝 Word Document (.doc)</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setProfileExportMenuOpen(false);
+                      const html = generateSingleStudentHTML(fullProfileUser);
+                      exportToPDFReport(`${fullProfileUser.name} - Official Student Profile`, html);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-200 hover:bg-purple-500/20 hover:text-purple-300 transition-colors flex items-center space-x-2 cursor-pointer"
+                  >
+                    <span>📄 Printable PDF Report</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
             <button
               disabled={isSelf}
               onClick={() => promptToggleRole(fullProfileUser)}
@@ -488,6 +558,164 @@ export const UserDirectoryManager = ({ onClose, isModal = false }) => {
                     </div>
                   </div>
 
+                </div>
+
+                {/* Linked Social & Coding Profiles Card */}
+                <div className="p-5 rounded-3xl bg-slate-950 border border-slate-800 space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <h4 className="text-sm font-extrabold text-white flex items-center space-x-2">
+                      <ExternalLink className="w-4 h-4 text-amber-400" />
+                      <span>🔗 Linked Student Profiles & Online Portfolios</span>
+                    </h4>
+                    <span className="text-[10px] text-slate-400">Click to open verified student profile in new tab</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+                    {/* GitHub */}
+                    {(fullProfileUser.githubUrl || fullProfileUser.github) ? (
+                      <a
+                        href={fullProfileUser.githubUrl || fullProfileUser.github}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-3 rounded-2xl bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-cyan-500/40 text-slate-200 flex items-center justify-between transition-all group"
+                      >
+                        <div className="flex items-center space-x-2 truncate">
+                          <span className="p-2 rounded-xl bg-slate-950 text-white font-bold">🐙</span>
+                          <div className="truncate">
+                            <span className="font-extrabold block text-white">GitHub</span>
+                            <span className="text-[10px] text-slate-400 font-mono truncate block">
+                              {(fullProfileUser.githubUrl || fullProfileUser.github).replace('https://', '')}
+                            </span>
+                          </div>
+                        </div>
+                        <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-cyan-400 flex-shrink-0" />
+                      </a>
+                    ) : (
+                      <div className="p-3 rounded-2xl bg-slate-900/40 border border-slate-800/80 text-slate-500 flex items-center space-x-2">
+                        <span className="p-2 rounded-xl bg-slate-950 opacity-50">🐙</span>
+                        <div>
+                          <span className="font-semibold block text-slate-400">GitHub</span>
+                          <span className="text-[10px] text-slate-600">Not linked yet</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* LinkedIn */}
+                    {(fullProfileUser.linkedinUrl || fullProfileUser.linkedin) ? (
+                      <a
+                        href={fullProfileUser.linkedinUrl || fullProfileUser.linkedin}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-3 rounded-2xl bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-blue-500/40 text-slate-200 flex items-center justify-between transition-all group"
+                      >
+                        <div className="flex items-center space-x-2 truncate">
+                          <span className="p-2 rounded-xl bg-blue-950 text-blue-400 font-bold">💼</span>
+                          <div className="truncate">
+                            <span className="font-extrabold block text-white">LinkedIn</span>
+                            <span className="text-[10px] text-slate-400 font-mono truncate block">
+                              {(fullProfileUser.linkedinUrl || fullProfileUser.linkedin).replace('https://', '')}
+                            </span>
+                          </div>
+                        </div>
+                        <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-blue-400 flex-shrink-0" />
+                      </a>
+                    ) : (
+                      <div className="p-3 rounded-2xl bg-slate-900/40 border border-slate-800/80 text-slate-500 flex items-center space-x-2">
+                        <span className="p-2 rounded-xl bg-slate-950 opacity-50">💼</span>
+                        <div>
+                          <span className="font-semibold block text-slate-400">LinkedIn</span>
+                          <span className="text-[10px] text-slate-600">Not linked yet</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* LeetCode */}
+                    {(fullProfileUser.leetcodeUrl || fullProfileUser.leetcode) ? (
+                      <a
+                        href={fullProfileUser.leetcodeUrl || fullProfileUser.leetcode}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-3 rounded-2xl bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-amber-500/40 text-slate-200 flex items-center justify-between transition-all group"
+                      >
+                        <div className="flex items-center space-x-2 truncate">
+                          <span className="p-2 rounded-xl bg-amber-950 text-amber-400 font-bold">🧩</span>
+                          <div className="truncate">
+                            <span className="font-extrabold block text-white">LeetCode</span>
+                            <span className="text-[10px] text-slate-400 font-mono truncate block">
+                              {(fullProfileUser.leetcodeUrl || fullProfileUser.leetcode).replace('https://', '')}
+                            </span>
+                          </div>
+                        </div>
+                        <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-amber-400 flex-shrink-0" />
+                      </a>
+                    ) : (
+                      <div className="p-3 rounded-2xl bg-slate-900/40 border border-slate-800/80 text-slate-500 flex items-center space-x-2">
+                        <span className="p-2 rounded-xl bg-slate-950 opacity-50">🧩</span>
+                        <div>
+                          <span className="font-semibold block text-slate-400">LeetCode</span>
+                          <span className="text-[10px] text-slate-600">Not linked yet</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Portfolio / Website */}
+                    {(fullProfileUser.portfolioUrl || fullProfileUser.website) ? (
+                      <a
+                        href={fullProfileUser.portfolioUrl || fullProfileUser.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-3 rounded-2xl bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-purple-500/40 text-slate-200 flex items-center justify-between transition-all group"
+                      >
+                        <div className="flex items-center space-x-2 truncate">
+                          <span className="p-2 rounded-xl bg-purple-950 text-purple-400 font-bold">🌐</span>
+                          <div className="truncate">
+                            <span className="font-extrabold block text-white">Portfolio Website</span>
+                            <span className="text-[10px] text-slate-400 font-mono truncate block">
+                              {(fullProfileUser.portfolioUrl || fullProfileUser.website).replace('https://', '')}
+                            </span>
+                          </div>
+                        </div>
+                        <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-purple-400 flex-shrink-0" />
+                      </a>
+                    ) : (
+                      <div className="p-3 rounded-2xl bg-slate-900/40 border border-slate-800/80 text-slate-500 flex items-center space-x-2">
+                        <span className="p-2 rounded-xl bg-slate-950 opacity-50">🌐</span>
+                        <div>
+                          <span className="font-semibold block text-slate-400">Portfolio</span>
+                          <span className="text-[10px] text-slate-600">Not linked yet</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Resume Document Link */}
+                    {(fullProfileUser.resumeUrl || fullProfileUser.driveUrl) ? (
+                      <a
+                        href={fullProfileUser.resumeUrl || fullProfileUser.driveUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-3 rounded-2xl bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-emerald-500/40 text-slate-200 flex items-center justify-between transition-all group"
+                      >
+                        <div className="flex items-center space-x-2 truncate">
+                          <span className="p-2 rounded-xl bg-emerald-950 text-emerald-400 font-bold">📄</span>
+                          <div className="truncate">
+                            <span className="font-extrabold block text-white">Resume Document</span>
+                            <span className="text-[10px] text-slate-400 font-mono truncate block">
+                              View PDF Resume
+                            </span>
+                          </div>
+                        </div>
+                        <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-emerald-400 flex-shrink-0" />
+                      </a>
+                    ) : (
+                      <div className="p-3 rounded-2xl bg-slate-900/40 border border-slate-800/80 text-slate-500 flex items-center space-x-2">
+                        <span className="p-2 rounded-xl bg-slate-950 opacity-50">📄</span>
+                        <div>
+                          <span className="font-semibold block text-slate-400">Resume Link</span>
+                          <span className="text-[10px] text-slate-600">Not linked yet</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Submissions Count Banner */}
@@ -881,7 +1109,7 @@ export const UserDirectoryManager = ({ onClose, isModal = false }) => {
             const isSelf = checkIsSelf(usr);
             const usrId = usr.uid || usr.id || usr.email;
             const isSelected = selectedUserIds.includes(usrId);
-            const activeStatus = formatLastActive(usr.lastLoginAt || usr.createdAt);
+            const activeStatus = formatLastActive(usr.lastActiveAt || usr.lastLoginAt || usr.createdAt);
 
             return (
               <div 
@@ -959,6 +1187,70 @@ export const UserDirectoryManager = ({ onClose, isModal = false }) => {
                           <Clock className="w-3 h-3 text-slate-500" />
                           <span>{activeStatus.text}</span>
                         </span>
+                      </div>
+
+                      {/* Linked Profile Badges in Directory List */}
+                      <div className="flex items-center space-x-1.5 pt-1.5 flex-wrap gap-y-1">
+                        {(usr.githubUrl || usr.github) && (
+                          <a
+                            href={usr.githubUrl || usr.github}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 hover:border-cyan-500/40 flex items-center space-x-1"
+                            title="View GitHub Profile"
+                          >
+                            <span>🐙 GitHub</span>
+                          </a>
+                        )}
+                        {(usr.linkedinUrl || usr.linkedin) && (
+                          <a
+                            href={usr.linkedinUrl || usr.linkedin}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-950/60 hover:bg-blue-900/60 text-blue-300 border border-blue-500/30 flex items-center space-x-1"
+                            title="View LinkedIn Profile"
+                          >
+                            <span>💼 LinkedIn</span>
+                          </a>
+                        )}
+                        {(usr.leetcodeUrl || usr.leetcode) && (
+                          <a
+                            href={usr.leetcodeUrl || usr.leetcode}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-950/60 hover:bg-amber-900/60 text-amber-300 border border-amber-500/30 flex items-center space-x-1"
+                            title="View LeetCode Profile"
+                          >
+                            <span>🧩 LeetCode</span>
+                          </a>
+                        )}
+                        {(usr.portfolioUrl || usr.website) && (
+                          <a
+                            href={usr.portfolioUrl || usr.website}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-950/60 hover:bg-purple-900/60 text-purple-300 border border-purple-500/30 flex items-center space-x-1"
+                            title="View Portfolio Website"
+                          >
+                            <span>🌐 Portfolio</span>
+                          </a>
+                        )}
+                        {(usr.resumeUrl || usr.driveUrl) && (
+                          <a
+                            href={usr.resumeUrl || usr.driveUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-500/30 flex items-center space-x-1"
+                            title="View Resume Document"
+                          >
+                            <span>📄 Resume</span>
+                          </a>
+                        )}
                       </div>
                     </div>
                   </div>

@@ -45,12 +45,18 @@ import {
   Zap,
   Flame,
   ShieldCheck,
-  UserCheck
+  UserCheck,
+  Coffee,
+  Terminal,
+  Play,
+  Code
 } from 'lucide-react';
+import { exportToCSV, exportToWordDoc, exportToPDFReport, generateSingleStudentHTML, generateAllStudentsHTML } from '../utils/exportUtils';
 import { useData } from '../context/DataContext';
 import { getYearFromSemester } from '../data/mockData';
 import { BroadcastOverlay } from './BroadcastOverlay';
 import { UserDirectoryManager } from './UserDirectoryModal';
+import { PageStatusScreen } from './PageStatusScreen';
 
 export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpenAdminForm, onOpenVersionHistory }) => {
   const { 
@@ -88,6 +94,21 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
     quizQuestions,
     addOrUpdateQuizQuestion,
     removeQuizQuestion,
+    guessOutputChallenges,
+    addOrUpdateGuessOutputChallenge,
+    removeGuessOutputChallenge,
+    findBugChallenges,
+    addOrUpdateFindBugChallenge,
+    removeFindBugChallenge,
+    ecgChallenges,
+    addOrUpdateEcgChallenge,
+    removeEcgChallenge,
+    tangoPuzzles,
+    addOrUpdateTangoPuzzle,
+    removeTangoPuzzle,
+    speedTypePrompts,
+    addOrUpdateSpeedTypePrompt,
+    removeSpeedTypePrompt,
     itFacts,
     addOrUpdateITFact,
     removeITFact,
@@ -109,7 +130,11 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
     toggleBroadcastStatus,
     materials,
     addOrUpdateMaterial,
-    addOrUpdateTimetable
+    addOrUpdateTimetable,
+    getAllJavaActivityForAdmin,
+    pageControls,
+    updatePageControl,
+    emergencyLockPage
   } = useData();
 
   const [activeTab, setActiveTab] = useState(initialTab || 'dashboard');
@@ -197,8 +222,31 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
     reward: '+100 XP'
   });
 
-  // Level Sub-Group Filter for Daily Challenges: 'all' | 'beginner' | 'intermediate' | 'advanced'
+  // Game Selector & Level Sub-Group Filter for Daily Challenges: 'quiz' | 'bug' | 'guess' | 'ecg' | 'tango' | 'type'
+  const [challengeGameType, setChallengeGameType] = useState('quiz');
   const [challengeDiffSubTab, setChallengeDiffSubTab] = useState('all');
+
+  const [bugModalOpen, setBugModalOpen] = useState(false);
+  const [guessModalOpen, setGuessModalOpen] = useState(false);
+  const [ecgModalOpen, setEcgModalOpen] = useState(false);
+  const [tangoModalOpen, setTangoModalOpen] = useState(false);
+  const [typeModalOpen, setTypeModalOpen] = useState(false);
+
+  const [bugForm, setBugForm] = useState({
+    id: '', title: '', language: 'javascript', code: '', option0: '', option1: '', option2: '', option3: '', answer: 0, explanation: '', difficulty: 'beginner'
+  });
+  const [guessForm, setGuessForm] = useState({
+    id: '', title: '', language: 'javascript', code: '', option0: '', option1: '', option2: '', option3: '', answer: 0, explanation: '', difficulty: 'beginner'
+  });
+  const [ecgForm, setEcgForm] = useState({
+    id: '', code: '404', name: 'HTTP 404 Not Found', desc: 'Requested URL or resource does not exist on server', option0: 'Not Found', option1: 'Unauthorized', option2: 'Forbidden', option3: 'Server Error', answer: 0, difficulty: 'beginner'
+  });
+  const [tangoForm, setTangoForm] = useState({
+    id: '', grid: '4x4', desc: 'Equal count of Sun and Moon symbols per row and column!', size: 4, difficulty: 'beginner'
+  });
+  const [typeForm, setTypeForm] = useState({
+    id: '', snippet: '', lang: 'JavaScript', targetWpm: 30, difficulty: 'beginner'
+  });
 
   // Mystery Box Rewards Form State
   const [mysteryModalOpen, setMysteryModalOpen] = useState(false);
@@ -211,6 +259,16 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
     rarity: 'Rare',
     desc: ''
   });
+
+  // Export Roster State
+  const [adminExportDropdownOpen, setAdminExportDropdownOpen] = useState(false);
+  const [activeExportMenuUid, setActiveExportMenuUid] = useState(null);
+
+  // Page Control Center State
+  const [pageControlFilter, setPageControlFilter] = useState('all');
+  const [pageControlSearch, setPageControlSearch] = useState('');
+  const [previewPageControl, setPreviewPageControl] = useState(null);
+  const [editingPageControl, setEditingPageControl] = useState(null);
 
   // Debate Poll Form State
   const [pollModalOpen, setPollModalOpen] = useState(false);
@@ -347,6 +405,97 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
     addOrUpdateQuizQuestion(qPayload);
     setQuizModalOpen(false);
     setQuizForm({ id: '', q: '', option0: '', option1: '', option2: '', option3: '', answer: 0, category: 'Web Dev', difficulty: 'intermediate' });
+  };
+
+  const handleSaveBugChallenge = (e) => {
+    e.preventDefault();
+    if (!bugForm.title || !bugForm.code) return;
+
+    addOrUpdateFindBugChallenge({
+      id: bugForm.id || `fb-${Date.now()}`,
+      title: bugForm.title,
+      language: bugForm.language || 'javascript',
+      code: bugForm.code,
+      options: [bugForm.option0, bugForm.option1, bugForm.option2 || 'Option 3', bugForm.option3 || 'Option 4'],
+      answer: Number(bugForm.answer),
+      explanation: bugForm.explanation || 'Spot the syntax error or logical bug.',
+      difficulty: bugForm.difficulty || 'beginner'
+    });
+
+    setBugModalOpen(false);
+    setBugForm({ id: '', title: '', language: 'javascript', code: '', option0: '', option1: '', option2: '', option3: '', answer: 0, explanation: '', difficulty: 'beginner' });
+  };
+
+  const handleSaveGuessChallenge = (e) => {
+    e.preventDefault();
+    if (!guessForm.title || !guessForm.code) return;
+
+    addOrUpdateGuessOutputChallenge({
+      id: guessForm.id || `go-${Date.now()}`,
+      title: guessForm.title,
+      language: guessForm.language || 'javascript',
+      code: guessForm.code,
+      options: [guessForm.option0, guessForm.option1, guessForm.option2 || 'Option 3', guessForm.option3 || 'Option 4'],
+      answer: Number(guessForm.answer),
+      explanation: guessForm.explanation || 'Analyze code execution output.',
+      difficulty: guessForm.difficulty || 'beginner'
+    });
+
+    setGuessModalOpen(false);
+    setGuessForm({ id: '', title: '', language: 'javascript', code: '', option0: '', option1: '', option2: '', option3: '', answer: 0, explanation: '', difficulty: 'beginner' });
+  };
+
+  const handleSaveEcgChallenge = (e) => {
+    e.preventDefault();
+    if (!ecgForm.code || !ecgForm.name) return;
+
+    addOrUpdateEcgChallenge({
+      id: ecgForm.id || `ecg-${Date.now()}`,
+      code: ecgForm.code,
+      name: ecgForm.name,
+      desc: ecgForm.desc || '',
+      options: [ecgForm.option0, ecgForm.option1, ecgForm.option2 || 'Option 3', ecgForm.option3 || 'Option 4'],
+      answer: Number(ecgForm.answer),
+      difficulty: ecgForm.difficulty || 'beginner'
+    });
+
+    setEcgModalOpen(false);
+    setEcgForm({ id: '', code: '404', name: 'HTTP 404 Not Found', desc: '', option0: 'Not Found', option1: 'Unauthorized', option2: 'Forbidden', option3: 'Server Error', answer: 0, difficulty: 'beginner' });
+  };
+
+  const handleSaveTangoPuzzle = (e) => {
+    e.preventDefault();
+    if (!tangoForm.grid) return;
+
+    const sizeNum = tangoForm.grid === '4x4' ? 4 : tangoForm.grid === '6x6' ? 6 : 8;
+
+    addOrUpdateTangoPuzzle({
+      id: tangoForm.id || `tango-${Date.now()}`,
+      grid: tangoForm.grid,
+      difficulty: tangoForm.difficulty || 'beginner',
+      desc: tangoForm.desc || 'Equal count of ☀️ and 🌙 symbols per row and column!',
+      size: sizeNum,
+      fixed: { '0-0': 'sun', '1-1': 'moon' }
+    });
+
+    setTangoModalOpen(false);
+    setTangoForm({ id: '', grid: '4x4', desc: 'Equal count of Sun and Moon symbols per row and column!', size: 4, difficulty: 'beginner' });
+  };
+
+  const handleSaveTypePrompt = (e) => {
+    e.preventDefault();
+    if (!typeForm.snippet) return;
+
+    addOrUpdateSpeedTypePrompt({
+      id: typeForm.id || `type-${Date.now()}`,
+      difficulty: typeForm.difficulty || 'beginner',
+      snippet: typeForm.snippet,
+      lang: typeForm.lang || 'JavaScript',
+      targetWpm: Number(typeForm.targetWpm) || 30
+    });
+
+    setTypeModalOpen(false);
+    setTypeForm({ id: '', snippet: '', lang: 'JavaScript', targetWpm: 30, difficulty: 'beginner' });
   };
 
   // IT Fact Form Handler
@@ -754,6 +903,16 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
                     <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
                     <span>Subject Catalog</span>
                   </button>
+
+                  <button
+                    onClick={() => setActiveTab('java_analytics')}
+                    className={`w-full p-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
+                      activeTab === 'java_analytics' ? 'bg-amber-600 text-white font-black' : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                    }`}
+                  >
+                    <Coffee className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Learn Java Analytics</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -925,6 +1084,16 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
 
               {openGroups.system && (
                 <div className="space-y-1 pl-1">
+                  <button
+                    onClick={() => setActiveTab('page_controls')}
+                    className={`w-full p-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
+                      activeTab === 'page_controls' ? 'bg-amber-600 text-white font-black shadow-lg shadow-amber-600/30' : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                    }`}
+                  >
+                    <Sliders className="w-3.5 h-3.5 text-amber-400" />
+                    <span>🛠 Page Control Center</span>
+                  </button>
+
                   <button
                     onClick={() => setActiveTab('activity_log')}
                     className={`w-full p-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
@@ -1442,6 +1611,901 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
             )}
 
             {/* ================================================================= */}
+            {/* TAB: ☕ LEARN JAVA ANALYTICS & MONITORING */}
+            {/* ================================================================= */}
+            {activeTab === 'java_analytics' && (() => {
+              const JAVA_TOPICS_LIST = [
+                { id: 'topic_1', title: '1. What is Java (JVM, JDK, JRE)' },
+                { id: 'topic_2', title: '2. Variables & Data Types' },
+                { id: 'topic_3', title: '3. Operators & Scanner Input' },
+                { id: 'topic_4', title: '4. Control Flow (if-else & switch)' },
+                { id: 'topic_5', title: '5. Loops (for, while, do-while)' },
+                { id: 'topic_6', title: '6. Arrays & Strings' },
+                { id: 'topic_7', title: '7. Methods & Functions' }
+              ];
+
+              const allJavaStore = typeof getAllJavaActivityForAdmin === 'function' ? getAllJavaActivityForAdmin() : {};
+              const registeredList = registeredUsers || [];
+
+              const studentAnalytics = registeredList.map(user => {
+                const uid = user.uid || user.id;
+                const userAct = allJavaStore[uid] || {};
+                
+                let totalTimeSecs = 0;
+                let totalRuns = 0;
+                let successfulRuns = 0;
+                let viewedTopicsCount = 0;
+                let maxTopicFailures = 0;
+
+                JAVA_TOPICS_LIST.forEach(topic => {
+                  const tData = userAct[topic.id];
+                  if (tData) {
+                    if (tData.timeSpentSeconds || tData.totalRuns) viewedTopicsCount += 1;
+                    totalTimeSecs += (tData.timeSpentSeconds || 0);
+                    totalRuns += (tData.totalRuns || 0);
+                    successfulRuns += (tData.successfulRuns || 0);
+
+                    const runs = tData.totalRuns || 0;
+                    const fails = runs - (tData.successfulRuns || 0);
+                    if (fails > maxTopicFailures) maxTopicFailures = fails;
+                  }
+                });
+
+                const successRate = totalRuns > 0 ? Math.round((successfulRuns / totalRuns) * 100) : 0;
+                const isStruggling = (totalRuns >= 4 && successRate < 40) || maxTopicFailures >= 5;
+
+                return {
+                  user,
+                  uid,
+                  totalTimeSecs,
+                  totalRuns,
+                  successfulRuns,
+                  successRate,
+                  viewedTopicsCount,
+                  isStruggling,
+                  userAct
+                };
+              });
+
+              const filteredStudents = studentAnalytics.filter(item => {
+                const searchLower = javaSearchTerm.toLowerCase();
+                const u = item.user;
+                const matchesSearch = (u.name || '').toLowerCase().includes(searchLower) ||
+                                      (u.email || '').toLowerCase().includes(searchLower) ||
+                                      (u.registerNumber || '').toLowerCase().includes(searchLower);
+                const matchesStruggling = javaStrugglingFilter ? item.isStruggling : true;
+                return matchesSearch && matchesStruggling;
+              });
+
+              const totalDeptTime = studentAnalytics.reduce((acc, curr) => acc + curr.totalTimeSecs, 0);
+              const totalDeptRuns = studentAnalytics.reduce((acc, curr) => acc + curr.totalRuns, 0);
+              const totalDeptSuccesses = studentAnalytics.reduce((acc, curr) => acc + curr.successfulRuns, 0);
+              const strugglingCount = studentAnalytics.filter(s => s.isStruggling).length;
+              const deptAvgRate = totalDeptRuns > 0 ? Math.round((totalDeptSuccesses / totalDeptRuns) * 100) : 0;
+
+              const formatTime = (secs) => {
+                if (!secs) return '0m';
+                const h = Math.floor(secs / 3600);
+                const m = Math.floor((secs % 3600) / 60);
+                return h > 0 ? `${h}h ${m}m` : `${m}m`;
+              };
+
+              const formatUserLastActive = (dateString) => {
+                if (!dateString) return 'Joined recently';
+                const now = new Date();
+                const lastDate = new Date(dateString);
+                if (isNaN(lastDate.getTime())) return 'Joined recently';
+
+                const diffTime = Math.abs(now - lastDate);
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+                const diffMinutes = Math.floor(diffTime / (1000 * 60));
+
+                const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
+                const dateOptions = { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true };
+                const formattedTime = lastDate.toLocaleDateString(undefined, dateOptions);
+                const clockTime = lastDate.toLocaleTimeString(undefined, timeOptions);
+
+                if (diffMinutes < 2) return '🟢 Active Now';
+                if (diffMinutes < 60) return `${diffMinutes}m ago`;
+                if (diffHours < 24) return `Today at ${clockTime}`;
+                if (diffDays === 1) return `Yesterday at ${clockTime}`;
+                if (diffDays < 30) return `${diffDays}d ago (${formattedTime})`;
+                return `Inactive (${diffDays}d ago)`;
+              };
+
+              return (
+                <div className="space-y-6 animate-in fade-in">
+                  
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                    <div>
+                      <h3 className="text-base font-extrabold text-white flex items-center space-x-2">
+                        <Coffee className="w-5 h-5 text-amber-400" />
+                        <span>Learn Java Student Performance Analytics</span>
+                      </h3>
+                      <p className="text-xs text-slate-400">Monitor student practice time, compiler success rates, and last active login timestamps</p>
+                    </div>
+
+                    <div className="flex items-center space-x-2 self-start sm:self-auto relative">
+                      {strugglingCount > 0 && (
+                        <span className="px-3 py-1 rounded-full text-xs font-black bg-rose-500/20 text-rose-300 border border-rose-500/40 animate-pulse flex items-center gap-1.5">
+                          <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                          <span>{strugglingCount} Need Attention</span>
+                        </span>
+                      )}
+
+                      {/* Export All Data Dropdown */}
+                      <div className="relative">
+                        <button
+                          onClick={() => setAdminExportDropdownOpen(prev => !prev)}
+                          className="py-1.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center space-x-1.5 shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>📥 Export All Data</span>
+                          <ChevronDown className="w-3.5 h-3.5 ml-1" />
+                        </button>
+
+                        {adminExportDropdownOpen && (
+                          <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-2 z-50 animate-in fade-in space-y-1">
+                            <div className="px-2 py-1 text-[10px] font-bold uppercase text-slate-400 border-b border-slate-800">
+                              Export Roster Format
+                            </div>
+                            <button
+                              onClick={() => {
+                                setAdminExportDropdownOpen(false);
+                                const exportData = registeredList.map(u => ({
+                                  Name: u.name,
+                                  RegisterNumber: u.registerNumber || '',
+                                  Section: u.classSection || 'IT-A',
+                                  Email: u.email || '',
+                                  Role: u.role || 'student',
+                                  XP_Score: u.funPoints ?? 0,
+                                  Streak_Days: u.streak ?? 1,
+                                  LastActive: u.lastActiveAt || u.lastLoginAt || ''
+                                }));
+                                exportToCSV(exportData, `IT_Department_Roster_${new Date().toISOString().split('T')[0]}.csv`);
+                              }}
+                              className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-200 hover:bg-amber-500/20 hover:text-amber-300 transition-colors flex items-center space-x-2 cursor-pointer"
+                            >
+                              <span>📊 Excel / CSV (.csv)</span>
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setAdminExportDropdownOpen(false);
+                                const html = generateAllStudentsHTML(registeredList);
+                                exportToWordDoc('IT Department Student Roster Report', html, `IT_Student_Roster_${new Date().toISOString().split('T')[0]}.doc`);
+                              }}
+                              className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-200 hover:bg-cyan-500/20 hover:text-cyan-300 transition-colors flex items-center space-x-2 cursor-pointer"
+                            >
+                              <span>📝 Word Document (.doc)</span>
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setAdminExportDropdownOpen(false);
+                                const html = generateAllStudentsHTML(registeredList);
+                                exportToPDFReport('IT Department Student Roster Report', html);
+                              }}
+                              className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-200 hover:bg-purple-500/20 hover:text-purple-300 transition-colors flex items-center space-x-2 cursor-pointer"
+                            >
+                              <span>📄 Printable PDF Report</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                      <span className="text-[10px] font-bold uppercase text-slate-400">Total Active Learners</span>
+                      <div className="text-2xl font-black text-white">{registeredList.length} Students</div>
+                      <p className="text-[10px] text-slate-500">Registered department students</p>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                      <span className="text-[10px] font-bold uppercase text-slate-400">Total Dept Practice Time</span>
+                      <div className="text-2xl font-black text-amber-400">{formatTime(totalDeptTime)}</div>
+                      <p className="text-[10px] text-slate-500">Cumulative lab & reading time</p>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                      <span className="text-[10px] font-bold uppercase text-slate-400">Total Code Executions</span>
+                      <div className="text-2xl font-black text-cyan-400">{totalDeptRuns} Runs</div>
+                      <p className="text-[10px] text-slate-500">Piston & Judge0 execution checks</p>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                      <span className="text-[10px] font-bold uppercase text-slate-400">Avg Dept Success Rate</span>
+                      <div className="text-2xl font-black text-emerald-400">{deptAvgRate}%</div>
+                      <p className="text-[10px] text-slate-500">{totalDeptSuccesses} successful builds</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 rounded-2xl bg-slate-950 border border-slate-800">
+                    <div className="relative w-full sm:w-72">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        placeholder="Search student name or reg no..."
+                        value={javaSearchTerm}
+                        onChange={(e) => setJavaSearchTerm(e.target.value)}
+                        className="w-full pl-9 pr-3 py-1.5 bg-slate-900 text-xs text-white rounded-xl border border-slate-800 focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+
+                    <div className="flex items-center space-x-2 w-full sm:w-auto">
+                      <button
+                        onClick={() => setJavaStrugglingFilter(false)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                          !javaStrugglingFilter ? 'bg-amber-500 text-slate-950 font-black' : 'bg-slate-900 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        All Students ({registeredList.length})
+                      </button>
+                      <button
+                        onClick={() => setJavaStrugglingFilter(true)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                          javaStrugglingFilter ? 'bg-rose-600 text-white font-black' : 'bg-slate-900 text-rose-400 hover:bg-slate-800'
+                        }`}
+                      >
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        <span>Needs Attention ({strugglingCount})</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl bg-slate-950 border border-slate-800 overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs text-slate-300">
+                        <thead className="bg-slate-900/80 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-800">
+                          <tr>
+                            <th className="p-3">Student Name</th>
+                            <th className="p-3">Reg Number</th>
+                            <th className="p-3">Last Active</th>
+                            <th className="p-3">Topics Viewed</th>
+                            <th className="p-3">Time Spent</th>
+                            <th className="p-3">Code Runs</th>
+                            <th className="p-3">Success Rate</th>
+                            <th className="p-3">Status</th>
+                            <th className="p-3 text-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-900">
+                          {filteredStudents.map(({ user, uid, totalTimeSecs, totalRuns, successfulRuns, successRate, viewedTopicsCount, isStruggling, userAct }) => (
+                            <tr key={uid} className="hover:bg-slate-900/50 transition-colors">
+                              <td className="p-3 font-bold text-white flex items-center space-x-2">
+                                <span>{user.name}</span>
+                              </td>
+                              <td className="p-3 font-mono text-slate-400">{user.registerNumber || 'N/A'}</td>
+                              <td className="p-3 font-semibold text-cyan-300 whitespace-nowrap">
+                                {formatUserLastActive(user.lastActiveAt || user.lastLoginAt || user.createdAt)}
+                              </td>
+                              <td className="p-3 font-semibold text-amber-300">{viewedTopicsCount} / 7</td>
+                              <td className="p-3 text-slate-300">{formatTime(totalTimeSecs)}</td>
+                              <td className="p-3 text-cyan-300 font-bold">{totalRuns}</td>
+                              <td className="p-3">
+                                <div className="flex items-center space-x-2">
+                                  <span className="font-bold text-emerald-400">{successRate}%</span>
+                                  <div className="w-16 h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                                    <div className="h-full bg-emerald-500" style={{ width: `${successRate}%` }} />
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                {isStruggling ? (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-black bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-1 w-max">
+                                    <AlertTriangle className="w-3 h-3 text-rose-400" />
+                                    Needs Attention
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 w-max block">
+                                    🟢 Active
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-3 text-right">
+                                <div className="flex items-center justify-end space-x-1.5 relative">
+                                  <button
+                                    onClick={() => setSelectedStudentJavaDetail({ user, totalTimeSecs, totalRuns, successfulRuns, successRate, userAct })}
+                                    className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold text-[11px] transition-all cursor-pointer"
+                                  >
+                                    View Log
+                                  </button>
+
+                                  <button
+                                    onClick={() => setActiveExportMenuUid(prev => prev === uid ? null : uid)}
+                                    className="p-1 px-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-[11px] font-bold flex items-center space-x-1 transition-colors cursor-pointer"
+                                    title={`Export ${user.name}'s Data`}
+                                  >
+                                    <Download className="w-3 h-3 text-amber-400" />
+                                    <span>Export</span>
+                                  </button>
+
+                                  {activeExportMenuUid === uid && (
+                                    <div className="absolute right-0 top-8 w-48 rounded-xl bg-slate-900 border border-slate-800 shadow-2xl p-2 z-50 animate-in fade-in space-y-1 text-left">
+                                      <button
+                                        onClick={() => {
+                                          setActiveExportMenuUid(null);
+                                          exportToCSV([{
+                                            Name: user.name,
+                                            RegisterNumber: user.registerNumber || '',
+                                            Section: user.classSection || 'IT-A',
+                                            Email: user.email || '',
+                                            Role: user.role || 'student',
+                                            XP_Score: user.funPoints ?? 0,
+                                            Streak_Days: user.streak ?? 1,
+                                            TotalTimeSecs: totalTimeSecs,
+                                            TotalRuns: totalRuns,
+                                            SuccessRate: `${successRate}%`,
+                                            LastActive: user.lastActiveAt || user.lastLoginAt || ''
+                                          }], `${user.name?.replace(/\s+/g, '_')}_Data.csv`);
+                                        }}
+                                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-200 hover:bg-amber-500/20 hover:text-amber-300 transition-colors block cursor-pointer"
+                                      >
+                                        📊 Excel / CSV (.csv)
+                                      </button>
+
+                                      <button
+                                        onClick={() => {
+                                          setActiveExportMenuUid(null);
+                                          const html = generateSingleStudentHTML(user);
+                                          exportToWordDoc(`${user.name} - Student Profile Report`, html, `${user.name?.replace(/\s+/g, '_')}_Report.doc`);
+                                        }}
+                                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-200 hover:bg-cyan-500/20 hover:text-cyan-300 transition-colors block cursor-pointer"
+                                      >
+                                        📝 Word Doc (.doc)
+                                      </button>
+
+                                      <button
+                                        onClick={() => {
+                                          setActiveExportMenuUid(null);
+                                          const html = generateSingleStudentHTML(user);
+                                          exportToPDFReport(`${user.name} - Student Profile Report`, html);
+                                        }}
+                                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-slate-200 hover:bg-purple-500/20 hover:text-purple-300 transition-colors block cursor-pointer"
+                                      >
+                                        📄 Printable PDF Report
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {selectedStudentJavaDetail && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+                      <div className="glass-panel rounded-3xl max-w-3xl w-full p-6 border border-slate-700 shadow-2xl space-y-6 max-h-[85vh] flex flex-col">
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                          <div>
+                            <h3 className="text-base font-black text-white flex items-center gap-2">
+                              <span>☕ Java Activity Log — {selectedStudentJavaDetail.user.name}</span>
+                              <span className="text-xs text-amber-400 font-mono">({selectedStudentJavaDetail.user.registerNumber})</span>
+                            </h3>
+                            <p className="text-xs text-slate-400">Detailed per-topic breakdown and recent code execution history</p>
+                          </div>
+                          <button onClick={() => setSelectedStudentJavaDetail(null)} className="p-1 text-slate-400 hover:text-white">
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto space-y-6 scrollbar-none pr-1">
+                          <div className="grid grid-cols-3 gap-3 p-4 rounded-2xl bg-slate-950 border border-slate-800">
+                            <div>
+                              <span className="text-[10px] text-slate-400 uppercase font-bold block">Total Time</span>
+                              <span className="text-sm font-black text-amber-400">{formatTime(selectedStudentJavaDetail.totalTimeSecs)}</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-slate-400 uppercase font-bold block">Runs / Successes</span>
+                              <span className="text-sm font-black text-cyan-400">{selectedStudentJavaDetail.totalRuns} / {selectedStudentJavaDetail.successfulRuns}</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-slate-400 uppercase font-bold block">Accuracy Rate</span>
+                              <span className="text-sm font-black text-emerald-400">{selectedStudentJavaDetail.successRate}%</span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            <h4 className="text-xs font-black uppercase text-slate-400 tracking-wider">
+                              Recent Execution Attempts (Last 20 Submissions)
+                            </h4>
+
+                            {(() => {
+                              const allAttempts = [];
+                              JAVA_TOPICS_LIST.forEach(topic => {
+                                const tData = selectedStudentJavaDetail.userAct[topic.id];
+                                if (tData && Array.isArray(tData.runAttempts)) {
+                                  tData.runAttempts.forEach(att => {
+                                    allAttempts.push({ ...att, topicTitle: topic.title });
+                                  });
+                                }
+                              });
+
+                              allAttempts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+                              if (allAttempts.length === 0) {
+                                return (
+                                  <div className="p-6 text-center text-xs text-slate-500 italic bg-slate-950 rounded-2xl border border-slate-800">
+                                    No code run attempts logged yet for this student.
+                                  </div>
+                                );
+                              }
+
+                              return (
+                                <div className="space-y-3">
+                                  {allAttempts.slice(0, 20).map((att, i) => (
+                                    <div key={i} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                                      <div className="flex items-center justify-between text-xs">
+                                        <span className="font-bold text-amber-300">{att.topicTitle}</span>
+                                        <div className="flex items-center space-x-2">
+                                          <span className="text-[10px] text-slate-500">{new Date(att.timestamp).toLocaleString()}</span>
+                                          {att.result === 'success' ? (
+                                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                              ✓ Success
+                                            </span>
+                                          ) : (
+                                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                                              ❌ Error
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      <div className="p-3 rounded-xl bg-slate-900 font-mono text-[11px] text-emerald-300 overflow-x-auto max-h-32">
+                                        <pre>{att.codeSnapshot}</pre>
+                                      </div>
+
+                                      {att.errorMessage && (
+                                        <div className="p-2.5 rounded-xl bg-rose-950/30 border border-rose-500/30 font-mono text-[11px] text-rose-300">
+                                          <pre className="whitespace-pre-wrap">{att.errorMessage}</pre>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              );
+            })()}
+
+            {/* ================================================================= */}
+            {/* TAB: 🛠 PAGE CONTROL CENTER */}
+            {/* ================================================================= */}
+            {activeTab === 'page_controls' && (() => {
+              const allControls = pageControls || {};
+              const pageList = Object.values(allControls);
+
+              const filteredPages = pageList.filter(item => {
+                const searchLower = pageControlSearch.toLowerCase();
+                const matchesSearch = (item.name || item.id || '').toLowerCase().includes(searchLower) ||
+                                      (item.title || '').toLowerCase().includes(searchLower);
+                
+                if (pageControlFilter === 'live') return matchesSearch && (item.status === 'live' || !item.status);
+                if (pageControlFilter === 'locked') return matchesSearch && (['maintenance', 'coming_soon', 'closed'].includes(item.status));
+                if (pageControlFilter === 'hidden') return matchesSearch && (item.status === 'hidden' || item.visible === false);
+                return matchesSearch;
+              });
+
+              const totalCount = pageList.length;
+              const liveCount = pageList.filter(p => p.status === 'live' || !p.status).length;
+              const lockedCount = pageList.filter(p => ['maintenance', 'coming_soon', 'closed'].includes(p.status)).length;
+              const hiddenCount = pageList.filter(p => p.status === 'hidden' || p.visible === false).length;
+
+              return (
+                <div className="space-y-6 animate-in fade-in">
+                  
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                    <div>
+                      <h3 className="text-base font-extrabold text-white flex items-center space-x-2">
+                        <Sliders className="w-5 h-5 text-amber-400" />
+                        <span>🛠 Page Control Center & Website Module Management</span>
+                      </h3>
+                      <p className="text-xs text-slate-400">Control live availability, maintenance mode, custom banners, role permissions, and scheduled lock windows</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                      <span className="text-[10px] font-bold uppercase text-slate-400">Total Controlled Modules</span>
+                      <div className="text-2xl font-black text-white">{totalCount} Modules</div>
+                      <p className="text-[10px] text-slate-500">Every website route & feature</p>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                      <span className="text-[10px] font-bold uppercase text-slate-400">🟢 Live Modules</span>
+                      <div className="text-2xl font-black text-emerald-400">{liveCount} Live</div>
+                      <p className="text-[10px] text-slate-500">Fully accessible to students</p>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                      <span className="text-[10px] font-bold uppercase text-slate-400">🟡 Locked / Maintenance</span>
+                      <div className="text-2xl font-black text-amber-400">{lockedCount} Locked</div>
+                      <p className="text-[10px] text-slate-500">Maintenance or Coming Soon</p>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                      <span className="text-[10px] font-bold uppercase text-slate-400">⚫ Hidden / Restricted</span>
+                      <div className="text-2xl font-black text-purple-400">{hiddenCount} Hidden</div>
+                      <p className="text-[10px] text-slate-500">Filtered from navbar & search</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 rounded-2xl bg-slate-950 border border-slate-800">
+                    <div className="relative w-full sm:w-72">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        placeholder="Search page/module name..."
+                        value={pageControlSearch}
+                        onChange={(e) => setPageControlSearch(e.target.value)}
+                        className="w-full pl-9 pr-3 py-1.5 bg-slate-900 text-xs text-white rounded-xl border border-slate-800 focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+
+                    <div className="flex items-center space-x-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+                      <button
+                        onClick={() => setPageControlFilter('all')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                          pageControlFilter === 'all' ? 'bg-amber-500 text-slate-950 font-black' : 'bg-slate-900 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        All Modules ({totalCount})
+                      </button>
+                      <button
+                        onClick={() => setPageControlFilter('live')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                          pageControlFilter === 'live' ? 'bg-emerald-600 text-white font-black' : 'bg-slate-900 text-emerald-400 hover:bg-slate-800'
+                        }`}
+                      >
+                        🟢 Live ({liveCount})
+                      </button>
+                      <button
+                        onClick={() => setPageControlFilter('locked')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                          pageControlFilter === 'locked' ? 'bg-amber-600 text-white font-black' : 'bg-slate-900 text-amber-400 hover:bg-slate-800'
+                        }`}
+                      >
+                        🟡 Maintenance / Locked ({lockedCount})
+                      </button>
+                      <button
+                        onClick={() => setPageControlFilter('hidden')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                          pageControlFilter === 'hidden' ? 'bg-purple-600 text-white font-black' : 'bg-slate-900 text-purple-400 hover:bg-slate-800'
+                        }`}
+                      >
+                        ⚫ Hidden ({hiddenCount})
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {filteredPages.map(page => {
+                      const isLive = page.status === 'live' || !page.status;
+                      const isMaintenance = page.status === 'maintenance';
+                      const isComingSoon = page.status === 'coming_soon';
+                      const isClosed = page.status === 'closed';
+
+                      return (
+                        <div key={page.id} className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-4 flex flex-col justify-between hover:border-slate-700 transition-all">
+                          
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                <span className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-amber-400">
+                                  <Sliders className="w-4 h-4" />
+                                </span>
+                                <div>
+                                  <h4 className="text-sm font-black text-white">{page.name || page.id}</h4>
+                                  <span className="text-[10px] font-mono text-slate-500">Route ID: {page.id}</span>
+                                </div>
+                              </div>
+
+                              <select
+                                value={page.status || 'live'}
+                                onChange={(e) => updatePageControl(page.id, { status: e.target.value })}
+                                className={`text-xs font-black px-2.5 py-1 rounded-xl border focus:outline-none cursor-pointer ${
+                                  isLive ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' :
+                                  isMaintenance ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' :
+                                  isComingSoon ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' :
+                                  isClosed ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' :
+                                  'bg-purple-500/20 text-purple-300 border-purple-500/40'
+                                }`}
+                              >
+                                <option value="live">🟢 Live</option>
+                                <option value="maintenance">🟡 Under Maintenance</option>
+                                <option value="coming_soon">🔵 Coming Soon</option>
+                                <option value="closed">🔴 Temporarily Closed</option>
+                                <option value="hidden">⚫ Hidden</option>
+                                <option value="admin_only">🔒 Admin Only</option>
+                                <option value="student_restricted">👨‍🎓 Student Restricted</option>
+                              </select>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-[11px] p-3 rounded-xl bg-slate-900/60 border border-slate-800/80">
+                              <div>
+                                <span className="text-slate-500 block">Display Mode:</span>
+                                <span className="font-bold text-amber-300 capitalize">{page.displayMode || 'Full Lock'}</span>
+                              </div>
+                              <div>
+                                <span className="text-slate-500 block">Audience Target:</span>
+                                <span className="font-bold text-cyan-300 capitalize">{page.roleTarget || 'Everyone'}</span>
+                              </div>
+                            </div>
+
+                            {page.title && (
+                              <div className="p-2.5 rounded-xl bg-slate-900 text-xs space-y-1">
+                                <span className="text-[10px] font-bold text-amber-400 block uppercase">Custom Title: {page.title}</span>
+                                <p className="text-slate-300 text-[11px] line-clamp-2">{page.message}</p>
+                              </div>
+                            )}
+
+                            {page.scheduledStartTime && page.scheduledEndTime && (
+                              <div className="p-2 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-[10px] text-indigo-300 flex items-center justify-between">
+                                <span className="font-bold">Scheduled Lock Window</span>
+                                <span>{new Date(page.scheduledStartTime).toLocaleDateString()} - {new Date(page.scheduledEndTime).toLocaleDateString()}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between pt-3 border-t border-slate-800/80 gap-2">
+                            <button
+                              onClick={() => emergencyLockPage(page.id)}
+                              className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition-all flex items-center space-x-1"
+                              title="Instantly lock this page"
+                            >
+                              <ShieldAlert className="w-3.5 h-3.5" />
+                              <span>🚨 Emergency Lock</span>
+                            </button>
+
+                            <div className="flex items-center space-x-1.5">
+                              <button
+                                onClick={() => setPreviewPageControl(page)}
+                                className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-all flex items-center space-x-1"
+                              >
+                                <span>👁️ Preview</span>
+                              </button>
+
+                              <button
+                                onClick={() => setEditingPageControl(page)}
+                                className="px-3 py-1.5 rounded-xl text-[11px] font-black bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md transition-all flex items-center space-x-1"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                                <span>Configure</span>
+                              </button>
+                            </div>
+                          </div>
+
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {editingPageControl && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+                      <div className="glass-panel rounded-3xl max-w-xl w-full p-6 border border-slate-700 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto scrollbar-none">
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                          <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+                            <Sliders className="w-5 h-5 text-amber-400" />
+                            <span>Configure Page Settings: {editingPageControl.name || editingPageControl.id}</span>
+                          </h3>
+                          <button onClick={() => setEditingPageControl(null)} className="p-1 text-slate-400 hover:text-white">
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        <form 
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            updatePageControl(editingPageControl.id, editingPageControl);
+                            setEditingPageControl(null);
+                          }}
+                          className="space-y-4 text-xs"
+                        >
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-slate-300 font-bold mb-1">Live Status Option</label>
+                              <select
+                                value={editingPageControl.status || 'live'}
+                                onChange={(e) => setEditingPageControl({ ...editingPageControl, status: e.target.value })}
+                                className="w-full p-2.5 bg-slate-900 text-white rounded-xl border border-slate-800 font-bold"
+                              >
+                                <option value="live">🟢 Live</option>
+                                <option value="maintenance">🟡 Under Maintenance</option>
+                                <option value="coming_soon">🔵 Coming Soon</option>
+                                <option value="closed">🔴 Temporarily Closed</option>
+                                <option value="hidden">⚫ Hidden</option>
+                                <option value="admin_only">🔒 Admin Only</option>
+                                <option value="student_restricted">👨‍🎓 Student Restricted</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-slate-300 font-bold mb-1">Display Mode</label>
+                              <select
+                                value={editingPageControl.displayMode || 'full_lock'}
+                                onChange={(e) => setEditingPageControl({ ...editingPageControl, displayMode: e.target.value })}
+                                className="w-full p-2.5 bg-slate-900 text-white rounded-xl border border-slate-800"
+                              >
+                                <option value="full_lock">1. Full Page Lock (Block access)</option>
+                                <option value="read_only">2. Read Only (View allowed, interaction blocked)</option>
+                                <option value="banner_mode">3. Banner Mode (Show warning banner)</option>
+                                <option value="feature_restricted">4. Feature Restricted (Disable specific tools)</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-slate-300 font-bold mb-1">Audience / Role Target Control</label>
+                            <select
+                              value={editingPageControl.roleTarget || 'everyone'}
+                              onChange={(e) => setEditingPageControl({ ...editingPageControl, roleTarget: e.target.value })}
+                              className="w-full p-2.5 bg-slate-900 text-white rounded-xl border border-slate-800"
+                            >
+                              <option value="everyone">Everyone (All students & faculty)</option>
+                              <option value="students_only">Students Only</option>
+                              <option value="admins_only">Admins & Faculty Only</option>
+                              <option value="year_3">Only 3rd Year Students</option>
+                              <option value="year_4">Only 4th Year Students</option>
+                              <option value="sec_ita">Only IT-A Section</option>
+                              <option value="placement_eligible">Placement Eligible Students Only (CGPA &gt;= 6.0)</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-slate-300 font-bold mb-1">Custom Title</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. 🚧 BrainZone System Upgrade"
+                              value={editingPageControl.title || ''}
+                              onChange={(e) => setEditingPageControl({ ...editingPageControl, title: e.target.value })}
+                              className="w-full p-2.5 bg-slate-900 text-white rounded-xl border border-slate-800"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-slate-300 font-bold mb-1">Custom Message</label>
+                            <textarea
+                              rows="3"
+                              placeholder="e.g. We are adding new challenges and rewards. Please check back later."
+                              value={editingPageControl.message || ''}
+                              onChange={(e) => setEditingPageControl({ ...editingPageControl, message: e.target.value })}
+                              className="w-full p-2.5 bg-slate-900 text-white rounded-xl border border-slate-800"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-slate-300 font-bold mb-1">Optional Image / Icon URL</label>
+                            <input
+                              type="text"
+                              placeholder="https://..."
+                              value={editingPageControl.imageUrl || ''}
+                              onChange={(e) => setEditingPageControl({ ...editingPageControl, imageUrl: e.target.value })}
+                              className="w-full p-2.5 bg-slate-900 text-white rounded-xl border border-slate-800 font-mono"
+                            />
+                          </div>
+
+                          <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
+                            <span className="font-bold text-amber-400 block">🗓️ Automated Scheduled Maintenance Window</span>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[10px] text-slate-400 mb-1">Start Date & Time</label>
+                                <input
+                                  type="datetime-local"
+                                  value={editingPageControl.scheduledStartTime || ''}
+                                  onChange={(e) => setEditingPageControl({ ...editingPageControl, scheduledStartTime: e.target.value })}
+                                  className="w-full p-2 bg-slate-950 text-white rounded-xl border border-slate-800"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] text-slate-400 mb-1">End Date & Time</label>
+                                <input
+                                  type="datetime-local"
+                                  value={editingPageControl.scheduledEndTime || ''}
+                                  onChange={(e) => setEditingPageControl({ ...editingPageControl, scheduledEndTime: e.target.value })}
+                                  className="w-full p-2 bg-slate-950 text-white rounded-xl border border-slate-800"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
+                            <span className="font-bold text-cyan-400 block">⚡ Disable Specific Features on This Page</span>
+                            <div className="grid grid-cols-2 gap-2 text-[11px]">
+                              {[
+                                { key: 'uploads', label: 'Disable File Uploads' },
+                                { key: 'downloads', label: 'Disable File Downloads' },
+                                { key: 'quiz_attempts', label: 'Disable Quiz Attempts' },
+                                { key: 'xp_rewards', label: 'Disable XP Rewards' },
+                                { key: 'ai_chat', label: 'Disable AI Assistant' },
+                                { key: 'event_registration', label: 'Disable Event Registrations' }
+                              ].map(feat => {
+                                const currentFeatures = editingPageControl.disabledFeatures || [];
+                                const isChecked = currentFeatures.includes(feat.key);
+                                return (
+                                  <label key={feat.key} className="flex items-center space-x-2 cursor-pointer p-1.5 rounded-lg hover:bg-slate-800/60">
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      onChange={(e) => {
+                                        const updated = e.target.checked
+                                          ? [...currentFeatures, feat.key]
+                                          : currentFeatures.filter(k => k !== feat.key);
+                                        setEditingPageControl({ ...editingPageControl, disabledFeatures: updated });
+                                      }}
+                                      className="rounded bg-slate-950 border-slate-700 text-amber-500 focus:ring-0"
+                                    />
+                                    <span className="text-slate-300 font-semibold">{feat.label}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          <div className="flex justify-end space-x-2 pt-2">
+                            <button
+                              type="button"
+                              onClick={() => setEditingPageControl(null)}
+                              className="px-4 py-2 rounded-xl font-bold bg-slate-900 text-slate-300 hover:bg-slate-800"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="submit"
+                              className="px-5 py-2 rounded-xl font-black bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-lg"
+                            >
+                              Save Page Control Settings
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  )}
+
+                  {previewPageControl && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+                      <div className="glass-panel rounded-3xl max-w-2xl w-full p-6 border border-slate-700 shadow-2xl space-y-4">
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                          <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+                            <span>👁️ Live Preview: {previewPageControl.name || previewPageControl.id}</span>
+                          </h3>
+                          <button onClick={() => setPreviewPageControl(null)} className="p-1 text-slate-400 hover:text-white">
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        <PageStatusScreen pageControl={previewPageControl} previewMode={true} />
+
+                        <div className="flex justify-end pt-2">
+                          <button
+                            onClick={() => setPreviewPageControl(null)}
+                            className="px-5 py-2 rounded-xl font-bold bg-slate-800 text-white hover:bg-slate-700 text-xs"
+                          >
+                            Close Preview
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              );
+            })()}
+
+            {/* ================================================================= */}
             {/* ================================================================= */}
             {/* TAB 7: 🧠 BRAINZONE MANAGEMENT (Quiz, Missions, Badges, Polls, Facts, XP Settings) */}
             {/* ================================================================= */}
@@ -1623,111 +2687,233 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
                   </div>
                 </div>
 
-                {/* Section B: 60-Second Quiz Questions Pool with 3 Level Sub-Groups */}
+                {/* Section B: Multi-Game Questions & Challenges Pool with 3 Level Sub-Groups */}
                 <div className="space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
                     <div>
                       <h3 className="text-base font-extrabold text-white flex items-center space-x-2">
-                        <Zap className="w-5 h-5 text-cyan-400" />
-                        <span>Daily Quiz Questions Pool</span>
+                        <Gamepad2 className="w-5 h-5 text-cyan-400" />
+                        <span>Daily Challenges Question & Puzzle Pool</span>
                       </h3>
-                      <p className="text-xs text-slate-400">Select a difficulty level sub-group to upload and manage questions</p>
+                      <p className="text-xs text-slate-400">Select game type & difficulty level sub-group to upload and manage content</p>
                     </div>
                     <button
                       onClick={() => {
                         const preDiff = challengeDiffSubTab === 'all' ? 'beginner' : challengeDiffSubTab;
-                        setQuizForm({ id: '', q: '', option0: '', option1: '', option2: '', option3: '', answer: 0, category: 'Web Dev', difficulty: preDiff });
-                        setQuizModalOpen(true);
+                        if (challengeGameType === 'bug') {
+                          setBugForm({ id: '', title: '', language: 'javascript', code: '', option0: '', option1: '', option2: '', option3: '', answer: 0, explanation: '', difficulty: preDiff });
+                          setBugModalOpen(true);
+                        } else if (challengeGameType === 'guess') {
+                          setGuessForm({ id: '', title: '', language: 'javascript', code: '', option0: '', option1: '', option2: '', option3: '', answer: 0, explanation: '', difficulty: preDiff });
+                          setGuessModalOpen(true);
+                        } else if (challengeGameType === 'ecg') {
+                          setEcgForm({ id: '', code: '404', name: 'HTTP 404 Not Found', desc: 'Requested URL or resource does not exist on server', option0: 'Not Found', option1: 'Unauthorized', option2: 'Forbidden', option3: 'Server Error', answer: 0, difficulty: preDiff });
+                          setEcgModalOpen(true);
+                        } else if (challengeGameType === 'tango') {
+                          setTangoForm({ id: '', grid: '4x4', desc: 'Equal count of ☀️ and 🌙 symbols per row and column!', size: 4, difficulty: preDiff });
+                          setTangoModalOpen(true);
+                        } else if (challengeGameType === 'type') {
+                          setTypeForm({ id: '', snippet: '', lang: 'JavaScript', targetWpm: 30, difficulty: preDiff });
+                          setTypeModalOpen(true);
+                        } else {
+                          setQuizForm({ id: '', q: '', option0: '', option1: '', option2: '', option3: '', answer: 0, category: 'Web Dev', difficulty: preDiff });
+                          setQuizModalOpen(true);
+                        }
                       }}
                       className="px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-gradient-to-r from-cyan-600 via-teal-600 to-emerald-600 hover:opacity-90 text-white shadow-lg shadow-cyan-600/30 flex items-center space-x-1.5 self-start sm:self-auto"
                     >
                       <Plus className="w-4 h-4" />
-                      <span>Upload {challengeDiffSubTab === 'all' ? '' : challengeDiffSubTab.toUpperCase()} Question</span>
-                    </button>
-                  </div>
-
-                  {/* 3 LEVEL SUB-GROUP TABS */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-900 p-1.5 rounded-2xl border border-slate-800">
-                    <button
-                      onClick={() => setChallengeDiffSubTab('all')}
-                      className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center space-x-1.5 ${
-                        challengeDiffSubTab === 'all' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      <span>🌐 All Levels</span>
-                      <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-950/60 font-mono">{(quizQuestions || []).length}</span>
-                    </button>
-
-                    <button
-                      onClick={() => setChallengeDiffSubTab('beginner')}
-                      className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center space-x-1.5 ${
-                        challengeDiffSubTab === 'beginner' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      <span>🟢 Beginner (Easy)</span>
-                      <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-950/60 font-mono">
-                        {(quizQuestions || []).filter(q => q.difficulty === 'beginner').length}
-                      </span>
-                    </button>
-
-                    <button
-                      onClick={() => setChallengeDiffSubTab('intermediate')}
-                      className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center space-x-1.5 ${
-                        challengeDiffSubTab === 'intermediate' ? 'bg-amber-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      <span>🟡 Intermediate</span>
-                      <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-950/60 font-mono">
-                        {(quizQuestions || []).filter(q => !q.difficulty || q.difficulty === 'intermediate').length}
-                      </span>
-                    </button>
-
-                    <button
-                      onClick={() => setChallengeDiffSubTab('advanced')}
-                      className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center space-x-1.5 ${
-                        challengeDiffSubTab === 'advanced' ? 'bg-rose-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      <span>🔴 Advanced (Hard)</span>
-                      <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-950/60 font-mono">
-                        {(quizQuestions || []).filter(q => q.difficulty === 'advanced').length}
+                      <span>
+                        + Upload {challengeGameType === 'quiz' ? 'Quiz Question' : challengeGameType === 'bug' ? 'Bug Hunter' : challengeGameType === 'guess' ? 'Guess Output' : challengeGameType === 'ecg' ? 'ECG Code' : challengeGameType === 'tango' ? 'Tango Puzzle' : 'Speed Type'}
                       </span>
                     </button>
                   </div>
 
-                  {/* Filtered Question Cards */}
+                  {/* 1. GAME TYPE SELECTOR TABS */}
+                  <div className="flex items-center space-x-2 overflow-x-auto pb-1">
+                    {[
+                      { id: 'quiz', label: '🧠 Daily Quiz', count: (quizQuestions || []).length },
+                      { id: 'bug', label: '🐞 Find the Bug (Bug Hunter)', count: (findBugChallenges || []).length },
+                      { id: 'guess', label: '💻 Guess Output', count: (guessOutputChallenges || []).length },
+                      { id: 'ecg', label: '⚡ Error Codes (ECG)', count: (ecgChallenges || []).length },
+                      { id: 'tango', label: '🧩 Tango Grid', count: (tangoPuzzles || []).length },
+                      { id: 'type', label: '⌨️ Speed Type', count: (speedTypePrompts || []).length }
+                    ].map(gt => (
+                      <button
+                        key={gt.id}
+                        onClick={() => setChallengeGameType(gt.id)}
+                        className={`px-3.5 py-2 rounded-2xl text-xs font-extrabold transition-all whitespace-nowrap flex items-center space-x-1.5 ${
+                          challengeGameType === gt.id
+                            ? 'bg-cyan-600 text-white shadow-md'
+                            : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+                        }`}
+                      >
+                        <span>{gt.label}</span>
+                        <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-900 font-mono">{gt.count}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* 2. 3 LEVEL SUB-GROUP FILTER TABS FOR ACTIVE GAME */}
+                  {(() => {
+                    const activeList = challengeGameType === 'bug' ? findBugChallenges 
+                      : challengeGameType === 'guess' ? guessOutputChallenges 
+                      : challengeGameType === 'ecg' ? ecgChallenges 
+                      : challengeGameType === 'tango' ? tangoPuzzles 
+                      : challengeGameType === 'type' ? speedTypePrompts 
+                      : quizQuestions;
+                    const list = activeList || [];
+
+                    return (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-900 p-1.5 rounded-2xl border border-slate-800">
+                        <button
+                          onClick={() => setChallengeDiffSubTab('all')}
+                          className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center space-x-1.5 ${
+                            challengeDiffSubTab === 'all' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <span>🌐 All Levels</span>
+                          <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-950/60 font-mono">{list.length}</span>
+                        </button>
+
+                        <button
+                          onClick={() => setChallengeDiffSubTab('beginner')}
+                          className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center space-x-1.5 ${
+                            challengeDiffSubTab === 'beginner' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <span>🟢 Beginner (Easy)</span>
+                          <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-950/60 font-mono">
+                            {list.filter(q => q.difficulty === 'beginner').length}
+                          </span>
+                        </button>
+
+                        <button
+                          onClick={() => setChallengeDiffSubTab('intermediate')}
+                          className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center space-x-1.5 ${
+                            challengeDiffSubTab === 'intermediate' ? 'bg-amber-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <span>🟡 Intermediate</span>
+                          <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-950/60 font-mono">
+                            {list.filter(q => !q.difficulty || q.difficulty === 'intermediate').length}
+                          </span>
+                        </button>
+
+                        <button
+                          onClick={() => setChallengeDiffSubTab('advanced')}
+                          className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center space-x-1.5 ${
+                            challengeDiffSubTab === 'advanced' ? 'bg-rose-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <span>🔴 Advanced (Hard)</span>
+                          <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-950/60 font-mono">
+                            {list.filter(q => q.difficulty === 'advanced').length}
+                          </span>
+                        </button>
+                      </div>
+                    );
+                  })()}
+
+                  {/* 3. FILTERED QUESTION / CHALLENGE CARDS LIST */}
                   <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-                    {(quizQuestions || [])
-                      .filter(q => {
+                    {(() => {
+                      const rawList = challengeGameType === 'bug' ? findBugChallenges 
+                        : challengeGameType === 'guess' ? guessOutputChallenges 
+                        : challengeGameType === 'ecg' ? ecgChallenges 
+                        : challengeGameType === 'tango' ? tangoPuzzles 
+                        : challengeGameType === 'type' ? speedTypePrompts 
+                        : quizQuestions;
+                      const list = (rawList || []).filter(q => {
                         if (challengeDiffSubTab === 'beginner') return q.difficulty === 'beginner';
                         if (challengeDiffSubTab === 'intermediate') return !q.difficulty || q.difficulty === 'intermediate';
                         if (challengeDiffSubTab === 'advanced') return q.difficulty === 'advanced';
                         return true;
-                      })
-                      .map(q => (
+                      });
+
+                      if (list.length === 0) {
+                        return (
+                          <div className="p-8 text-center text-slate-400 bg-slate-950/60 rounded-2xl border border-slate-800 space-y-2">
+                            <p className="text-xs font-semibold">No questions uploaded yet for this game type & level sub-group.</p>
+                            <button
+                              onClick={() => {
+                                const preDiff = challengeDiffSubTab === 'all' ? 'beginner' : challengeDiffSubTab;
+                                if (challengeGameType === 'bug') { setBugForm({ id: '', title: '', language: 'javascript', code: '', option0: '', option1: '', option2: '', option3: '', answer: 0, explanation: '', difficulty: preDiff }); setBugModalOpen(true); }
+                                else if (challengeGameType === 'guess') { setGuessForm({ id: '', title: '', language: 'javascript', code: '', option0: '', option1: '', option2: '', option3: '', answer: 0, explanation: '', difficulty: preDiff }); setGuessModalOpen(true); }
+                                else if (challengeGameType === 'ecg') { setEcgForm({ id: '', code: '404', name: 'HTTP 404 Not Found', desc: 'Requested URL or resource does not exist on server', option0: 'Not Found', option1: 'Unauthorized', option2: 'Forbidden', option3: 'Server Error', answer: 0, difficulty: preDiff }); setEcgModalOpen(true); }
+                                else if (challengeGameType === 'tango') { setTangoForm({ id: '', grid: '4x4', desc: 'Equal count of Sun and Moon symbols per row and column!', size: 4, difficulty: preDiff }); setTangoModalOpen(true); }
+                                else if (challengeGameType === 'type') { setTypeForm({ id: '', snippet: '', lang: 'JavaScript', targetWpm: 30, difficulty: preDiff }); setTypeModalOpen(true); }
+                                else { setQuizForm({ id: '', q: '', option0: '', option1: '', option2: '', option3: '', answer: 0, category: 'Web Dev', difficulty: preDiff }); setQuizModalOpen(true); }
+                              }}
+                              className="px-3 py-1.5 rounded-xl bg-cyan-600 text-white text-xs font-bold"
+                            >
+                              + Add First Question
+                            </button>
+                          </div>
+                        );
+                      }
+
+                      return list.map(q => (
                         <div key={q.id} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
                           <div className="flex justify-between items-center">
                             <div className="flex items-center space-x-2">
-                              <span className="text-xs font-bold text-cyan-300 px-2 py-0.5 rounded bg-cyan-500/20 border border-cyan-500/30">{q.category || 'General CS'}</span>
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${q.difficulty === 'advanced' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : q.difficulty === 'beginner' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'}`}>
+                              <span className="text-xs font-bold text-cyan-300 px-2 py-0.5 rounded bg-cyan-500/20 border border-cyan-500/30">
+                                {q.category || q.language || q.lang || q.grid || 'General'}
+                              </span>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                                q.difficulty === 'advanced' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : q.difficulty === 'beginner' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                              }`}>
                                 {q.difficulty ? q.difficulty.toUpperCase() : 'INTERMEDIATE'}
                               </span>
-                              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                                📅 {q.weekBatch || '2026-W31'}
-                              </span>
+                              {q.weekBatch && (
+                                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                  📅 {q.weekBatch}
+                                </span>
+                              )}
                             </div>
-                            <button onClick={() => removeQuizQuestion(q.id)} className="p-1 text-rose-400 hover:bg-rose-500/10 rounded" title="Delete Question"><Trash2 className="w-4 h-4" /></button>
+
+                            <button
+                              onClick={() => {
+                                if (challengeGameType === 'bug') removeFindBugChallenge(q.id);
+                                else if (challengeGameType === 'guess') removeGuessOutputChallenge(q.id);
+                                else if (challengeGameType === 'ecg') removeEcgChallenge(q.id);
+                                else if (challengeGameType === 'tango') removeTangoPuzzle(q.id);
+                                else if (challengeGameType === 'type') removeSpeedTypePrompt(q.id);
+                                else removeQuizQuestion(q.id);
+                              }}
+                              className="p-1 text-rose-400 hover:bg-rose-500/10 rounded"
+                              title="Delete Item"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
-                          <p className="text-sm font-bold text-white">{q.q}</p>
-                          <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
-                            {q.options?.map((opt, i) => (
-                              <div key={i} className={`p-2 rounded-xl border ${i === q.answer ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300 font-bold' : 'border-slate-800 bg-slate-900'}`}>
-                                {opt} {i === q.answer ? '✓' : ''}
-                              </div>
-                            ))}
-                          </div>
+
+                          <p className="text-sm font-bold text-white">
+                            {q.title || q.q || q.name || (q.code ? `HTTP ${q.code}` : `Grid ${q.grid}`)}
+                          </p>
+
+                          {(q.code || q.snippet) && (
+                            <div className="p-2.5 rounded-xl bg-slate-900 font-mono text-xs text-amber-300 overflow-x-auto">
+                              <pre>{q.code || q.snippet}</pre>
+                            </div>
+                          )}
+
+                          {q.options && (
+                            <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
+                              {q.options.map((opt, i) => (
+                                <div key={i} className={`p-2 rounded-xl border ${i === q.answer ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300 font-bold' : 'border-slate-800 bg-slate-900'}`}>
+                                  {opt} {i === q.answer ? '✓' : ''}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {q.explanation && (
+                            <p className="text-[11px] text-slate-400 italic">💡 {q.explanation}</p>
+                          )}
                         </div>
-                      ))}
+                      ));
+                    })()}
                   </div>
                 </div>
               </div>
@@ -2519,6 +3705,397 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
 
               <button type="submit" className="w-full py-2.5 rounded-xl text-xs font-bold bg-cyan-600 text-white shadow-md">
                 Save Question
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* FIND THE BUG (BUG HUNTER) MODAL */}
+      {bugModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+          <div className="glass-panel rounded-3xl max-w-lg w-full p-6 border border-slate-700 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-white flex items-center space-x-2">
+                <span>🐞</span>
+                <span>Upload Find the Bug (Bug Hunter) Challenge</span>
+              </h3>
+              <button onClick={() => setBugModalOpen(false)} className="p-1 text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveBugChallenge} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Challenge Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Infinite Decrement Loop"
+                  value={bugForm.title}
+                  onChange={(e) => setBugForm({ ...bugForm, title: e.target.value })}
+                  className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Programming Language</label>
+                <input
+                  type="text"
+                  placeholder="e.g. javascript, python, react, c++"
+                  value={bugForm.language}
+                  onChange={(e) => setBugForm({ ...bugForm, language: e.target.value })}
+                  className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Buggy Code Snippet</label>
+                <textarea
+                  required
+                  rows="4"
+                  placeholder="Enter buggy code snippet..."
+                  value={bugForm.code}
+                  onChange={(e) => setBugForm({ ...bugForm, code: e.target.value })}
+                  className="w-full p-2.5 bg-slate-950 font-mono text-xs text-rose-300 rounded-xl border border-slate-800"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <input type="text" required placeholder="Option 1 (Identify Bug)" value={bugForm.option0} onChange={(e) => setBugForm({ ...bugForm, option0: e.target.value })} className="p-2 bg-slate-950 text-xs text-white rounded-xl border border-slate-800" />
+                <input type="text" required placeholder="Option 2" value={bugForm.option1} onChange={(e) => setBugForm({ ...bugForm, option1: e.target.value })} className="p-2 bg-slate-950 text-xs text-white rounded-xl border border-slate-800" />
+                <input type="text" placeholder="Option 3" value={bugForm.option2} onChange={(e) => setBugForm({ ...bugForm, option2: e.target.value })} className="p-2 bg-slate-950 text-xs text-white rounded-xl border border-slate-800" />
+                <input type="text" placeholder="Option 4" value={bugForm.option3} onChange={(e) => setBugForm({ ...bugForm, option3: e.target.value })} className="p-2 bg-slate-950 text-xs text-white rounded-xl border border-slate-800" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Correct Answer Option</label>
+                  <select value={bugForm.answer} onChange={(e) => setBugForm({ ...bugForm, answer: Number(e.target.value) })} className="w-full p-2 bg-slate-950 text-xs text-white rounded-xl border border-slate-800">
+                    <option value={0}>Option 1 is Correct</option>
+                    <option value={1}>Option 2 is Correct</option>
+                    <option value={2}>Option 3 is Correct</option>
+                    <option value={3}>Option 4 is Correct</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Difficulty Level</label>
+                  <select value={bugForm.difficulty} onChange={(e) => setBugForm({ ...bugForm, difficulty: e.target.value })} className="w-full p-2 bg-slate-950 text-xs text-white rounded-xl border border-slate-800">
+                    <option value="beginner">🟢 Beginner (Easy)</option>
+                    <option value="intermediate">🟡 Intermediate</option>
+                    <option value="advanced">🔴 Advanced (Hard)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Explanation / Fix Details</label>
+                <input
+                  type="text"
+                  placeholder="Explain why this option is the bug and how to fix it..."
+                  value={bugForm.explanation}
+                  onChange={(e) => setBugForm({ ...bugForm, explanation: e.target.value })}
+                  className="w-full p-2.5 bg-slate-950 text-xs text-slate-200 rounded-xl border border-slate-800"
+                />
+              </div>
+
+              <button type="submit" className="w-full py-2.5 rounded-xl text-xs font-bold bg-rose-600 text-white shadow-md">
+                Save Bug Hunter Challenge
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* GUESS THE OUTPUT MODAL */}
+      {guessModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+          <div className="glass-panel rounded-3xl max-w-lg w-full p-6 border border-slate-700 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-white flex items-center space-x-2">
+                <span>💻</span>
+                <span>Upload Guess the Output Challenge</span>
+              </h3>
+              <button onClick={() => setGuessModalOpen(false)} className="p-1 text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveGuessChallenge} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Challenge Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. JavaScript String Coercion"
+                  value={guessForm.title}
+                  onChange={(e) => setGuessForm({ ...guessForm, title: e.target.value })}
+                  className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Code Snippet</label>
+                <textarea
+                  required
+                  rows="4"
+                  placeholder="console.log(1 + '2' + 3);"
+                  value={guessForm.code}
+                  onChange={(e) => setGuessForm({ ...guessForm, code: e.target.value })}
+                  className="w-full p-2.5 bg-slate-950 font-mono text-xs text-cyan-300 rounded-xl border border-slate-800"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <input type="text" required placeholder="Option 1 (Output Choice)" value={guessForm.option0} onChange={(e) => setGuessForm({ ...guessForm, option0: e.target.value })} className="p-2 bg-slate-950 text-xs text-white rounded-xl border border-slate-800" />
+                <input type="text" required placeholder="Option 2" value={guessForm.option1} onChange={(e) => setGuessForm({ ...guessForm, option1: e.target.value })} className="p-2 bg-slate-950 text-xs text-white rounded-xl border border-slate-800" />
+                <input type="text" placeholder="Option 3" value={guessForm.option2} onChange={(e) => setGuessForm({ ...guessForm, option2: e.target.value })} className="p-2 bg-slate-950 text-xs text-white rounded-xl border border-slate-800" />
+                <input type="text" placeholder="Option 4" value={guessForm.option3} onChange={(e) => setGuessForm({ ...guessForm, option3: e.target.value })} className="p-2 bg-slate-950 text-xs text-white rounded-xl border border-slate-800" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Correct Output Choice</label>
+                  <select value={guessForm.answer} onChange={(e) => setGuessForm({ ...guessForm, answer: Number(e.target.value) })} className="w-full p-2 bg-slate-950 text-xs text-white rounded-xl border border-slate-800">
+                    <option value={0}>Option 1 is Correct</option>
+                    <option value={1}>Option 2 is Correct</option>
+                    <option value={2}>Option 3 is Correct</option>
+                    <option value={3}>Option 4 is Correct</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Difficulty Level</label>
+                  <select value={guessForm.difficulty} onChange={(e) => setGuessForm({ ...guessForm, difficulty: e.target.value })} className="w-full p-2 bg-slate-950 text-xs text-white rounded-xl border border-slate-800">
+                    <option value="beginner">🟢 Beginner (Easy)</option>
+                    <option value="intermediate">🟡 Intermediate</option>
+                    <option value="advanced">🔴 Advanced (Hard)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Explanation</label>
+                <input
+                  type="text"
+                  placeholder="Explain why this output is produced..."
+                  value={guessForm.explanation}
+                  onChange={(e) => setGuessForm({ ...guessForm, explanation: e.target.value })}
+                  className="w-full p-2.5 bg-slate-950 text-xs text-slate-200 rounded-xl border border-slate-800"
+                />
+              </div>
+
+              <button type="submit" className="w-full py-2.5 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-md">
+                Save Guess Output Challenge
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ECG (ERROR CODE GUESSING) MODAL */}
+      {ecgModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+          <div className="glass-panel rounded-3xl max-w-lg w-full p-6 border border-slate-700 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-white flex items-center space-x-2">
+                <span>⚡</span>
+                <span>Upload Error Code Guessing (ECG) Code</span>
+              </h3>
+              <button onClick={() => setEcgModalOpen(false)} className="p-1 text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEcgChallenge} className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Error Code</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 404, 500, 403"
+                    value={ecgForm.code}
+                    onChange={(e) => setEcgForm({ ...ecgForm, code: e.target.value })}
+                    className="w-full p-2.5 bg-slate-950 font-mono font-bold text-xs text-emerald-300 rounded-xl border border-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Name / Title</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. HTTP 404 Not Found"
+                    value={ecgForm.name}
+                    onChange={(e) => setEcgForm({ ...ecgForm, name: e.target.value })}
+                    className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Description / Context</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Requested URL or resource does not exist on server"
+                  value={ecgForm.desc}
+                  onChange={(e) => setEcgForm({ ...ecgForm, desc: e.target.value })}
+                  className="w-full p-2.5 bg-slate-950 text-xs text-slate-200 rounded-xl border border-slate-800"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <input type="text" required placeholder="Option 1" value={ecgForm.option0} onChange={(e) => setEcgForm({ ...ecgForm, option0: e.target.value })} className="p-2 bg-slate-950 text-xs text-white rounded-xl border border-slate-800" />
+                <input type="text" required placeholder="Option 2" value={ecgForm.option1} onChange={(e) => setEcgForm({ ...ecgForm, option1: e.target.value })} className="p-2 bg-slate-950 text-xs text-white rounded-xl border border-slate-800" />
+                <input type="text" placeholder="Option 3" value={ecgForm.option2} onChange={(e) => setEcgForm({ ...ecgForm, option2: e.target.value })} className="p-2 bg-slate-950 text-xs text-white rounded-xl border border-slate-800" />
+                <input type="text" placeholder="Option 4" value={ecgForm.option3} onChange={(e) => setEcgForm({ ...ecgForm, option3: e.target.value })} className="p-2 bg-slate-950 text-xs text-white rounded-xl border border-slate-800" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Correct Answer</label>
+                  <select value={ecgForm.answer} onChange={(e) => setEcgForm({ ...ecgForm, answer: Number(e.target.value) })} className="w-full p-2 bg-slate-950 text-xs text-white rounded-xl border border-slate-800">
+                    <option value={0}>Option 1 is Correct</option>
+                    <option value={1}>Option 2 is Correct</option>
+                    <option value={2}>Option 3 is Correct</option>
+                    <option value={3}>Option 4 is Correct</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Difficulty Level</label>
+                  <select value={ecgForm.difficulty} onChange={(e) => setEcgForm({ ...ecgForm, difficulty: e.target.value })} className="w-full p-2 bg-slate-950 text-xs text-white rounded-xl border border-slate-800">
+                    <option value="beginner">🟢 Beginner (Easy)</option>
+                    <option value="intermediate">🟡 Intermediate</option>
+                    <option value="advanced">🔴 Advanced (Hard)</option>
+                  </select>
+                </div>
+              </div>
+
+              <button type="submit" className="w-full py-2.5 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-md">
+                Save ECG Code Challenge
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* TANGO LOGIC GRID MODAL */}
+      {tangoModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+          <div className="glass-panel rounded-3xl max-w-md w-full p-6 border border-slate-700 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-white flex items-center space-x-2">
+                <span>🧩</span>
+                <span>Upload Tango Logic Grid Puzzle</span>
+              </h3>
+              <button onClick={() => setTangoModalOpen(false)} className="p-1 text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTangoPuzzle} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Grid Dimension</label>
+                <select value={tangoForm.grid} onChange={(e) => setTangoForm({ ...tangoForm, grid: e.target.value })} className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800">
+                  <option value="4x4">4x4 Grid (Beginner)</option>
+                  <option value="6x6">6x6 Grid (Intermediate)</option>
+                  <option value="8x8">8x8 Grid (Advanced)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Target Difficulty</label>
+                <select value={tangoForm.difficulty} onChange={(e) => setTangoForm({ ...tangoForm, difficulty: e.target.value })} className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800">
+                  <option value="beginner">🟢 Beginner (Easy)</option>
+                  <option value="intermediate">🟡 Intermediate</option>
+                  <option value="advanced">🔴 Advanced (Hard)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Puzzle Description</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Equal count of ☀️ and 🌙 symbols per row and column!"
+                  value={tangoForm.desc}
+                  onChange={(e) => setTangoForm({ ...tangoForm, desc: e.target.value })}
+                  className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                />
+              </div>
+
+              <button type="submit" className="w-full py-2.5 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-md">
+                Save Tango Logic Puzzle
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* SPEED TYPE CHALLENGE MODAL */}
+      {typeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+          <div className="glass-panel rounded-3xl max-w-lg w-full p-6 border border-slate-700 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-white flex items-center space-x-2">
+                <span>⌨️</span>
+                <span>Upload Speed Type Challenge Prompt</span>
+              </h3>
+              <button onClick={() => setTypeModalOpen(false)} className="p-1 text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTypePrompt} className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Language / Framework</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. JavaScript, React, Python"
+                    value={typeForm.lang}
+                    onChange={(e) => setTypeForm({ ...typeForm, lang: e.target.value })}
+                    className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Target WPM</label>
+                  <input
+                    type="number"
+                    required
+                    placeholder="30, 45, 60"
+                    value={typeForm.targetWpm}
+                    onChange={(e) => setTypeForm({ ...typeForm, targetWpm: Number(e.target.value) })}
+                    className="w-full p-2.5 bg-slate-950 text-xs text-amber-300 font-mono font-bold rounded-xl border border-slate-800"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Target Difficulty</label>
+                <select value={typeForm.difficulty} onChange={(e) => setTypeForm({ ...typeForm, difficulty: e.target.value })} className="w-full p-2.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800">
+                  <option value="beginner">🟢 Beginner (Easy)</option>
+                  <option value="intermediate">🟡 Intermediate</option>
+                  <option value="advanced">🔴 Advanced (Hard)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Code Snippet to Type</label>
+                <textarea
+                  required
+                  rows="4"
+                  placeholder="Enter snippet to type..."
+                  value={typeForm.snippet}
+                  onChange={(e) => setTypeForm({ ...typeForm, snippet: e.target.value })}
+                  className="w-full p-2.5 bg-slate-950 font-mono text-xs text-amber-300 rounded-xl border border-slate-800"
+                />
+              </div>
+
+              <button type="submit" className="w-full py-2.5 rounded-xl text-xs font-bold bg-amber-600 text-white shadow-md">
+                Save Typing Prompt
               </button>
             </form>
           </div>

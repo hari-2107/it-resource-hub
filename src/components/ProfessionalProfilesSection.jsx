@@ -15,7 +15,8 @@ import {
   User, 
   X, 
   Sparkles,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Copy
 } from 'lucide-react';
 
 // Preset suggestions for quick selection in modal
@@ -223,6 +224,57 @@ export const ProfessionalProfilesSection = () => {
       targetUrl = `https://${targetUrl}`;
     }
     window.open(targetUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  // Helper: Copy profile link to clipboard (with robust fallback for HTTP/mobile/local network)
+  const handleCopyLink = async (e, url, name) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (!url || !url.trim()) {
+      showToast(`⚠️ No ${name || 'profile'} link available to copy.`);
+      return;
+    }
+
+    let targetUrl = url.trim();
+    if (!/^https?:\/\//i.test(targetUrl)) {
+      targetUrl = `https://${targetUrl}`;
+    }
+
+    let copied = false;
+
+    // Primary modern Clipboard API (works on HTTPS & localhost)
+    if (navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(targetUrl);
+        copied = true;
+      } catch (err) {
+        console.warn("Clipboard API failed, using fallback:", err);
+      }
+    }
+
+    // Fallback execCommand for HTTP / local Wi-Fi IP / unsupported contexts
+    if (!copied) {
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = targetUrl;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-999999px';
+        textarea.style.top = '-999999px';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        copied = document.execCommand('copy');
+        document.body.removeChild(textarea);
+      } catch (err) {
+        console.error("ExecCommand copy failed:", err);
+      }
+    }
+
+    if (copied) {
+      showToast(`✓ ${name || 'Profile'} link copied to clipboard!`);
+    } else {
+      // Prompt fallback if browser restricts auto-copy
+      window.prompt(`Copy ${name || 'Profile'} URL below:`, targetUrl);
+    }
   };
 
   // Helper: Sanitize & Validate URL
@@ -495,14 +547,24 @@ export const ProfessionalProfilesSection = () => {
                 <div className="pt-2 border-t border-slate-800/60">
                   {card.connected ? (
                     <div className="space-y-2">
-                      <button
-                        onClick={() => handleOpenProfile(card.url)}
-                        className="w-full py-2 px-3 rounded-xl text-xs font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-md shadow-brand-600/20 flex items-center justify-center space-x-1.5 transition-all hover:scale-[1.01]"
-                      >
-                        <Globe className="w-3.5 h-3.5" />
-                        <span>🌐 Open Profile</span>
-                        <ExternalLink className="w-3 h-3 ml-auto opacity-75" />
-                      </button>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handleOpenProfile(card.url)}
+                          className="flex-1 py-2 px-3 rounded-xl text-xs font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-md shadow-brand-600/20 flex items-center justify-center space-x-1.5 transition-all hover:scale-[1.01]"
+                        >
+                          <Globe className="w-3.5 h-3.5" />
+                          <span>🌐 Open Profile</span>
+                          <ExternalLink className="w-3 h-3 ml-auto opacity-75" />
+                        </button>
+
+                        <button
+                          onClick={(e) => handleCopyLink(e, card.url, card.name)}
+                          className="p-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 flex items-center justify-center transition-all hover:text-brand-300 hover:border-brand-500/50 cursor-pointer"
+                          title={`Copy ${card.name} link`}
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
 
                       <div className="flex items-center space-x-2">
                         <button
@@ -567,14 +629,24 @@ export const ProfessionalProfilesSection = () => {
                 </div>
 
                 <div className="pt-2 border-t border-slate-800/60 space-y-2">
-                  <button
-                    onClick={() => handleOpenProfile(custom.url)}
-                    className="w-full py-2 px-3 rounded-xl text-xs font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-md shadow-brand-600/20 flex items-center justify-center space-x-1.5 transition-all hover:scale-[1.01]"
-                  >
-                    <Globe className="w-3.5 h-3.5" />
-                    <span>🌐 Open Profile</span>
-                    <ExternalLink className="w-3 h-3 ml-auto opacity-75" />
-                  </button>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => handleOpenProfile(custom.url)}
+                      className="flex-1 py-2 px-3 rounded-xl text-xs font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-md shadow-brand-600/20 flex items-center justify-center space-x-1.5 transition-all hover:scale-[1.01]"
+                    >
+                      <Globe className="w-3.5 h-3.5" />
+                      <span>🌐 Open Profile</span>
+                      <ExternalLink className="w-3 h-3 ml-auto opacity-75" />
+                    </button>
+
+                    <button
+                      onClick={(e) => handleCopyLink(e, custom.url, custom.name)}
+                      className="p-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 flex items-center justify-center transition-all hover:text-brand-300 hover:border-brand-500/50 cursor-pointer"
+                      title={`Copy ${custom.name} link`}
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
 
                   <div className="flex items-center space-x-2">
                     <button

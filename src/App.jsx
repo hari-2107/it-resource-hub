@@ -25,16 +25,20 @@ import { LoginRegister } from './pages/LoginRegister';
 import { PlacementPrepHub } from './pages/PlacementPrepHub';
 import { EventsPage } from './pages/EventsPage';
 import { BrainZonePage } from './pages/BrainZonePage';
+import { JavaLearningPage } from './pages/JavaLearningPage';
 import { GraduationCap, ShieldAlert } from 'lucide-react';
 import { BroadcastOverlay } from './components/BroadcastOverlay';
 import { SignupWelcomeToast } from './components/SignupWelcomeToast';
 import { WelcomeBackToast } from './components/WelcomeBackToast';
+import { PageControlGuard } from './components/PageControlGuard';
 import { useData } from './context/DataContext';
 
 const MainAppContent = () => {
   const { currentUser, loading, completeWelcomeScreen } = useAuth();
   const { activeBroadcast, dismissBroadcast, siteConfig } = useData();
   const [activeTab, setActiveTab] = useState('home');
+  const [brainZoneSubTab, setBrainZoneSubTab] = useState('games');
+  const [placementSubTab, setPlacementSubTab] = useState('companies');
   const [previewMaterial, setPreviewMaterial] = useState(null);
   const [selectedAnnouncementId, setSelectedAnnouncementId] = useState(null);
   const [showWelcomeBackToast, setShowWelcomeBackToast] = useState(false);
@@ -61,6 +65,21 @@ const MainAppContent = () => {
   const handleNavigate = (tab, param = null) => {
     if (tab === 'announcements') {
       setSelectedAnnouncementId(param || null);
+    }
+    if (tab === 'learnjava') {
+      setActiveTab('placement');
+      setPlacementSubTab('learnjava');
+      return;
+    }
+    if (tab === 'placement') {
+      setActiveTab('placement');
+      setPlacementSubTab(param || 'companies');
+      return;
+    }
+    if (tab === 'brainzone') {
+      setActiveTab('brainzone');
+      setBrainZoneSubTab(param || 'games');
+      return;
     }
     setActiveTab(tab);
   };
@@ -185,67 +204,93 @@ const MainAppContent = () => {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         
         {activeTab === 'home' && (
-          <Home 
-            onNavigate={handleNavigate} 
-            onPreviewMaterial={(mat) => setPreviewMaterial(mat)} 
-          />
+          <PageControlGuard pageId="home" onGoHome={() => handleNavigate('home')}>
+            <Home 
+              onNavigate={handleNavigate} 
+              onPreviewMaterial={(mat) => setPreviewMaterial(mat)} 
+            />
+          </PageControlGuard>
         )}
 
         {activeTab === 'materials' && (
-          <MaterialsLibrary 
-            onPreviewMaterial={(mat) => setPreviewMaterial(mat)} 
-            onOpenAdminForm={openAdminForm}
-            onOpenReportModal={openReportModal}
-            onOpenVersionHistory={openVersionHistory}
-            onOpenSuggestionModal={() => setSuggestionModalOpen(true)}
-            onOpenUploadNoteModal={() => setUploadNoteModalOpen(true)}
-          />
+          <PageControlGuard pageId="materials" onGoHome={() => handleNavigate('home')}>
+            <MaterialsLibrary 
+              onPreviewMaterial={(mat) => setPreviewMaterial(mat)} 
+              onOpenAdminForm={openAdminForm}
+              onOpenReportModal={openReportModal}
+              onOpenVersionHistory={openVersionHistory}
+              onOpenSuggestionModal={() => setSuggestionModalOpen(true)}
+              onOpenUploadNoteModal={() => setUploadNoteModalOpen(true)}
+            />
+          </PageControlGuard>
         )}
 
         {activeTab === 'aitools' && (
-          <AIToolsHub 
-            onOpenAdminForm={openAdminForm} 
-          />
+          <PageControlGuard pageId="aitools" onGoHome={() => handleNavigate('home')}>
+            <AIToolsHub 
+              onOpenAdminForm={openAdminForm} 
+            />
+          </PageControlGuard>
         )}
 
         {activeTab === 'placement' && (
-          <PlacementPrepHub 
-            onOpenAdminForm={openAdminForm}
-            onOpenShareExperience={() => setShareExperienceModalOpen(true)}
-          />
+          <PageControlGuard pageId="placement" onGoHome={() => handleNavigate('home')}>
+            <PlacementPrepHub 
+              onOpenAdminForm={openAdminForm}
+              onOpenShareExperience={() => setShareExperienceModalOpen(true)}
+              defaultSubTab={placementSubTab}
+            />
+          </PageControlGuard>
         )}
 
         {activeTab === 'events' && (
-          <EventsPage 
-            onOpenAdminForm={openAdminForm}
-            onOpenEventDetail={(event) => setEventDetailModalState({ isOpen: true, event })}
-          />
+          <PageControlGuard pageId="events" onGoHome={() => handleNavigate('home')}>
+            <EventsPage 
+              onOpenAdminForm={openAdminForm}
+              onOpenEventDetail={(event) => setEventDetailModalState({ isOpen: true, event })}
+            />
+          </PageControlGuard>
         )}
 
         {activeTab === 'brainzone' && (
-          <BrainZonePage 
-            onOpenAdminForm={openAdminForm}
-          />
+          <PageControlGuard pageId="brainzone" onGoHome={() => handleNavigate('home')}>
+            <BrainZonePage 
+              onOpenAdminForm={openAdminForm}
+              defaultSubTab={brainZoneSubTab}
+            />
+          </PageControlGuard>
         )}
 
-
+        {activeTab === 'learnjava' && (
+          <PageControlGuard pageId="learnjava" onGoHome={() => handleNavigate('home')}>
+            <PlacementPrepHub 
+              onOpenAdminForm={openAdminForm}
+              onOpenShareExperience={() => setShareExperienceModalOpen(true)}
+              defaultSubTab="learnjava"
+            />
+          </PageControlGuard>
+        )}
 
         {activeTab === 'announcements' && (
-          <AnnouncementsPage 
-            onOpenAdminForm={openAdminForm}
-            onOpenSpecialAnnouncementModal={() => setSpecialAnnouncementModalOpen(true)}
-            onPreviewMaterial={(mat) => setPreviewMaterial(mat)} 
-            targetAnnouncementId={selectedAnnouncementId}
-          />
+          <PageControlGuard pageId="announcements" onGoHome={() => handleNavigate('home')}>
+            <AnnouncementsPage 
+              onOpenAdminForm={openAdminForm}
+              onOpenSpecialAnnouncementModal={() => setSpecialAnnouncementModalOpen(true)}
+              onPreviewMaterial={(mat) => setPreviewMaterial(mat)} 
+              targetAnnouncementId={selectedAnnouncementId}
+            />
+          </PageControlGuard>
         )}
 
         {activeTab === 'profile' && (
-          <StudentProfile 
-            onPreviewMaterial={(mat) => setPreviewMaterial(mat)} 
-            onOpenAdminForm={openAdminForm}
-            onOpenAdminManagement={openAdminManagement}
-            onOpenUserDirectory={() => setUserDirectoryModalOpen(true)}
-          />
+          <PageControlGuard pageId="profile" onGoHome={() => handleNavigate('home')}>
+            <StudentProfile 
+              onPreviewMaterial={(mat) => setPreviewMaterial(mat)} 
+              onOpenAdminForm={openAdminForm}
+              onOpenAdminManagement={openAdminManagement}
+              onOpenUserDirectory={() => setUserDirectoryModalOpen(true)}
+            />
+          </PageControlGuard>
         )}
 
         {activeTab === 'auth' && (

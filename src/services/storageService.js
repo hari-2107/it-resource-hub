@@ -1,8 +1,8 @@
-import { 
-  INITIAL_MATERIALS, 
-  INITIAL_AI_TOOLS, 
-  INITIAL_ANNOUNCEMENTS, 
-  INITIAL_TIMETABLES, 
+import {
+  INITIAL_MATERIALS,
+  INITIAL_AI_TOOLS,
+  INITIAL_ANNOUNCEMENTS,
+  INITIAL_TIMETABLES,
   INITIAL_SUBJECTS,
   INITIAL_SUGGESTIONS,
   INITIAL_REPORTS,
@@ -13,6 +13,8 @@ import {
   INITIAL_BROADCASTS,
   INITIAL_THIS_OR_THAT,
   INITIAL_IT_FACTS,
+  INITIAL_JAVA_LEVELS,
+  INITIAL_PAGE_CONTROLS,
   DEMO_USERS,
   getYearFromSemester
 } from '../data/mockData';
@@ -47,7 +49,13 @@ const LOCAL_STORAGE_KEYS = {
   FIND_BUG: 'it_hub_find_bug_v1',
   WEEKLY_MISSIONS: 'it_hub_weekly_missions_v1',
   BADGES: 'it_hub_badges_v1',
-  MYSTERY_REWARDS: 'it_hub_mystery_rewards_v1'
+  MYSTERY_REWARDS: 'it_hub_mystery_rewards_v1',
+  ECG_CHALLENGES: 'it_hub_ecg_challenges_v1',
+  TANGO_PUZZLES: 'it_hub_tango_puzzles_v1',
+  SPEED_TYPE_PROMPTS: 'it_hub_speed_type_prompts_v1',
+  JAVA_LEVELS: 'it_hub_java_levels_v1',
+  JAVA_ACTIVITY: 'it_hub_java_activity_v1',
+  PAGE_CONTROLS: 'it_hub_page_controls_v1'
 };
 
 // Helper: safe JSON parse
@@ -96,6 +104,23 @@ export const StorageService = {
     if (!localStorage.getItem(LOCAL_STORAGE_KEYS.REPORTS)) {
       setItemJson(LOCAL_STORAGE_KEYS.REPORTS, INITIAL_REPORTS);
     }
+  },
+
+  // Auth User Management
+  getCurrentUser: () => getItemParsed(LOCAL_STORAGE_KEYS.CURRENT_USER, null),
+  setCurrentUser: (user) => {
+    if (user) {
+      setItemJson(LOCAL_STORAGE_KEYS.CURRENT_USER, user);
+    } else {
+      localStorage.removeItem(LOCAL_STORAGE_KEYS.CURRENT_USER);
+    }
+  },
+  getCustomUsers: () => getItemParsed(LOCAL_STORAGE_KEYS.CUSTOM_USERS, [DEMO_USERS.student, DEMO_USERS.admin]),
+  saveCustomUser: (userObj) => {
+    const list = StorageService.getCustomUsers();
+    const updated = [userObj, ...list.filter(u => (u.uid && u.uid === userObj.uid) || (u.email && u.email === userObj.email) ? false : true)];
+    setItemJson(LOCAL_STORAGE_KEYS.CUSTOM_USERS, updated);
+    return updated;
   },
 
   // Subjects
@@ -354,7 +379,7 @@ export const StorageService = {
     if (!Array.isArray(list) || list.length === 0) {
       list = INITIAL_TIMETABLES;
     }
-    
+
     // Ensure initial internal and semester timetables exist in list
     const hasInt = list.some(t => t.type === 'internal');
     const hasSem = list.some(t => t.type === 'semester');
@@ -393,25 +418,25 @@ export const StorageService = {
     if (timetable.id) {
       existingIndex = list.findIndex(t => t.id === timetable.id);
     } else if (type === 'class') {
-      existingIndex = list.findIndex(t => 
-        (t.type || 'class') === 'class' && 
-        t.year === timetable.year && 
-        Number(t.semester) === Number(timetable.semester) && 
+      existingIndex = list.findIndex(t =>
+        (t.type || 'class') === 'class' &&
+        t.year === timetable.year &&
+        Number(t.semester) === Number(timetable.semester) &&
         (t.classSection || '').toLowerCase() === (timetable.classSection || '').toLowerCase()
       );
     } else if (type === 'internal') {
-      existingIndex = list.findIndex(t => 
-        t.type === 'internal' && 
-        t.year === timetable.year && 
-        Number(t.semester) === Number(timetable.semester) && 
+      existingIndex = list.findIndex(t =>
+        t.type === 'internal' &&
+        t.year === timetable.year &&
+        Number(t.semester) === Number(timetable.semester) &&
         (t.classSection || 'IT-A').toLowerCase() === (timetable.classSection || 'IT-A').toLowerCase() &&
         (t.internalName || t.title || '').toLowerCase().includes((timetable.internalName || 'Internal 1').toLowerCase())
       );
     } else if (type === 'semester') {
-      existingIndex = list.findIndex(t => 
-        t.type === 'semester' && 
-        t.year === timetable.year && 
-        Number(t.semester) === Number(timetable.semester) && 
+      existingIndex = list.findIndex(t =>
+        t.type === 'semester' &&
+        t.year === timetable.year &&
+        Number(t.semester) === Number(timetable.semester) &&
         (t.classSection || 'IT-A').toLowerCase() === (timetable.classSection || 'IT-A').toLowerCase()
       );
     }
@@ -461,8 +486,8 @@ export const StorageService = {
             const tInternalName = (t.internalName || t.title || '').toLowerCase();
             const newInternalName = (timetable.internalName || 'Internal 1').toLowerCase();
             const isSameTest = (tInternalName.includes('1') && newInternalName.includes('1')) ||
-                               (tInternalName.includes('2') && newInternalName.includes('2')) ||
-                               tInternalName === newInternalName;
+              (tInternalName.includes('2') && newInternalName.includes('2')) ||
+              tInternalName === newInternalName;
             if (isSameTest) {
               return { ...t, status: 'archived' };
             }
@@ -540,14 +565,14 @@ export const StorageService = {
     const favMap = getItemParsed(LOCAL_STORAGE_KEYS.FAVORITES, {});
     const userFavs = favMap[userId] || { materialIds: [], aiToolIds: [] };
     const arrayKey = type === 'material' ? 'materialIds' : 'aiToolIds';
-    
+
     const exists = userFavs[arrayKey].includes(itemId);
     if (exists) {
       userFavs[arrayKey] = userFavs[arrayKey].filter(id => id !== itemId);
     } else {
       userFavs[arrayKey] = [...userFavs[arrayKey], itemId];
     }
-    
+
     favMap[userId] = userFavs;
     setItemJson(LOCAL_STORAGE_KEYS.FAVORITES, favMap);
     return userFavs;
@@ -569,8 +594,8 @@ export const StorageService = {
     const marksMap = getItemParsed(LOCAL_STORAGE_KEYS.STUDENT_MARKS, {});
     const userMarks = marksMap[userId] || [];
     const normSub = (markEntry.subject || '').toLowerCase().trim();
-    const index = userMarks.findIndex(m => 
-      m.id === markEntry.id || 
+    const index = userMarks.findIndex(m =>
+      m.id === markEntry.id ||
       ((m.subject || '').toLowerCase().trim() === normSub && Number(m.semester) === Number(markEntry.semester))
     );
 
@@ -582,11 +607,11 @@ export const StorageService = {
         ...markEntry,
         id: existing.id,
         subject: markEntry.subject || existing.subject,
-        internal1: markEntry.internal1 !== null && markEntry.internal1 !== undefined && markEntry.internal1 !== '' 
-          ? Number(markEntry.internal1) 
+        internal1: markEntry.internal1 !== null && markEntry.internal1 !== undefined && markEntry.internal1 !== ''
+          ? Number(markEntry.internal1)
           : existing.internal1,
-        internal2: markEntry.internal2 !== null && markEntry.internal2 !== undefined && markEntry.internal2 !== '' 
-          ? Number(markEntry.internal2) 
+        internal2: markEntry.internal2 !== null && markEntry.internal2 !== undefined && markEntry.internal2 !== ''
+          ? Number(markEntry.internal2)
           : existing.internal2
       };
     } else {
@@ -1004,9 +1029,9 @@ export const StorageService = {
 
   // Weekly Missions Management
   getWeeklyMissions: () => getItemParsed(LOCAL_STORAGE_KEYS.WEEKLY_MISSIONS, [
-    { id: 'm-1', title: 'Complete 3 Quick Quizzes', target: 3, progress: 0, reward: 75 },
-    { id: 'm-2', title: 'Play Spin & Learn 3 times', target: 3, progress: 0, reward: 50 },
-    { id: 'm-3', title: 'Complete 2 Coding Challenges', target: 2, progress: 0, reward: 100 }
+    { id: 'm-1', title: 'Complete 3 Quick Quizzes', target: 3, progress: 0, reward: 75, category: 'quiz' },
+    { id: 'm-2', title: 'Play Spin & Learn 3 times', target: 3, progress: 0, reward: 50, category: 'spin' },
+    { id: 'm-3', title: 'Complete 2 Arcade Challenges', target: 2, progress: 0, reward: 100, category: 'game' }
   ]),
   saveWeeklyMission: (mission) => {
     const list = StorageService.getWeeklyMissions();
@@ -1081,7 +1106,7 @@ export const StorageService = {
 
   getFilteredContentForCurrentWeek: (contentList = [], currentWeekBatch = StorageService.getISOWeekId()) => {
     if (!Array.isArray(contentList) || contentList.length === 0) return [];
-    
+
     // 1. Exact matches for current week batch
     const exactMatches = contentList.filter(item => item.weekBatch === currentWeekBatch);
     if (exactMatches.length > 0) return exactMatches;
@@ -1228,6 +1253,260 @@ export const StorageService = {
     const list = StorageService.getFindBugChallenges().filter(item => item.id !== id);
     setItemJson(LOCAL_STORAGE_KEYS.FIND_BUG, list);
     return list;
+  },
+
+  // Error Code Guessing (ECG) Challenges
+  getEcgChallenges: () => getItemParsed(LOCAL_STORAGE_KEYS.ECG_CHALLENGES, [
+    { id: 'ecg-b1', code: '404', difficulty: 'beginner', name: 'HTTP 404 Not Found', desc: 'Requested URL or resource does not exist on server', options: ['Not Found', 'Unauthorized', 'Forbidden', 'Server Error'], answer: 0 },
+    { id: 'ecg-b2', code: '401', difficulty: 'beginner', name: 'HTTP 401 Unauthorized', desc: 'Request requires valid authentication credentials', options: ['Bad Request', 'Unauthorized', 'Forbidden', 'Internal Server Error'], answer: 1 },
+    { id: 'ecg-b3', code: '400', difficulty: 'beginner', name: 'HTTP 400 Bad Request', desc: 'Server cannot process request due to client syntax error', options: ['Forbidden', 'Not Found', 'Bad Request', 'Service Unavailable'], answer: 2 },
+    { id: 'ecg-b4', code: '500', difficulty: 'beginner', name: 'HTTP 500 Internal Server Error', desc: 'Unexpected condition encountered on server', options: ['Gateway Timeout', 'Bad Gateway', 'Unauthorized', 'Internal Server Error'], answer: 3 },
+    { id: 'ecg-b5', code: '200', difficulty: 'beginner', name: 'HTTP 200 OK', desc: 'Standard response for successful HTTP requests', options: ['OK', 'Created', 'Accepted', 'No Content'], answer: 0 },
+    { id: 'ecg-i1', code: '403', difficulty: 'intermediate', name: 'HTTP 403 Forbidden', desc: 'Server understands request but refuses to authorize access', options: ['Forbidden', 'Unauthorized', 'Not Found', 'Bad Request'], answer: 0 },
+    { id: 'ecg-i2', code: '503', difficulty: 'intermediate', name: 'HTTP 503 Service Unavailable', desc: 'Server is currently unable to handle request (maintenance/overload)', options: ['Gateway Timeout', 'Service Unavailable', 'Bad Gateway', 'Method Not Allowed'], answer: 1 },
+    { id: 'ecg-a1', code: '409', difficulty: 'advanced', name: 'HTTP 409 Conflict', desc: 'Request conflicts with current state of target resource', options: ['Conflict', 'Locked', 'Payload Too Large', 'Unprocessable Entity'], answer: 0 }
+  ]),
+  saveEcgChallenge: (obj) => {
+    const list = StorageService.getEcgChallenges();
+    const newObj = {
+      ...obj,
+      id: obj.id || `ecg-${Date.now()}`,
+      difficulty: obj.difficulty || 'intermediate',
+      weekBatch: obj.weekBatch || StorageService.getISOWeekId()
+    };
+    const updated = [newObj, ...list.filter(item => item.id !== newObj.id)];
+    setItemJson(LOCAL_STORAGE_KEYS.ECG_CHALLENGES, updated);
+    return updated;
+  },
+  deleteEcgChallenge: (id) => {
+    const list = StorageService.getEcgChallenges().filter(item => item.id !== id);
+    setItemJson(LOCAL_STORAGE_KEYS.ECG_CHALLENGES, list);
+    return list;
+  },
+
+  // Tango Logic Grid Puzzles
+  getTangoPuzzles: () => getItemParsed(LOCAL_STORAGE_KEYS.TANGO_PUZZLES, [
+    { id: 'tango-1', grid: '4x4', difficulty: 'beginner', desc: 'Equal count of ☀️ and 🌙 symbols per row and column (2 of each)!', size: 4, fixed: { '0-0': 'sun', '1-3': 'moon' } },
+    { id: 'tango-2', grid: '6x6', difficulty: 'intermediate', desc: 'Equal count of ☀️ and 🌙 symbols per row and column (3 of each)!', size: 6, fixed: { '0-1': 'sun', '2-4': 'moon', '4-2': 'sun', '5-5': 'moon' } },
+    { id: 'tango-3', grid: '8x8', difficulty: 'advanced', desc: 'Equal count of ☀️ and 🌙 symbols per row and column (4 of each)!', size: 8, fixed: { '0-2': 'sun', '1-5': 'moon', '3-3': 'sun', '6-1': 'moon', '7-7': 'sun' } }
+  ]),
+  saveTangoPuzzle: (obj) => {
+    const list = StorageService.getTangoPuzzles();
+    const newObj = {
+      ...obj,
+      id: obj.id || `tango-${Date.now()}`,
+      difficulty: obj.difficulty || 'intermediate',
+      weekBatch: obj.weekBatch || StorageService.getISOWeekId()
+    };
+    const updated = [newObj, ...list.filter(item => item.id !== newObj.id)];
+    setItemJson(LOCAL_STORAGE_KEYS.TANGO_PUZZLES, updated);
+    return updated;
+  },
+  deleteTangoPuzzle: (id) => {
+    const list = StorageService.getTangoPuzzles().filter(item => item.id !== id);
+    setItemJson(LOCAL_STORAGE_KEYS.TANGO_PUZZLES, list);
+    return list;
+  },
+
+  // Speed Type Challenge Prompts
+  getSpeedTypePrompts: () => getItemParsed(LOCAL_STORAGE_KEYS.SPEED_TYPE_PROMPTS, [
+    { id: 'type-1', difficulty: 'beginner', snippet: `const calculateTotal = (price, tax) => {\n  return price + (price * tax);\n};`, lang: 'JavaScript', targetWpm: 30 },
+    { id: 'type-2', difficulty: 'intermediate', snippet: `function binarySearch(arr, target) {\n  let left = 0, right = arr.length - 1;\n  while (left <= right) {\n    const mid = Math.floor((left + right) / 2);\n    if (arr[mid] === target) return mid;\n    if (arr[mid] < target) left = mid + 1;\n    else right = mid - 1;\n  }\n  return -1;\n}`, lang: 'JavaScript', targetWpm: 45 },
+    { id: 'type-3', difficulty: 'advanced', snippet: `export const useDebounce = (value, delay) => {\n  const [debounced, setDebounced] = useState(value);\n  useEffect(() => {\n    const handler = setTimeout(() => {\n      setDebounced(value);\n    }, delay);\n    return () => clearTimeout(handler);\n  }, [value, delay]);\n  return debounced;\n};`, lang: 'React', targetWpm: 60 }
+  ]),
+  saveSpeedTypePrompt: (obj) => {
+    const list = StorageService.getSpeedTypePrompts();
+    const newObj = {
+      ...obj,
+      id: obj.id || `type-${Date.now()}`,
+      difficulty: obj.difficulty || 'intermediate',
+      weekBatch: obj.weekBatch || StorageService.getISOWeekId()
+    };
+    const updated = [newObj, ...list.filter(item => item.id !== newObj.id)];
+    setItemJson(LOCAL_STORAGE_KEYS.SPEED_TYPE_PROMPTS, updated);
+    return updated;
+  },
+  deleteSpeedTypePrompt: (id) => {
+    const list = StorageService.getSpeedTypePrompts().filter(item => item.id !== id);
+    setItemJson(LOCAL_STORAGE_KEYS.SPEED_TYPE_PROMPTS, list);
+    return list;
+  },
+
+  // Java Learning Path Levels
+  getJavaLevels: () => getItemParsed(LOCAL_STORAGE_KEYS.JAVA_LEVELS, INITIAL_JAVA_LEVELS),
+  saveJavaLevel: (levelObj) => {
+    const list = StorageService.getJavaLevels();
+    const updated = [levelObj, ...list.filter(item => item.id !== levelObj.id)];
+    setItemJson(LOCAL_STORAGE_KEYS.JAVA_LEVELS, updated);
+    return updated;
+  },
+  saveAllJavaLevels: (levelsList) => {
+    setItemJson(LOCAL_STORAGE_KEYS.JAVA_LEVELS, levelsList);
+    return levelsList;
+  },
+
+  // Update Java Progress for Current User
+  updateUserJavaProgress: (uid, progressUpdate) => {
+    const currentUser = getItemParsed(LOCAL_STORAGE_KEYS.CURRENT_USER, null);
+    if (currentUser && (currentUser.uid === uid || currentUser.id === uid)) {
+      const updatedUser = {
+        ...currentUser,
+        javaProgress: {
+          ...(currentUser.javaProgress || { unlockedLevel: 1, completedLevels: [], levelScores: {} }),
+          ...progressUpdate
+        }
+      };
+      setItemJson(LOCAL_STORAGE_KEYS.CURRENT_USER, updatedUser);
+      return updatedUser;
+    }
+    return null;
+  },
+
+  // Java Activity Tracking & Performance Analytics
+  getJavaActivityStore: () => getItemParsed(LOCAL_STORAGE_KEYS.JAVA_ACTIVITY, {}),
+
+  getUserJavaActivity: (uid) => {
+    const store = getItemParsed(LOCAL_STORAGE_KEYS.JAVA_ACTIVITY, {});
+    return store[uid || 'guest'] || {};
+  },
+
+  updateJavaTopicTimeSpent: (uid, topicId, addedSeconds) => {
+    if (!addedSeconds || addedSeconds <= 0) return;
+    const key = uid || 'guest';
+    const store = getItemParsed(LOCAL_STORAGE_KEYS.JAVA_ACTIVITY, {});
+    const userMap = store[key] || {};
+    const topicData = userMap[topicId] || {
+      topicId,
+      timeSpentSeconds: 0,
+      totalRuns: 0,
+      successfulRuns: 0,
+      firstViewedAt: new Date().toISOString(),
+      lastViewedAt: new Date().toISOString(),
+      runAttempts: []
+    };
+
+    topicData.timeSpentSeconds = (topicData.timeSpentSeconds || 0) + addedSeconds;
+    topicData.lastViewedAt = new Date().toISOString();
+    if (!topicData.firstViewedAt) topicData.firstViewedAt = new Date().toISOString();
+
+    userMap[topicId] = topicData;
+    store[key] = userMap;
+    setItemJson(LOCAL_STORAGE_KEYS.JAVA_ACTIVITY, store);
+    return userMap;
+  },
+
+  recordJavaRunAttempt: (uid, topicId, attemptData) => {
+    const key = uid || 'guest';
+    const store = getItemParsed(LOCAL_STORAGE_KEYS.JAVA_ACTIVITY, {});
+    const userMap = store[key] || {};
+    const topicData = userMap[topicId] || {
+      topicId,
+      timeSpentSeconds: 0,
+      totalRuns: 0,
+      successfulRuns: 0,
+      firstViewedAt: new Date().toISOString(),
+      lastViewedAt: new Date().toISOString(),
+      runAttempts: []
+    };
+
+    const newAttempt = {
+      timestamp: new Date().toISOString(),
+      codeSnapshot: attemptData.codeSnapshot || '',
+      consoleInput: attemptData.consoleInput || '',
+      result: attemptData.result || 'compileError', // 'success' | 'compileError' | 'runtimeError'
+      errorMessage: attemptData.errorMessage || '',
+      executionTimeMs: attemptData.executionTimeMs || 0
+    };
+
+    const existingAttempts = Array.isArray(topicData.runAttempts) ? topicData.runAttempts : [];
+    // Keep maximum 20 run attempts (rolling window for privacy and memory limits)
+    const updatedAttempts = [...existingAttempts, newAttempt].slice(-20);
+
+    topicData.runAttempts = updatedAttempts;
+    topicData.totalRuns = (topicData.totalRuns || 0) + 1;
+    if (attemptData.result === 'success') {
+      topicData.successfulRuns = (topicData.successfulRuns || 0) + 1;
+    }
+    topicData.lastViewedAt = new Date().toISOString();
+    if (!topicData.firstViewedAt) topicData.firstViewedAt = new Date().toISOString();
+
+    userMap[topicId] = topicData;
+    store[key] = userMap;
+    setItemJson(LOCAL_STORAGE_KEYS.JAVA_ACTIVITY, store);
+    return userMap;
+  },
+
+  getAllJavaActivityForAdmin: () => {
+    return getItemParsed(LOCAL_STORAGE_KEYS.JAVA_ACTIVITY, {});
+  },
+
+  // Broadcasts
+  getBroadcasts: () => getItemParsed(LOCAL_STORAGE_KEYS.BROADCASTS, INITIAL_BROADCASTS),
+  getDismissedBroadcastIds: (uid) => getItemParsed(`${LOCAL_STORAGE_KEYS.DISMISSED_BROADCASTS}_${uid || 'guest'}`, []),
+  dismissBroadcast: (uid, broadcastId) => {
+    const key = `${LOCAL_STORAGE_KEYS.DISMISSED_BROADCASTS}_${uid || 'guest'}`;
+    const list = getItemParsed(key, []);
+    const updated = [...list, broadcastId];
+    setItemJson(key, updated);
+    return updated;
+  },
+
+  // Polls, Activity & Site Config
+  getThisOrThatPolls: () => getItemParsed(LOCAL_STORAGE_KEYS.THIS_OR_THAT, INITIAL_THIS_OR_THAT),
+  getActivityLog: () => getItemParsed(LOCAL_STORAGE_KEYS.ACTIVITY_LOG, []),
+  getSiteConfig: () => getItemParsed(LOCAL_STORAGE_KEYS.SITE_CONFIG, {
+    brainZoneEnabled: true,
+    registrationEnabled: true,
+    maintenanceMode: false,
+    maintenanceMessage: 'System undergoing scheduled maintenance. Please check back shortly.'
+  }),
+
+  // Quiz & IT Facts
+  getQuizQuestions: () => getItemParsed(LOCAL_STORAGE_KEYS.QUIZ_QUESTIONS, []),
+  getITFactsList: () => getItemParsed(LOCAL_STORAGE_KEYS.IT_FACTS, INITIAL_IT_FACTS),
+
+  // Missions, Badges, Mystery Rewards
+  getWeeklyMissions: () => getItemParsed(LOCAL_STORAGE_KEYS.WEEKLY_MISSIONS, []),
+  getBadges: () => getItemParsed(LOCAL_STORAGE_KEYS.BADGES, []),
+  getMysteryRewards: () => getItemParsed(LOCAL_STORAGE_KEYS.MYSTERY_REWARDS, []),
+
+  // Page Control Center Storage
+  getPageControls: () => {
+    const stored = getItemParsed(LOCAL_STORAGE_KEYS.PAGE_CONTROLS, {});
+    return { ...INITIAL_PAGE_CONTROLS, ...stored };
+  },
+
+  savePageControl: (pageId, controlObj) => {
+    const current = StorageService.getPageControls();
+    const updated = {
+      ...current,
+      [pageId]: {
+        ...(current[pageId] || { id: pageId, name: pageId, visible: true, disabledFeatures: [] }),
+        ...controlObj,
+        id: pageId,
+        updatedAt: new Date().toISOString()
+      }
+    };
+    setItemJson(LOCAL_STORAGE_KEYS.PAGE_CONTROLS, updated);
+    return updated;
+  },
+
+  emergencyLockPage: (pageId) => {
+    const current = StorageService.getPageControls();
+    const pageObj = current[pageId] || { id: pageId, name: pageId };
+    const updated = {
+      ...current,
+      [pageId]: {
+        ...pageObj,
+        status: 'closed',
+        displayMode: 'full_lock',
+        title: pageObj.title || `🚨 Emergency Closure: ${pageObj.name || pageId}`,
+        message: pageObj.message || 'This page has been temporarily closed by Admin Please check back later.',
+        updatedAt: new Date().toISOString()
+      }
+    };
+    setItemJson(LOCAL_STORAGE_KEYS.PAGE_CONTROLS, updated);
+    return updated;
   }
 };
 

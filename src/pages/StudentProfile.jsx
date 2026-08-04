@@ -231,7 +231,12 @@ export const StudentProfile = ({ onPreviewMaterial, onOpenAdminForm, onOpenAdmin
     semester: currentUser?.semester || 5,
     classSection: currentUser?.classSection || 'IT-A',
     avatar: currentUser?.avatar || '',
-    bio: currentUser?.bio || ''
+    bio: currentUser?.bio || '',
+    githubUrl: currentUser?.githubUrl || currentUser?.github || '',
+    linkedinUrl: currentUser?.linkedinUrl || currentUser?.linkedin || '',
+    leetcodeUrl: currentUser?.leetcodeUrl || currentUser?.leetcode || '',
+    portfolioUrl: currentUser?.portfolioUrl || currentUser?.website || '',
+    resumeUrl: currentUser?.resumeUrl || currentUser?.driveUrl || ''
   });
 
   // Custom Timetable Editing state
@@ -436,7 +441,7 @@ export const StudentProfile = ({ onPreviewMaterial, onOpenAdminForm, onOpenAdmin
                           </span>
                           <span className="px-2.5 py-1 rounded-lg bg-purple-950/80 text-purple-300 border border-purple-500/40 font-bold flex items-center space-x-1.5 shadow-sm">
                             <Brain className="w-3.5 h-3.5 text-purple-400" />
-                            <span>BrainZone: {currentUser.funPoints || 450} XP • 🔥 {currentUser.streak || 5}d</span>
+                             <span>BrainZone: {currentUser.funPoints ?? 0} XP • 🔥 {currentUser.streak ?? 1}d</span>
                           </span>
                         </>
                       ) : (
@@ -2455,6 +2460,66 @@ export const StudentProfile = ({ onPreviewMaterial, onOpenAdminForm, onOpenAdmin
                   onChange={(e) => setProfileForm({ ...profileForm, bio: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-950 text-slate-100 rounded-xl border border-slate-800 focus:outline-none focus:border-brand-500 text-xs"
                 />
+              </div>
+
+              {/* Social & Coding Linked Profile URLs */}
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/80 space-y-3">
+                <span className="text-[11px] font-bold text-amber-400 block uppercase">🔗 Linked Social & Coding Profiles</span>
+
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-400 mb-1">🐙 GitHub Profile URL</label>
+                  <input
+                    type="url"
+                    placeholder="https://github.com/yourusername"
+                    value={profileForm.githubUrl}
+                    onChange={(e) => setProfileForm({ ...profileForm, githubUrl: e.target.value })}
+                    className="w-full px-3 py-1.5 bg-slate-900 text-slate-100 rounded-xl border border-slate-800 text-xs font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-400 mb-1">💼 LinkedIn Profile URL</label>
+                  <input
+                    type="url"
+                    placeholder="https://linkedin.com/in/yourusername"
+                    value={profileForm.linkedinUrl}
+                    onChange={(e) => setProfileForm({ ...profileForm, linkedinUrl: e.target.value })}
+                    className="w-full px-3 py-1.5 bg-slate-900 text-slate-100 rounded-xl border border-slate-800 text-xs font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-400 mb-1">🧩 LeetCode Profile URL</label>
+                  <input
+                    type="url"
+                    placeholder="https://leetcode.com/yourusername"
+                    value={profileForm.leetcodeUrl}
+                    onChange={(e) => setProfileForm({ ...profileForm, leetcodeUrl: e.target.value })}
+                    className="w-full px-3 py-1.5 bg-slate-900 text-slate-100 rounded-xl border border-slate-800 text-xs font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-400 mb-1">🌐 Portfolio / Personal Website URL</label>
+                  <input
+                    type="url"
+                    placeholder="https://yourportfolio.com"
+                    value={profileForm.portfolioUrl}
+                    onChange={(e) => setProfileForm({ ...profileForm, portfolioUrl: e.target.value })}
+                    className="w-full px-3 py-1.5 bg-slate-900 text-slate-100 rounded-xl border border-slate-800 text-xs font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-400 mb-1">📄 Resume / Google Drive Document Link</label>
+                  <input
+                    type="url"
+                    placeholder="https://drive.google.com/file/d/..."
+                    value={profileForm.resumeUrl}
+                    onChange={(e) => setProfileForm({ ...profileForm, resumeUrl: e.target.value })}
+                    className="w-full px-3 py-1.5 bg-slate-900 text-slate-100 rounded-xl border border-slate-800 text-xs font-mono"
+                  />
+                </div>
               </div>
 
               <div className="pt-2 flex justify-end space-x-2">

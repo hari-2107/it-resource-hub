@@ -231,7 +231,7 @@ export const autoCheckEligibleCosmetics = (user) => {
   if (!user) return { updatedUserDoc: {}, newlyUnlockedNames: [] };
 
   const userRole = user.role || 'student';
-  const funPoints = user.funPoints || 450;
+  const funPoints = user.funPoints ?? 0;
   const userLevel = Math.floor(funPoints / 200) + 1;
   const userBadges = user.unlockedBadges || ['first_spin', 'poll_voter'];
 

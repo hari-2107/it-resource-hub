@@ -12,6 +12,44 @@ import { DEMO_USERS } from '../data/mockData';
 
 const AuthContext = createContext();
 
+const calculateDailyLoginStreak = (userDoc) => {
+  if (!userDoc) return userDoc;
+
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  const nowIso = now.toISOString();
+
+  const lastLoginDate = userDoc.lastLoginDate;
+  let currentStreak = userDoc.streak || 1;
+  let totalLoginCount = userDoc.loginCount || 1;
+
+  if (!lastLoginDate) {
+    currentStreak = 1;
+    totalLoginCount = (userDoc.loginCount || 0) + 1;
+  } else if (lastLoginDate !== todayStr) {
+    totalLoginCount = (userDoc.loginCount || 0) + 1;
+    const lastDate = new Date(lastLoginDate);
+    const currentDate = new Date(todayStr);
+    const diffTime = Math.abs(currentDate - lastDate);
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 1) {
+      currentStreak = (userDoc.streak || 1) + 1;
+    } else if (diffDays > 1) {
+      currentStreak = 1;
+    }
+  }
+
+  return {
+    ...userDoc,
+    streak: currentStreak,
+    loginCount: totalLoginCount,
+    lastLoginDate: todayStr,
+    lastLoginAt: nowIso,
+    lastActiveAt: nowIso
+  };
+};
+
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -26,20 +64,27 @@ export const AuthProvider = ({ children }) => {
           try {
             const userDocRef = doc(db, 'users', firebaseUser.uid);
             const userSnap = await getDoc(userDocRef);
-            if (userSnap.exists()) {
-              setCurrentUser({ uid: firebaseUser.uid, ...userSnap.data() });
-            } else {
-              // Fallback user metadata
-              setCurrentUser({
-                uid: firebaseUser.uid,
-                email: firebaseUser.email,
-                name: firebaseUser.displayName || 'IT Student',
-                role: 'student',
-                year: '3rd Year',
-                semester: 5,
-                classSection: 'IT-A'
-              });
-            }
+            let rawData = userSnap.exists()
+              ? { uid: firebaseUser.uid, ...userSnap.data() }
+              : {
+                  uid: firebaseUser.uid,
+                  email: firebaseUser.email,
+                  name: firebaseUser.displayName || 'IT Student',
+                  role: 'student',
+                  year: '3rd Year',
+                  semester: 5,
+                  classSection: 'IT-A'
+                };
+            const processed = calculateDailyLoginStreak(rawData);
+            setCurrentUser(processed);
+            StorageService.saveCustomUser(processed);
+            await setDoc(userDocRef, { 
+              lastActiveAt: processed.lastActiveAt,
+              lastLoginAt: processed.lastLoginAt,
+              lastLoginDate: processed.lastLoginDate,
+              streak: processed.streak,
+              loginCount: processed.loginCount
+            }, { merge: true });
           } catch (err) {
             console.error("Error fetching user document from Firestore:", err);
           }
@@ -53,10 +98,26 @@ export const AuthProvider = ({ children }) => {
       // Mock mode auth state from storage
       const savedUser = StorageService.getCurrentUser();
       if (savedUser) {
-        setCurrentUser(savedUser);
+        const processed = calculateDailyLoginStreak(savedUser);
+        setCurrentUser(processed);
+        StorageService.setCurrentUser(processed);
+        StorageService.saveCustomUser(processed);
       } else {
-        // Require explicit login by starting with no authenticated user
-        setCurrentUser(null);
+        // Auto-initialize demo student user for instant access
+        const defaultUser = calculateDailyLoginStreak(DEMO_USERS?.student || {
+          uid: 'u1',
+          name: 'Alex Morgan',
+          registerNumber: '922524205001',
+          email: 'alex.morgan@it.edu',
+          role: 'student',
+          year: '3rd Year',
+          semester: 5,
+          classSection: 'IT-A',
+          hasSeenWelcome: true
+        });
+        setCurrentUser(defaultUser);
+        StorageService.setCurrentUser(defaultUser);
+        StorageService.saveCustomUser(defaultUser);
       }
       setLoading(false);
     }
@@ -72,7 +133,7 @@ export const AuthProvider = ({ children }) => {
       if (password !== 'sangaiah@2007') {
         throw new Error('Invalid credentials for Admin login. Please check your password.');
       }
-      const adminUser = {
+      const adminUser = calculateDailyLoginStreak({
         uid: 'admin-sangaiah-2007',
         name: 'Admin',
         registerNumber: '922524205000',
@@ -81,6 +142,7 @@ export const AuthProvider = ({ children }) => {
         year: '4th Year',
         semester: 7,
         classSection: 'Administrator',
+        funPoints: 0,
         equippedBorder: 'admin_supreme',
         equippedTitleId: 'title_admin_supreme',
         equippedTitle: 'title_admin_supreme',
@@ -89,9 +151,8 @@ export const AuthProvider = ({ children }) => {
         unlockedBorderIds: ['admin_supreme', 'default', 'cyber_neon', 'golden_legend', 'emerald_shield', 'cosmic_purple', 'quantum_violet', 'crimson_master', 'titanium_aura'],
         unlockedTitleIds: ['title_admin_supreme', 'title_novice', 'title_quiz_master', 'title_bug_hunter', 'title_code_architect', 'title_algorithm_boss', 'title_cyber_hero', 'title_legendary_dev'],
         unlockedAvatarBgIds: ['bg_admin_royal', 'bg_slate', 'bg_indigo', 'bg_emerald', 'bg_amber', 'bg_sunset', 'bg_galaxy'],
-        registeredDate: new Date().toISOString().split('T')[0],
-        lastLoginAt: new Date().toISOString()
-      };
+        registeredDate: new Date().toISOString().split('T')[0]
+      });
 
       setCurrentUser(adminUser);
       StorageService.setCurrentUser(adminUser);
@@ -104,11 +165,19 @@ export const AuthProvider = ({ children }) => {
       const userDocRef = doc(db, 'users', res.user.uid);
       const userDoc = await getDoc(userDocRef);
       if (userDoc.exists()) {
-        const userData = { uid: res.user.uid, ...userDoc.data(), lastLoginAt: new Date().toISOString() };
-        await setDoc(userDocRef, { lastLoginAt: new Date().toISOString() }, { merge: true });
-        setCurrentUser(userData);
-        StorageService.saveCustomUser(userData);
-        return userData;
+        const rawData = { uid: res.user.uid, ...userDoc.data() };
+        const processed = calculateDailyLoginStreak(rawData);
+        await setDoc(userDocRef, { 
+          lastActiveAt: processed.lastActiveAt,
+          lastLoginAt: processed.lastLoginAt,
+          lastLoginDate: processed.lastLoginDate,
+          streak: processed.streak,
+          loginCount: processed.loginCount
+        }, { merge: true });
+        setCurrentUser(processed);
+        StorageService.setCurrentUser(processed);
+        StorageService.saveCustomUser(processed);
+        return processed;
       }
     } else {
       // Mock login check by Name, Register Number, or Email
@@ -123,11 +192,11 @@ export const AuthProvider = ({ children }) => {
         if (matched.password && matched.password !== password) {
           throw new Error('Incorrect password. Please try again.');
         }
-        const updatedUser = { ...matched, lastLoginAt: new Date().toISOString() };
-        setCurrentUser(updatedUser);
-        StorageService.setCurrentUser(updatedUser);
-        StorageService.saveCustomUser(updatedUser);
-        return updatedUser;
+        const processed = calculateDailyLoginStreak(matched);
+        setCurrentUser(processed);
+        StorageService.setCurrentUser(processed);
+        StorageService.saveCustomUser(processed);
+        return processed;
       } else {
         throw new Error(`No registered account found with name "${identifier}". Please switch to the "Register" tab to create your account first.`);
       }
@@ -202,14 +271,15 @@ export const AuthProvider = ({ children }) => {
   const updateUserProfile = async (updatedFields) => {
     // Prevent changing role via profile updates
     const { role, ...safeFields } = updatedFields;
-    const updated = { ...currentUser, ...safeFields };
+    const nowIso = new Date().toISOString();
+    const updated = { ...currentUser, ...safeFields, lastActiveAt: nowIso };
     setCurrentUser(updated);
     StorageService.setCurrentUser(updated);
     StorageService.saveCustomUser(updated);
 
     if (isFirebaseConfigured && db && currentUser?.uid && !isDemoMode) {
       try {
-        await setDoc(doc(db, 'users', currentUser.uid), safeFields, { merge: true });
+        await setDoc(doc(db, 'users', currentUser.uid), { ...safeFields, lastActiveAt: nowIso }, { merge: true });
       } catch (err) {
         console.error("Error updating user document in Firestore:", err);
       }

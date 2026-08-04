@@ -3,6 +3,7 @@ import { StorageService } from '../services/storageService';
 import { useAuth } from './AuthContext';
 import { isFirebaseConfigured, db } from '../config/firebase';
 import { collection, onSnapshot, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { INITIAL_PAGE_CONTROLS } from '../data/mockData';
 
 const DataContext = createContext();
 
@@ -36,9 +37,14 @@ export const DataProvider = ({ children }) => {
   const [itFacts, setItFacts] = useState([]);
   const [guessOutputChallenges, setGuessOutputChallenges] = useState([]);
   const [findBugChallenges, setFindBugChallenges] = useState([]);
+  const [ecgChallenges, setEcgChallenges] = useState([]);
+  const [tangoPuzzles, setTangoPuzzles] = useState([]);
+  const [speedTypePrompts, setSpeedTypePrompts] = useState([]);
   const [weeklyMissions, setWeeklyMissions] = useState([]);
   const [badges, setBadges] = useState([]);
   const [mysteryRewards, setMysteryRewards] = useState([]);
+  const [javaLevels, setJavaLevels] = useState([]);
+  const [pageControls, setPageControls] = useState(INITIAL_PAGE_CONTROLS);
   const [siteConfig, setSiteConfig] = useState({
     brainZoneEnabled: true,
     registrationEnabled: true,
@@ -48,35 +54,45 @@ export const DataProvider = ({ children }) => {
 
   // Load initial data
   useEffect(() => {
-    StorageService.initDefaults();
-    setSubjects(StorageService.getSubjects());
-    setMaterials(StorageService.getMaterials());
-    setAiTools(StorageService.getAITools());
-    setAnnouncements(StorageService.getAnnouncements());
-    setTimetables(StorageService.getTimetables());
-    setSuggestions(StorageService.getSuggestions());
-    setReports(StorageService.getReports());
-    setPlacementCompanies(StorageService.getPlacementCompanies());
-    setInterviewExperiences(StorageService.getInterviewExperiences());
-    setPlacementResources(StorageService.getPlacementResources());
-    setEvents(StorageService.getEvents());
-    setRatings(StorageService.getRatings());
-    setRegisteredUsers(StorageService.getCustomUsers());
-    setBroadcasts(StorageService.getBroadcasts());
-    setThisOrThatPolls(StorageService.getThisOrThatPolls());
-    setActivityLog(StorageService.getActivityLog());
-    setSiteConfig(StorageService.getSiteConfig());
-    setQuizQuestions(StorageService.getQuizQuestions());
-    setItFacts(StorageService.getITFactsList());
-    setGuessOutputChallenges(StorageService.getGuessOutputChallenges());
-    setFindBugChallenges(StorageService.getFindBugChallenges());
-    setWeeklyMissions(StorageService.getWeeklyMissions());
-    setBadges(StorageService.getBadges());
-    setMysteryRewards(StorageService.getMysteryRewards());
-    
-    const uid = currentUser?.id || 'guest';
-    setDismissedBroadcastIds(StorageService.getDismissedBroadcastIds(uid));
-    setLoading(false);
+    try {
+      if (StorageService.initDefaults) StorageService.initDefaults();
+      if (StorageService.getSubjects) setSubjects(StorageService.getSubjects() || []);
+      if (StorageService.getMaterials) setMaterials(StorageService.getMaterials() || []);
+      if (StorageService.getAITools) setAiTools(StorageService.getAITools() || []);
+      if (StorageService.getAnnouncements) setAnnouncements(StorageService.getAnnouncements() || []);
+      if (StorageService.getTimetables) setTimetables(StorageService.getTimetables() || []);
+      if (StorageService.getSuggestions) setSuggestions(StorageService.getSuggestions() || []);
+      if (StorageService.getReports) setReports(StorageService.getReports() || []);
+      if (StorageService.getPlacementCompanies) setPlacementCompanies(StorageService.getPlacementCompanies() || []);
+      if (StorageService.getInterviewExperiences) setInterviewExperiences(StorageService.getInterviewExperiences() || []);
+      if (StorageService.getPlacementResources) setPlacementResources(StorageService.getPlacementResources() || []);
+      if (StorageService.getEvents) setEvents(StorageService.getEvents() || []);
+      if (StorageService.getRatings) setRatings(StorageService.getRatings() || []);
+      if (StorageService.getCustomUsers) setRegisteredUsers(StorageService.getCustomUsers() || []);
+      if (StorageService.getBroadcasts) setBroadcasts(StorageService.getBroadcasts() || []);
+      if (StorageService.getThisOrThatPolls) setThisOrThatPolls(StorageService.getThisOrThatPolls() || []);
+      if (StorageService.getActivityLog) setActivityLog(StorageService.getActivityLog() || []);
+      if (StorageService.getSiteConfig) setSiteConfig(StorageService.getSiteConfig() || {});
+      if (StorageService.getQuizQuestions) setQuizQuestions(StorageService.getQuizQuestions() || []);
+      if (StorageService.getITFactsList) setItFacts(StorageService.getITFactsList() || []);
+      if (StorageService.getGuessOutputChallenges) setGuessOutputChallenges(StorageService.getGuessOutputChallenges() || []);
+      if (StorageService.getFindBugChallenges) setFindBugChallenges(StorageService.getFindBugChallenges() || []);
+      if (StorageService.getEcgChallenges) setEcgChallenges(StorageService.getEcgChallenges() || []);
+      if (StorageService.getTangoPuzzles) setTangoPuzzles(StorageService.getTangoPuzzles() || []);
+      if (StorageService.getSpeedTypePrompts) setSpeedTypePrompts(StorageService.getSpeedTypePrompts() || []);
+      if (StorageService.getWeeklyMissions) setWeeklyMissions(StorageService.getWeeklyMissions() || []);
+      if (StorageService.getBadges) setBadges(StorageService.getBadges() || []);
+      if (StorageService.getMysteryRewards) setMysteryRewards(StorageService.getMysteryRewards() || []);
+      if (StorageService.getJavaLevels) setJavaLevels(StorageService.getJavaLevels() || []);
+      if (StorageService.getPageControls) setPageControls(StorageService.getPageControls() || INITIAL_PAGE_CONTROLS);
+      
+      const uid = currentUser?.id || 'guest';
+      if (StorageService.getDismissedBroadcastIds) setDismissedBroadcastIds(StorageService.getDismissedBroadcastIds(uid) || []);
+    } catch (err) {
+      console.error("Error loading initial data from StorageService:", err);
+    } finally {
+      setLoading(false);
+    }
 
     // Setup Firestore real-time listeners if configured
     if (isFirebaseConfigured && db) {
@@ -102,10 +118,25 @@ export const DataProvider = ({ children }) => {
           }
         }, err => console.log('Firestore announcements listener fallback:', err));
 
+        const unsubJava = onSnapshot(collection(db, 'javaLevels'), (snap) => {
+          if (!snap.empty) {
+            const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setJavaLevels(items.sort((a, b) => (a.levelNumber || 0) - (b.levelNumber || 0)));
+          }
+        }, err => console.log('Firestore javaLevels listener fallback:', err));
+
+        const unsubControls = onSnapshot(doc(db, 'siteSettings', 'pageControls'), (snap) => {
+          if (snap.exists()) {
+            setPageControls(snap.data());
+          }
+        }, err => console.log('Firestore pageControls listener fallback:', err));
+
         return () => {
           unsubMat();
           unsubAi();
           unsubAnn();
+          unsubJava();
+          unsubControls();
         };
       } catch (err) {
         console.warn('Firestore subscription error, using local storage:', err);
@@ -627,18 +658,168 @@ export const DataProvider = ({ children }) => {
     logAdminActivity(`Deleted Find Bug challenge`, 'BrainZone');
   };
 
+  const addOrUpdateEcgChallenge = (obj) => {
+    const updated = StorageService.saveEcgChallenge(obj);
+    setEcgChallenges(updated);
+    logAdminActivity(`Saved ECG challenge '${obj.name || obj.code}'`, 'BrainZone');
+  };
+
+  const removeEcgChallenge = (id) => {
+    const updated = StorageService.deleteEcgChallenge(id);
+    setEcgChallenges(updated);
+    logAdminActivity(`Deleted ECG challenge`, 'BrainZone');
+  };
+
+  const addOrUpdateTangoPuzzle = (obj) => {
+    const updated = StorageService.saveTangoPuzzle(obj);
+    setTangoPuzzles(updated);
+    logAdminActivity(`Saved Tango puzzle '${obj.grid}'`, 'BrainZone');
+  };
+
+  const removeTangoPuzzle = (id) => {
+    const updated = StorageService.deleteTangoPuzzle(id);
+    setTangoPuzzles(updated);
+    logAdminActivity(`Deleted Tango puzzle`, 'BrainZone');
+  };
+
+  const addOrUpdateSpeedTypePrompt = (obj) => {
+    const updated = StorageService.saveSpeedTypePrompt(obj);
+    setSpeedTypePrompts(updated);
+    logAdminActivity(`Saved Speed Type prompt '${obj.lang}'`, 'BrainZone');
+  };
+
+  const removeSpeedTypePrompt = (id) => {
+    const updated = StorageService.deleteSpeedTypePrompt(id);
+    setSpeedTypePrompts(updated);
+    logAdminActivity(`Deleted Speed Type prompt`, 'BrainZone');
+  };
+
+  const updateJavaProgress = async (user, levelNumber, scorePercent, xpReward, badgeId) => {
+    if (!user) return null;
+    const currentProgress = user.javaProgress || { unlockedLevel: 1, completedLevels: [], levelScores: {} };
+    const completedLevels = currentProgress.completedLevels || [];
+    const isFirstTimePass = !completedLevels.includes(levelNumber);
+
+    const updatedCompletedLevels = isFirstTimePass 
+      ? [...completedLevels, levelNumber] 
+      : completedLevels;
+    
+    const nextUnlocked = Math.max(currentProgress.unlockedLevel || 1, levelNumber + 1);
+    const updatedLevelScores = {
+      ...(currentProgress.levelScores || {}),
+      [levelNumber]: Math.max(currentProgress.levelScores?.[levelNumber] || 0, scorePercent)
+    };
+
+    const newJavaProgress = {
+      unlockedLevel: nextUnlocked,
+      completedLevels: updatedCompletedLevels,
+      levelScores: updatedLevelScores
+    };
+
+    // Calculate XP bonus if first-time pass
+    const xpBonus = isFirstTimePass ? (xpReward || 150) : 0;
+    const updatedFunPoints = (user.funPoints ?? 0) + xpBonus;
+
+    // Badges update
+    const currentBadges = user.unlockedBadges || [];
+    const updatedBadges = badgeId && isFirstTimePass && !currentBadges.includes(badgeId)
+      ? [...currentBadges, badgeId]
+      : currentBadges;
+
+    const userDocUpdates = {
+      javaProgress: newJavaProgress,
+      funPoints: updatedFunPoints,
+      unlockedBadges: updatedBadges
+    };
+
+    // 1. Update Firestore if configured
+    if (isFirebaseConfigured && db && (user.uid || user.id)) {
+      try {
+        const userId = user.uid || user.id;
+        const userRef = doc(db, 'users', userId);
+        await updateDoc(userRef, userDocUpdates);
+      } catch (e) {
+        console.warn("Firestore user javaProgress update fallback:", e);
+      }
+    }
+
+    // 2. Local storage update via StorageService
+    StorageService.updateUserJavaProgress(user.uid || user.id, newJavaProgress);
+
+    return userDocUpdates;
+  };
+
+  const trackJavaTopicTime = (uid, topicId, seconds) => {
+    if (!seconds || seconds <= 0) return;
+    const targetUid = uid || currentUser?.uid || currentUser?.id || 'guest';
+    return StorageService.updateJavaTopicTimeSpent(targetUid, topicId, seconds);
+  };
+
+  const logJavaRunAttempt = (uid, topicId, attemptData) => {
+    const targetUid = uid || currentUser?.uid || currentUser?.id || 'guest';
+    return StorageService.recordJavaRunAttempt(targetUid, topicId, attemptData);
+  };
+
+  const getUserJavaActivity = (uid) => {
+    const targetUid = uid || currentUser?.uid || currentUser?.id || 'guest';
+    return StorageService.getUserJavaActivity(targetUid);
+  };
+
+  const getAllJavaActivityForAdmin = () => {
+    return StorageService.getAllJavaActivityForAdmin();
+  };
+
+  // Page Control Center Actions
+  const updatePageControl = (pageId, controlData) => {
+    const updated = StorageService.savePageControl(pageId, controlData);
+    setPageControls(updated);
+    if (isFirebaseConfigured && db) {
+      setDoc(doc(db, 'siteSettings', 'pageControls'), updated, { merge: true }).catch(err => console.error("Firestore sync error:", err));
+    }
+    if (typeof logAdminActivity === 'function') {
+      logAdminActivity(`Updated page control settings for module '${pageId}'`, 'PageControl');
+    }
+  };
+
+  const emergencyLockPage = (pageId) => {
+    const updated = StorageService.emergencyLockPage(pageId);
+    setPageControls(updated);
+    if (isFirebaseConfigured && db) {
+      setDoc(doc(db, 'siteSettings', 'pageControls'), updated, { merge: true }).catch(err => console.error("Firestore sync error:", err));
+    }
+    if (typeof logAdminActivity === 'function') {
+      logAdminActivity(`🚨 Emergency lock activated for module '${pageId}'`, 'EmergencyLock');
+    }
+  };
+
+  const isPageFeatureDisabled = (pageId, featureName) => {
+    const ctrl = pageControls[pageId];
+    if (!ctrl) return false;
+    if (ctrl.displayMode === 'read_only') return true;
+    return Array.isArray(ctrl.disabledFeatures) && ctrl.disabledFeatures.includes(featureName);
+  };
+
   return (
     <DataContext.Provider value={{
+      pageControls,
+      updatePageControl,
+      emergencyLockPage,
+      isPageFeatureDisabled,
+      trackJavaTopicTime,
+      logJavaRunAttempt,
+      getUserJavaActivity,
+      getAllJavaActivityForAdmin,
+      loading,
       subjects,
       materials,
-      allMaterials: materials,
       aiTools,
-      allAiTools: aiTools,
       announcements,
       timetables,
       favorites,
       studentMarks,
       customTimetable,
+      globalSearchTerm,
+      setGlobalSearchTerm,
       suggestions,
       reports,
       placementCompanies,
@@ -647,24 +828,6 @@ export const DataProvider = ({ children }) => {
       events,
       ratings,
       userResumes,
-      broadcasts,
-      dismissedBroadcastIds,
-      activeBroadcast,
-      addBroadcast,
-      updateBroadcast,
-      deleteBroadcast,
-      dismissBroadcast,
-      globalSearchTerm,
-      setGlobalSearchTerm,
-      addOrUpdateMaterial,
-      removeMaterial,
-      trackDownload,
-      trackMaterialView,
-      addOrUpdateAITool,
-      removeAITool,
-      addOrUpdateAnnouncement,
-      removeAnnouncement,
-      togglePinAnnouncement,
       trackAnnouncementView,
       addOrUpdateTimetable,
       removeTimetable,
@@ -718,6 +881,15 @@ export const DataProvider = ({ children }) => {
       findBugChallenges,
       addOrUpdateFindBugChallenge,
       removeFindBugChallenge,
+      ecgChallenges,
+      addOrUpdateEcgChallenge,
+      removeEcgChallenge,
+      tangoPuzzles,
+      addOrUpdateTangoPuzzle,
+      removeTangoPuzzle,
+      speedTypePrompts,
+      addOrUpdateSpeedTypePrompt,
+      removeSpeedTypePrompt,
       deleteThisOrThatPoll,
       weeklyMissions,
       addOrUpdateWeeklyMission,
@@ -733,7 +905,9 @@ export const DataProvider = ({ children }) => {
       addOrUpdateBroadcast,
       removeBroadcast,
       toggleBroadcastStatus,
-      dismissBroadcast
+      dismissBroadcast,
+      javaLevels,
+      updateJavaProgress
     }}>
       {children}
     </DataContext.Provider>
