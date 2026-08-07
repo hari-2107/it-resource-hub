@@ -25,10 +25,21 @@ import { JavaLearningPage } from './JavaLearningPage';
 import { PageControlGuard } from '../components/PageControlGuard';
 
 export const PlacementPrepHub = ({ onOpenAdminForm, onOpenShareExperience, defaultSubTab = 'companies' }) => {
-  const { placementCompanies, interviewExperiences, placementResources, removePlacementCompany, removeInterviewExperience, pageControls } = useData();
+  const { 
+    placementCompanies, 
+    interviewExperiences, 
+    placementResources, 
+    javaAcademyResources,
+    removePlacementCompany, 
+    removeInterviewExperience, 
+    removePlacementResource,
+    removeJavaAcademyResource,
+    pageControls 
+  } = useData();
   const { isAdmin } = useAuth();
 
   const [activeTab, setActiveTab] = useState(defaultSubTab);
+  const [addNewDropdownOpen, setAddNewDropdownOpen] = useState(false);
 
   useEffect(() => {
     if (defaultSubTab) {
@@ -40,7 +51,7 @@ export const PlacementPrepHub = ({ onOpenAdminForm, onOpenShareExperience, defau
   const [selectedSubcategory, setSelectedSubcategory] = useState('All');
 
   // Subcategories list
-  const subcategories = ['All', 'DSA & Coding', 'Aptitude & Reasoning', 'Core CS Subjects', 'Language-Specific'];
+  const subcategories = ['All', 'Aptitude & Reasoning', 'DSA & Coding', 'Java', 'DBMS', 'OS', 'CN', 'HR', 'Resume', 'Company Specific'];
 
   // Filter companies
   const filteredCompanies = (placementCompanies || []).filter(c =>
@@ -84,15 +95,66 @@ export const PlacementPrepHub = ({ onOpenAdminForm, onOpenShareExperience, defau
             <span>Share Experience</span>
           </button>
 
-          {/* Admin Add Company Button */}
+          {/* Admin Add New Dropdown Button */}
           {isAdmin && (
-            <button
-              onClick={() => onOpenAdminForm('company')}
-              className="flex items-center space-x-2 px-4 py-2.5 rounded-2xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30 transition-all"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Company Drive</span>
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setAddNewDropdownOpen(!addNewDropdownOpen)}
+                className="flex items-center space-x-2 px-4 py-2.5 rounded-2xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30 transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add New</span>
+                <span className="text-[10px] ml-1">▼</span>
+              </button>
+
+              {addNewDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-60 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 space-y-1">
+                  <button
+                    onClick={() => {
+                      setAddNewDropdownOpen(false);
+                      onOpenAdminForm('company');
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-slate-800 hover:text-white flex items-center space-x-2 transition-all"
+                  >
+                    <Building2 className="w-4 h-4 text-emerald-400" />
+                    <span>Add Company Drive</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setAddNewDropdownOpen(false);
+                      onOpenAdminForm('interviewExp');
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-slate-800 hover:text-white flex items-center space-x-2 transition-all"
+                  >
+                    <UserCheck className="w-4 h-4 text-indigo-400" />
+                    <span>Add Interview Experience</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setAddNewDropdownOpen(false);
+                      onOpenAdminForm('prepResource');
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-slate-800 hover:text-white flex items-center space-x-2 transition-all"
+                  >
+                    <BookOpen className="w-4 h-4 text-amber-400" />
+                    <span>Add Prep Resource</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setAddNewDropdownOpen(false);
+                      onOpenAdminForm('javaAcademy');
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-slate-800 hover:text-white flex items-center space-x-2 transition-all"
+                  >
+                    <Coffee className="w-4 h-4 text-rose-400" />
+                    <span>Add Java Academy Resource</span>
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -182,7 +244,18 @@ export const PlacementPrepHub = ({ onOpenAdminForm, onOpenShareExperience, defau
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {filteredCompanies.length === 0 ? (
+            <div className="glass-panel rounded-3xl p-12 text-center space-y-3 border border-slate-800">
+              <Briefcase className="w-12 h-12 text-slate-600 mx-auto" />
+              <h3 className="text-base font-bold text-white">No placement drives available.</h3>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                {(placementCompanies || []).length === 0 
+                  ? "No active campus recruitment drives listed yet. New drives will appear here." 
+                  : "No drives match your search query."}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredCompanies.map((comp) => {
               const compExps = approvedExperiences.filter(e => e.companyId === comp.id);
               const isExpanded = selectedCompanyId === comp.id;
@@ -345,6 +418,7 @@ export const PlacementPrepHub = ({ onOpenAdminForm, onOpenShareExperience, defau
               );
             })}
           </div>
+          )}
         </div>
       )}
 
@@ -376,20 +450,32 @@ export const PlacementPrepHub = ({ onOpenAdminForm, onOpenShareExperience, defau
                     <span>• {exp.submittedAt}</span>
 
                     {isAdmin && (
-                      <button
-                        onClick={() => removeInterviewExperience(exp.id)}
-                        className="text-rose-400 hover:text-rose-300 p-1"
-                        title="Delete Experience"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center space-x-1 ml-2">
+                        <button
+                          onClick={() => onOpenAdminForm('interviewExp', exp)}
+                          className="text-slate-300 hover:text-indigo-400 p-1"
+                          title="Edit Experience"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => removeInterviewExperience(exp.id)}
+                          className="text-slate-300 hover:text-rose-400 p-1"
+                          title="Delete Experience"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
 
                 {/* Rounds */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                  {exp.rounds.map((rnd, rIdx) => (
+                  {(exp.rounds || [
+                    { roundName: 'Round 1: Online Assessment & DSA', description: exp.description || 'Coding and Aptitude evaluation' },
+                    { roundName: 'Round 2: Technical Interview', description: exp.questionsAsked || 'Core Subjects & Live Coding' }
+                  ]).map((rnd, rIdx) => (
                     <div key={rIdx} className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1">
                       <span className="font-bold text-indigo-300 text-xs block">{rnd.roundName}</span>
                       <p className="text-slate-300 leading-relaxed text-[11px]">{rnd.description}</p>
@@ -398,10 +484,10 @@ export const PlacementPrepHub = ({ onOpenAdminForm, onOpenShareExperience, defau
                 </div>
 
                 {/* Advice */}
-                {exp.overallTips && (
+                {(exp.overallTips || exp.preparationTips) && (
                   <div className="p-3.5 rounded-2xl bg-emerald-950/30 border border-emerald-500/30 text-xs text-emerald-300 space-y-1">
                     <span className="font-bold block text-emerald-400">💡 Overall Preparation Strategy:</span>
-                    <p className="leading-relaxed">{exp.overallTips}</p>
+                    <p className="leading-relaxed">{exp.overallTips || exp.preparationTips}</p>
                   </div>
                 )}
 
@@ -446,15 +532,36 @@ export const PlacementPrepHub = ({ onOpenAdminForm, onOpenShareExperience, defau
             {filteredResources.map((res) => (
               <div key={res.id} className="glass-card rounded-3xl p-6 border border-slate-800 flex flex-col justify-between space-y-4 group hover:border-brand-500/50 transition-all">
                 <div className="space-y-3">
-                  <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 uppercase tracking-wider">
-                    {res.subcategory || res.category}
-                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 uppercase tracking-wider">
+                      {res.subcategory || res.category}
+                    </span>
+
+                    {isAdmin && (
+                      <div className="flex items-center space-x-1 p-1 bg-slate-950/80 rounded-xl border border-slate-800 backdrop-blur-md">
+                        <button
+                          onClick={() => onOpenAdminForm('prepResource', res)}
+                          className="p-1 rounded-lg text-slate-300 hover:text-amber-400"
+                          title="Edit Resource"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => removePlacementResource(res.id)}
+                          className="p-1 rounded-lg text-slate-300 hover:text-rose-400"
+                          title="Delete Resource"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <h3 className="text-base font-bold text-white group-hover:text-brand-300 transition-colors">{res.title}</h3>
                   <p className="text-xs text-slate-300 leading-relaxed">{res.description}</p>
                 </div>
 
                 <a
-                  href={res.url}
+                  href={res.url || res.websiteUrl || res.pdfUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="w-full py-2.5 rounded-xl text-xs font-bold bg-brand-600 hover:bg-brand-500 text-white transition-all flex items-center justify-center space-x-2 shadow-lg shadow-brand-600/20"
@@ -471,7 +578,85 @@ export const PlacementPrepHub = ({ onOpenAdminForm, onOpenShareExperience, defau
 
       {/* TAB 4: ☕ LEARN JAVA ACADEMY */}
       {activeTab === 'learnjava' && (
-        <div className="pt-2 animate-in fade-in">
+        <div className="space-y-6 animate-in fade-in">
+          {(javaAcademyResources || []).length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-sm font-bold text-slate-300 flex items-center space-x-2">
+                <Coffee className="w-4 h-4 text-rose-400" />
+                <span>Featured Java Academy Courses & Masterclasses ({javaAcademyResources.length})</span>
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {javaAcademyResources.map((javaRes) => (
+                  <div key={javaRes.id} className="glass-card rounded-3xl p-6 border border-slate-800 space-y-4 relative overflow-hidden group hover:border-rose-500/50 transition-all">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center space-x-2">
+                          <span className="px-2.5 py-0.5 rounded text-[10px] font-extrabold bg-rose-500/20 text-rose-300 border border-rose-500/40 uppercase tracking-wider">
+                            {javaRes.level || 'Beginner'}
+                          </span>
+                          {javaRes.hasCertificate && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                              📜 Certificate Included
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-lg font-extrabold text-white group-hover:text-rose-300 transition-colors pt-1">{javaRes.title}</h3>
+                        <p className="text-xs text-slate-400">{javaRes.instructor || 'IT Dept Faculty'} • {javaRes.duration || '10 Hours'}</p>
+                      </div>
+
+                      {isAdmin && (
+                        <div className="flex items-center space-x-1 p-1 bg-slate-950/80 rounded-xl border border-slate-800 backdrop-blur-md">
+                          <button
+                            onClick={() => onOpenAdminForm('javaAcademy', javaRes)}
+                            className="p-1 rounded-lg text-slate-300 hover:text-rose-400"
+                            title="Edit Course"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => removeJavaAcademyResource(javaRes.id)}
+                            className="p-1 rounded-lg text-slate-300 hover:text-rose-400"
+                            title="Delete Course"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <p className="text-xs text-slate-300 leading-relaxed">{javaRes.description}</p>
+
+                    <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800/80">
+                      {javaRes.youtubePlaylistUrl && (
+                        <a
+                          href={javaRes.youtubePlaylistUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all flex items-center space-x-1.5 shadow-md shadow-rose-600/30"
+                        >
+                          <span>Watch Playlist</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                      {javaRes.practiceUrl && (
+                        <a
+                          href={javaRes.practiceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-3 py-1.5 rounded-xl bg-slate-900 text-emerald-400 border border-slate-800 hover:border-emerald-500/50 text-xs font-bold transition-all flex items-center space-x-1.5"
+                        >
+                          <span>Practice Problems</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <PageControlGuard pageId="learnjava" onGoHome={() => setActiveTab('companies')}>
             <JavaLearningPage />
           </PageControlGuard>

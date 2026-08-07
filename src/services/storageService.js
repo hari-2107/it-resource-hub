@@ -14,6 +14,7 @@ import {
   INITIAL_THIS_OR_THAT,
   INITIAL_IT_FACTS,
   INITIAL_JAVA_LEVELS,
+  INITIAL_JAVA_ACADEMY,
   INITIAL_PAGE_CONTROLS,
   DEMO_USERS,
   getYearFromSemester
@@ -55,6 +56,7 @@ const LOCAL_STORAGE_KEYS = {
   SPEED_TYPE_PROMPTS: 'it_hub_speed_type_prompts_v1',
   JAVA_LEVELS: 'it_hub_java_levels_v1',
   JAVA_ACTIVITY: 'it_hub_java_activity_v1',
+  JAVA_ACADEMY: 'it_hub_java_academy_v1',
   PAGE_CONTROLS: 'it_hub_page_controls_v1'
 };
 
@@ -103,6 +105,12 @@ export const StorageService = {
     }
     if (!localStorage.getItem(LOCAL_STORAGE_KEYS.REPORTS)) {
       setItemJson(LOCAL_STORAGE_KEYS.REPORTS, INITIAL_REPORTS);
+    }
+    if (!localStorage.getItem(LOCAL_STORAGE_KEYS.BROADCASTS)) {
+      setItemJson(LOCAL_STORAGE_KEYS.BROADCASTS, INITIAL_BROADCASTS);
+    }
+    if (!localStorage.getItem(LOCAL_STORAGE_KEYS.EVENTS)) {
+      setItemJson(LOCAL_STORAGE_KEYS.EVENTS, INITIAL_EVENTS);
     }
   },
 
@@ -303,7 +311,11 @@ export const StorageService = {
     const list = StorageService.getAnnouncements();
     const existingIndex = list.findIndex(a => a.id === announcement.id);
     const { dateStr, timeStr } = StorageService.getFormattedNow();
+    const nowIso = new Date().toISOString();
     let updated;
+
+    const isSpecial = announcement.category === 'Special Announcement' || announcement.type === 'special' || announcement.priority === 'Special';
+
     if (existingIndex >= 0) {
       const prevDoc = list[existingIndex];
       const prevHistory = prevDoc.versionHistory || [];
@@ -313,7 +325,7 @@ export const StorageService = {
       const newVersionEntry = {
         id: `ver-${Date.now()}`,
         versionNumber: prevHistory.length + 1,
-        updatedAt: new Date().toISOString(),
+        updatedAt: nowIso,
         updatedBy: announcement.updatedBy || updatedBy,
         changeNote: announcement.changeNote || changeNote,
         snapshot: historySnapshot
@@ -323,16 +335,29 @@ export const StorageService = {
       updated[existingIndex] = {
         ...prevDoc,
         ...announcement,
+        type: isSpecial ? 'special' : (announcement.type || prevDoc.type || 'normal'),
+        priority: announcement.priority || (isSpecial ? 'Special' : 'Medium'),
+        isPinned: announcement.isPinned !== undefined ? announcement.isPinned : (isSpecial ? true : prevDoc.isPinned),
+        createdBy: announcement.createdBy || prevDoc.createdBy || announcement.author || updatedBy,
+        author: announcement.author || prevDoc.author || announcement.createdBy || updatedBy,
         date: dateStr,
         time: timeStr,
+        updatedAt: nowIso,
         versionHistory: [newVersionEntry, ...prevHistory]
       };
     } else {
       const newAnn = {
         ...announcement,
-        id: `ann-${Date.now()}`,
+        id: announcement.id || `ann-${Date.now()}`,
+        type: isSpecial ? 'special' : (announcement.type || 'normal'),
+        priority: announcement.priority || (isSpecial ? 'Special' : 'Medium'),
+        isPinned: announcement.isPinned !== undefined ? announcement.isPinned : (isSpecial ? true : false),
+        createdBy: announcement.createdBy || announcement.author || updatedBy,
+        author: announcement.author || announcement.createdBy || updatedBy,
         date: dateStr,
         time: timeStr,
+        createdAt: nowIso,
+        updatedAt: nowIso,
         viewCount: 1,
         viewedBy: [],
         versionHistory: []
@@ -641,6 +666,10 @@ export const StorageService = {
     setItemJson(LOCAL_STORAGE_KEYS.CUSTOM_USERS, updated);
     return updated;
   },
+  saveCustomUsers: (usersList) => {
+    setItemJson(LOCAL_STORAGE_KEYS.CUSTOM_USERS, usersList);
+    return usersList;
+  },
   deleteCustomUser: (identifier) => {
     const users = StorageService.getCustomUsers();
     const updated = users.filter(u => u.uid !== identifier && u.email?.toLowerCase() !== identifier.toLowerCase());
@@ -777,13 +806,20 @@ export const StorageService = {
   getInterviewExperiences: () => getItemParsed(LOCAL_STORAGE_KEYS.INTERVIEW_EXPERIENCES, INITIAL_INTERVIEW_EXPERIENCES),
   saveInterviewExperience: (exp) => {
     const list = StorageService.getInterviewExperiences();
-    const newExp = {
-      ...exp,
-      id: `exp-${Date.now()}`,
-      submittedAt: new Date().toISOString().split('T')[0],
-      approved: exp.approved !== undefined ? exp.approved : false
-    };
-    const updated = [newExp, ...list];
+    const index = exp.id ? list.findIndex(e => e.id === exp.id) : -1;
+    let updated;
+    if (index >= 0) {
+      updated = [...list];
+      updated[index] = { ...updated[index], ...exp };
+    } else {
+      const newExp = {
+        ...exp,
+        id: `exp-${Date.now()}`,
+        submittedAt: new Date().toISOString().split('T')[0],
+        approved: exp.approved !== undefined ? exp.approved : true
+      };
+      updated = [newExp, ...list];
+    }
     setItemJson(LOCAL_STORAGE_KEYS.INTERVIEW_EXPERIENCES, updated);
     return updated;
   },
@@ -801,26 +837,76 @@ export const StorageService = {
 
   // Placement Resources
   getPlacementResources: () => getItemParsed(LOCAL_STORAGE_KEYS.PLACEMENT_RESOURCES, INITIAL_PLACEMENT_RESOURCES),
+  savePlacementResource: (resource) => {
+    const list = StorageService.getPlacementResources();
+    const index = resource.id ? list.findIndex(r => r.id === resource.id) : -1;
+    let updated;
+    if (index >= 0) {
+      updated = [...list];
+      updated[index] = { ...updated[index], ...resource };
+    } else {
+      const newRes = { ...resource, id: `res-${Date.now()}` };
+      updated = [newRes, ...list];
+    }
+    setItemJson(LOCAL_STORAGE_KEYS.PLACEMENT_RESOURCES, updated);
+    return updated;
+  },
+  deletePlacementResource: (id) => {
+    const list = StorageService.getPlacementResources().filter(r => r.id !== id);
+    setItemJson(LOCAL_STORAGE_KEYS.PLACEMENT_RESOURCES, list);
+    return list;
+  },
+
+  // Java Academy
+  getJavaAcademyResources: () => getItemParsed(LOCAL_STORAGE_KEYS.JAVA_ACADEMY, INITIAL_JAVA_ACADEMY),
+  saveJavaAcademyResource: (javaRes) => {
+    const list = StorageService.getJavaAcademyResources();
+    const index = javaRes.id ? list.findIndex(j => j.id === javaRes.id) : -1;
+    let updated;
+    if (index >= 0) {
+      updated = [...list];
+      updated[index] = { ...updated[index], ...javaRes };
+    } else {
+      const newJava = { ...javaRes, id: `java-${Date.now()}` };
+      updated = [newJava, ...list];
+    }
+    setItemJson(LOCAL_STORAGE_KEYS.JAVA_ACADEMY, updated);
+    return updated;
+  },
+  deleteJavaAcademyResource: (id) => {
+    const list = StorageService.getJavaAcademyResources().filter(j => j.id !== id);
+    setItemJson(LOCAL_STORAGE_KEYS.JAVA_ACADEMY, list);
+    return list;
+  },
 
   // Events & Hackathons
   getEvents: () => getItemParsed(LOCAL_STORAGE_KEYS.EVENTS, INITIAL_EVENTS),
   saveEvent: (event) => {
     const list = StorageService.getEvents();
-    const index = list.findIndex(e => e.id === event.id);
+    const index = event.id ? list.findIndex(e => e.id === event.id) : -1;
+    const nowIso = new Date().toISOString().split('T')[0];
     let updated;
     if (index >= 0) {
       updated = [...list];
-      updated[index] = { ...updated[index], ...event };
+      updated[index] = { ...updated[index], ...event, updatedAt: nowIso };
     } else {
       const newEvt = {
+        eventStatus: 'upcoming',
+        autoStatusEnabled: true,
+        registrationCount: 0,
         ...event,
         id: `evt-${Date.now()}`,
-        createdAt: new Date().toISOString().split('T')[0]
+        createdAt: nowIso,
+        updatedAt: nowIso
       };
       updated = [newEvt, ...list];
     }
     setItemJson(LOCAL_STORAGE_KEYS.EVENTS, updated);
     return updated;
+  },
+  saveEvents: (eventsList) => {
+    setItemJson(LOCAL_STORAGE_KEYS.EVENTS, eventsList);
+    return eventsList;
   },
   deleteEvent: (id) => {
     const list = StorageService.getEvents().filter(e => e.id !== id);

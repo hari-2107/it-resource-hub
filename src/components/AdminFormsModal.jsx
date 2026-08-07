@@ -1,11 +1,24 @@
 import React, { useState } from 'react';
-import { X, Upload, Plus, Save, Sparkles, FileText, Bell, Calendar, Trash2, GraduationCap } from 'lucide-react';
+import { X, Upload, Plus, Save, Sparkles, FileText, Bell, Calendar, Trash2, GraduationCap, Image as ImageIcon, Trophy, Building2, Award, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { YEAR_SEMESTERS, CLASS_SECTIONS_PER_YEAR, getYearFromSemester } from '../data/mockData';
 
 export const AdminFormsModal = ({ type, initialData, onClose }) => {
-  const { subjects, addOrUpdateMaterial, addOrUpdateAITool, addOrUpdateAnnouncement, addOrUpdateTimetable, addThisOrThatPoll } = useData();
+  const { 
+    subjects, 
+    addOrUpdateMaterial, 
+    addOrUpdateAITool, 
+    addOrUpdateAnnouncement, 
+    addOrUpdateTimetable, 
+    addThisOrThatPoll,
+    addOrUpdateEvent,
+    addOrUpdatePlacementCompany,
+    addOrUpdateInterviewExperience,
+    addOrUpdatePlacementResource,
+    addOrUpdateJavaAcademyResource,
+    placementCompanies
+  } = useData();
   const { currentUser } = useAuth();
   const [activeDay, setActiveDay] = useState('Monday');
 
@@ -107,14 +120,87 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
     id: '',
     companyName: '',
     logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg',
+    photoUrl: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80',
     eligibilityCriteria: 'B.Tech IT with no active backlogs',
     cgpaCutoff: 7.5,
-    driveDate: '2026-09-15',
-    description: ''
+    driveDate: new Date().toISOString().split('T')[0],
+    registrationDeadline: new Date(Date.now() + 604800000).toISOString().split('T')[0],
+    roles: 'Software Engineer / Systems Developer',
+    packageDetails: '$120,000 / year ($10,000/mo)',
+    location: 'Hybrid / On-Site',
+    applyUrl: 'https://careers.google.com',
+    description: '',
+    selectionProcess: '1. Online Assessment\n2. Technical Interview 1\n3. Technical Interview 2\n4. HR Discussion',
+    requiredSkills: 'DSA, System Design, Java / C++, SQL, Git',
+    tags: 'Core IT, High Package, Campus Drive',
+    status: 'open'
+  });
+
+  // Interview Experience Form state
+  const [interviewExpForm, setInterviewExpForm] = useState(initialData || {
+    id: '',
+    companyName: '',
+    role: 'Software Development Engineer',
+    studentName: currentUser?.name || 'Student Member',
+    batch: '2026 Batch',
+    roundCount: 3,
+    difficulty: 'Medium',
+    title: '',
+    description: '',
+    questionsAsked: '',
+    preparationTips: '',
+    resultStatus: 'Selected',
+    tags: 'DSA, System Design, HR',
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg',
+    isAnonymous: false,
+    approved: true
+  });
+
+  // Prep Resource Form state
+  const [prepResourceForm, setPrepResourceForm] = useState(initialData || {
+    id: '',
+    title: '',
+    category: 'Aptitude & Reasoning',
+    subcategory: 'Aptitude & Reasoning',
+    description: '',
+    pdfUrl: 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf',
+    websiteUrl: 'https://',
+    youtubeUrl: '',
+    difficulty: 'Intermediate',
+    estimatedTime: '2 Hours',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=800&q=80',
+    isFeatured: true
+  });
+
+  // Java Academy Form state
+  const [javaAcademyForm, setJavaAcademyForm] = useState(initialData || {
+    id: '',
+    title: '',
+    level: 'Beginner',
+    description: '',
+    instructor: currentUser?.name || 'IT Department Faculty',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=800&q=80',
+    youtubePlaylistUrl: 'https://youtube.com',
+    pdfUrl: 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf',
+    githubUrl: 'https://github.com',
+    practiceUrl: 'https://leetcode.com',
+    duration: '10 Hours • 6 Modules',
+    hasCertificate: true,
+    isFeatured: true
   });
 
   // Event Form state
-  const [eventForm, setEventForm] = useState(initialData || {
+  const [eventForm, setEventForm] = useState(initialData ? {
+    ...initialData,
+    eventStatus: initialData.eventStatus || 'upcoming',
+    autoStatusEnabled: initialData.autoStatusEnabled !== false,
+    winnerAnnouncement: initialData.winnerAnnouncement || '',
+    winningTeam: initialData.winningTeam || '',
+    certificateLink: initialData.certificateLink || '',
+    resultPdfUrl: initialData.resultPdfUrl || '',
+    recordingUrl: initialData.recordingUrl || '',
+    feedbackFormUrl: initialData.feedbackFormUrl || ''
+  } : {
     id: '',
     title: '',
     bannerImageUrl: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1200&q=80',
@@ -124,9 +210,17 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
     description: '',
     prizeDetails: '🏆 $2,000 Cash Pool',
     registrationLink: 'https://',
-    startDate: '2026-08-01',
-    endDate: '2026-08-03',
-    registrationDeadline: '2026-07-30'
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+    registrationDeadline: new Date().toISOString().split('T')[0],
+    eventStatus: 'upcoming',
+    autoStatusEnabled: true,
+    winnerAnnouncement: '',
+    winningTeam: '',
+    certificateLink: '',
+    resultPdfUrl: '',
+    recordingUrl: '',
+    feedbackFormUrl: ''
   });
 
   const handleEventImageUpload = (e) => {
@@ -147,48 +241,127 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
   const categoriesList = ['Notes', 'PPTs', 'PDFs', 'Lab Manuals', 'Assignments', 'Previous Year Papers', 'Question Banks', 'Syllabus'];
   const aiCategoriesList = ['Coding', 'Writing', 'Research', 'Design', 'Productivity', 'Resume/Career', 'App Building', 'Website Building'];
 
-  const { addOrUpdatePlacementCompany, addOrUpdateEvent } = useData();
+  const [isSaving, setIsSaving] = useState(false);
+  const [toastMessage, setToastMessage] = useState(null);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (type === 'material') {
-      const selectedSub = subjects.find(s => s.id === materialForm.subjectId);
-      addOrUpdateMaterial({
-        ...materialForm,
-        year: materialForm.year || selectedSub?.year || '1st Year',
-        semester: Number(materialForm.semester || selectedSub?.semester || 1),
-        subjectName: selectedSub ? selectedSub.name : materialForm.subjectName
-      });
-    } else if (type === 'aitool') {
-      addOrUpdateAITool({
-        ...aiToolForm,
-        tags: typeof aiToolForm.tags === 'string' ? aiToolForm.tags.split(',').map(t => t.trim()) : aiToolForm.tags
-      });
-    } else if (type === 'announcement') {
-      addOrUpdateAnnouncement(announcementForm);
-    } else if (type === 'timetable') {
-      let finalTitle = (timetableForm.title || '').trim();
-      if (!finalTitle) {
-        if (timetableForm.type === 'internal') {
-          finalTitle = `${timetableForm.internalName || 'Internal 1'} Examination Schedule`;
-        } else if (timetableForm.type === 'semester') {
-          finalTitle = `Semester Examination Schedule`;
-        } else {
-          finalTitle = `${timetableForm.year} ${timetableForm.classSection || 'IT-A'} Class Timetable`;
+    console.log("Save button clicked", { type, materialForm, aiToolForm, announcementForm, companyForm, eventForm, thisOrThatForm });
+    
+    setToastMessage(null);
+    setIsSaving(true);
+
+    try {
+      if (type === 'material') {
+        if (!materialForm.title?.trim()) {
+          throw new Error("Material Title is required.");
         }
+        if (!materialForm.fileUrl?.trim() && !materialForm.fileName?.trim()) {
+          throw new Error("Material File or File URL is required.");
+        }
+
+        const selectedSub = (subjects || []).find(s => s.id === materialForm.subjectId);
+        const savedMat = addOrUpdateMaterial({
+          ...materialForm,
+          year: materialForm.year || selectedSub?.year || '1st Year',
+          semester: Number(materialForm.semester || selectedSub?.semester || 1),
+          subjectName: selectedSub ? selectedSub.name : (materialForm.subjectName || 'General IT'),
+          fileUrl: materialForm.fileUrl || 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf',
+          fileName: materialForm.fileName || 'Study_Resource.pdf'
+        });
+        console.log("Material saved successfully:", savedMat);
+        setToastMessage({ type: 'success', text: '✅ Material uploaded successfully' });
+      } else if (type === 'aitool') {
+        if (!aiToolForm.name?.trim()) {
+          throw new Error("AI Tool Name is required.");
+        }
+        if (!aiToolForm.description?.trim()) {
+          throw new Error("Short Description is required.");
+        }
+        if (!aiToolForm.websiteUrl?.trim() || aiToolForm.websiteUrl === 'https://') {
+          throw new Error("Valid Official Website Link is required.");
+        }
+
+        const formattedTags = typeof aiToolForm.tags === 'string' 
+          ? aiToolForm.tags.split(',').map(t => t.trim()).filter(Boolean) 
+          : (aiToolForm.tags || []);
+
+        const savedTool = addOrUpdateAITool({
+          ...aiToolForm,
+          tags: formattedTags.length > 0 ? formattedTags : ['AI', 'IT', 'Study']
+        });
+        console.log("AI Tool saved successfully:", savedTool);
+        setToastMessage({ type: 'success', text: '✅ AI Tool added successfully' });
+      } else if (type === 'announcement') {
+        if (!announcementForm.title?.trim()) {
+          throw new Error("Announcement Title is required.");
+        }
+        addOrUpdateAnnouncement(announcementForm);
+        setToastMessage({ type: 'success', text: '✅ Announcement posted successfully' });
+      } else if (type === 'timetable') {
+        let finalTitle = (timetableForm.title || '').trim();
+        if (!finalTitle) {
+          if (timetableForm.type === 'internal') {
+            finalTitle = `${timetableForm.internalName || 'Internal 1'} Examination Schedule`;
+          } else if (timetableForm.type === 'semester') {
+            finalTitle = `Semester Examination Schedule`;
+          } else {
+            finalTitle = `${timetableForm.year} ${timetableForm.classSection || 'IT-A'} Class Timetable`;
+          }
+        }
+        addOrUpdateTimetable({
+          ...timetableForm,
+          title: finalTitle
+        });
+        setToastMessage({ type: 'success', text: '✅ Timetable updated successfully' });
+      } else if (type === 'company') {
+        if (!companyForm.companyName?.trim()) {
+          throw new Error("Company Name is required.");
+        }
+        addOrUpdatePlacementCompany(companyForm);
+        setToastMessage({ type: 'success', text: '✅ Placement drive saved successfully' });
+      } else if (type === 'interviewExp') {
+        if (!interviewExpForm.companyName?.trim() || !interviewExpForm.role?.trim()) {
+          throw new Error("Company Name and Role are required.");
+        }
+        addOrUpdateInterviewExperience(interviewExpForm);
+        setToastMessage({ type: 'success', text: '✅ Interview experience saved successfully' });
+      } else if (type === 'prepResource') {
+        if (!prepResourceForm.title?.trim() || !prepResourceForm.description?.trim()) {
+          throw new Error("Resource Title and Description are required.");
+        }
+        addOrUpdatePlacementResource(prepResourceForm);
+        setToastMessage({ type: 'success', text: '✅ Placement resource saved successfully' });
+      } else if (type === 'javaAcademy') {
+        if (!javaAcademyForm.title?.trim() || !javaAcademyForm.description?.trim()) {
+          throw new Error("Course Title and Description are required.");
+        }
+        addOrUpdateJavaAcademyResource(javaAcademyForm);
+        setToastMessage({ type: 'success', text: '✅ Java Academy resource saved successfully' });
+      } else if (type === 'event') {
+        if (!eventForm.title?.trim()) {
+          throw new Error("Event Title is required.");
+        }
+        addOrUpdateEvent(eventForm);
+        setToastMessage({ type: 'success', text: '✅ Event saved successfully' });
+      } else if (type === 'thisOrThat') {
+        if (!thisOrThatForm.question?.trim()) {
+          throw new Error("Poll Question is required.");
+        }
+        addThisOrThatPoll(thisOrThatForm);
+        setToastMessage({ type: 'success', text: '✅ Poll added successfully' });
       }
-      addOrUpdateTimetable({
-        ...timetableForm,
-        title: finalTitle
-      });
-    } else if (type === 'company') {
-      addOrUpdatePlacementCompany(companyForm);
-    } else if (type === 'event') {
-      addOrUpdateEvent(eventForm);
-    } else if (type === 'thisOrThat') {
-      addThisOrThatPoll(thisOrThatForm);
+
+      setTimeout(() => {
+        onClose();
+      }, 500);
+
+    } catch (err) {
+      console.error("Save Operation Error:", err);
+      setToastMessage({ type: 'error', text: `❌ ${err.message || 'Failed to save record.'}` });
+    } finally {
+      setIsSaving(false);
     }
-    onClose();
   };
 
   return (
@@ -204,10 +377,12 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
               {type === 'announcement' && <Bell className="w-5 h-5" />}
               {type === 'timetable' && <Calendar className="w-5 h-5" />}
               {type === 'thisOrThat' && <Sparkles className="w-5 h-5 text-amber-400" />}
+              {type === 'event' && <Trophy className="w-5 h-5 text-amber-400" />}
+              {type === 'company' && <Building2 className="w-5 h-5 text-emerald-400" />}
             </div>
             <div>
               <h3 className="text-base font-bold text-white capitalize">
-                {initialData?.id ? `Edit ${type}` : `Add New ${type === 'thisOrThat' ? 'This or That Poll' : type}`}
+                {initialData?.id ? `Edit ${type === 'event' ? 'Event / Hackathon' : type === 'company' ? 'Placement Company' : type}` : `Add New ${type === 'thisOrThat' ? 'This or That Poll' : type === 'event' ? 'Event / Hackathon' : type === 'company' ? 'Placement Company' : type}`}
               </h3>
               <p className="text-xs text-slate-400">Admin Control Panel</p>
             </div>
@@ -441,8 +616,7 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-400 mb-1">Or Paste Direct File URL</label>
                     <input
-                      type="url"
-                      required
+                      type="text"
                       placeholder="https://..."
                       value={materialForm.fileUrl}
                       onChange={(e) => setMaterialForm({ ...materialForm, fileUrl: e.target.value })}
@@ -510,7 +684,7 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">Logo / Icon URL</label>
                   <input
-                    type="url"
+                    type="text"
                     value={aiToolForm.logoUrl}
                     onChange={(e) => setAiToolForm({ ...aiToolForm, logoUrl: e.target.value })}
                     className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-brand-500"
@@ -521,7 +695,7 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">Official Website Link</label>
                 <input
-                  type="url"
+                  type="text"
                   required
                   value={aiToolForm.websiteUrl}
                   onChange={(e) => setAiToolForm({ ...aiToolForm, websiteUrl: e.target.value })}
@@ -1403,17 +1577,334 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Drive Description & Details</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Company Description & Details</label>
                 <textarea
-                  rows={3}
-                  required
-                  placeholder="Job role, package details, and test process..."
+                  rows="3"
+                  placeholder="Overview of company, drive details, and eligibility criteria..."
                   value={companyForm.description}
                   onChange={(e) => setCompanyForm({ ...companyForm, description: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-brand-500"
                 />
               </div>
             </>
+          )}
+
+          {/* INTERVIEW EXPERIENCE FORM */}
+          {type === 'interviewExp' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Company Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Google / Microsoft / Zoho"
+                    value={interviewExpForm.companyName}
+                    onChange={(e) => setInterviewExpForm({ ...interviewExpForm, companyName: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Role / Designation</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Software Development Engineer"
+                    value={interviewExpForm.role}
+                    onChange={(e) => setInterviewExpForm({ ...interviewExpForm, role: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Student Name (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Alex Morgan"
+                    value={interviewExpForm.studentName}
+                    onChange={(e) => setInterviewExpForm({ ...interviewExpForm, studentName: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Difficulty Level</label>
+                  <select
+                    value={interviewExpForm.difficulty}
+                    onChange={(e) => setInterviewExpForm({ ...interviewExpForm, difficulty: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="Easy">Easy</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Hard">Hard</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Interview Outcome</label>
+                  <select
+                    value={interviewExpForm.resultStatus}
+                    onChange={(e) => setInterviewExpForm({ ...interviewExpForm, resultStatus: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="Selected">🎉 Selected (Offer Received)</option>
+                    <option value="Rejected">Rejected</option>
+                    <option value="Waiting">Waiting for Result</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Experience Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Google SDE-1 On-Campus Placement Experience 2026"
+                  value={interviewExpForm.title}
+                  onChange={(e) => setInterviewExpForm({ ...interviewExpForm, title: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Full Experience & Process Overview</label>
+                <textarea
+                  rows="3"
+                  placeholder="Describe your overall experience, interview atmosphere, and key rounds..."
+                  value={interviewExpForm.description}
+                  onChange={(e) => setInterviewExpForm({ ...interviewExpForm, description: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Specific Questions Asked in Rounds</label>
+                <textarea
+                  rows="3"
+                  placeholder="List exact coding problems, DSA topics, DBMS/OS questions asked..."
+                  value={interviewExpForm.questionsAsked}
+                  onChange={(e) => setInterviewExpForm({ ...interviewExpForm, questionsAsked: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Preparation Advice & Tips for Juniors</label>
+                <textarea
+                  rows="2"
+                  placeholder="What topics should students revise most? Any specific advice?"
+                  value={interviewExpForm.preparationTips}
+                  onChange={(e) => setInterviewExpForm({ ...interviewExpForm, preparationTips: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="flex items-center space-x-2 p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/30">
+                <input
+                  type="checkbox"
+                  id="isAnonExp"
+                  checked={interviewExpForm.isAnonymous}
+                  onChange={(e) => setInterviewExpForm({ ...interviewExpForm, isAnonymous: e.target.checked })}
+                  className="w-4 h-4 rounded border-indigo-500/40 bg-slate-900 text-indigo-500 focus:ring-indigo-400 cursor-pointer"
+                />
+                <label htmlFor="isAnonExp" className="text-xs font-bold text-indigo-300 cursor-pointer">
+                  <span>🔒 Post Anonymously (Hide student name from public view)</span>
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* PREP RESOURCE FORM */}
+          {type === 'prepResource' && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Resource Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Complete Aptitude Formula Sheet & Shortcuts"
+                  value={prepResourceForm.title}
+                  onChange={(e) => setPrepResourceForm({ ...prepResourceForm, title: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Category</label>
+                  <select
+                    value={prepResourceForm.category}
+                    onChange={(e) => setPrepResourceForm({ ...prepResourceForm, category: e.target.value, subcategory: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="Aptitude & Reasoning">Aptitude & Reasoning</option>
+                    <option value="DSA & Coding">DSA & Coding</option>
+                    <option value="Java">Java & Core Programming</option>
+                    <option value="DBMS">DBMS & SQL</option>
+                    <option value="OS">Operating Systems</option>
+                    <option value="CN">Computer Networks</option>
+                    <option value="HR">HR & Behavioral Interview</option>
+                    <option value="Resume">Resume & Portfolio</option>
+                    <option value="Company Specific">Company Specific Prep Kit</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Difficulty Level</label>
+                  <select
+                    value={prepResourceForm.difficulty}
+                    onChange={(e) => setPrepResourceForm({ ...prepResourceForm, difficulty: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Resource Description</label>
+                <textarea
+                  rows="3"
+                  required
+                  placeholder="Summary of what topics and formulas this resource covers..."
+                  value={prepResourceForm.description}
+                  onChange={(e) => setPrepResourceForm({ ...prepResourceForm, description: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Resource Website / Sheet Link</label>
+                  <input
+                    type="text"
+                    placeholder="https://..."
+                    value={prepResourceForm.websiteUrl}
+                    onChange={(e) => setPrepResourceForm({ ...prepResourceForm, websiteUrl: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">PDF File Link / Download URL</label>
+                  <input
+                    type="text"
+                    placeholder="https://..."
+                    value={prepResourceForm.pdfUrl}
+                    onChange={(e) => setPrepResourceForm({ ...prepResourceForm, pdfUrl: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* JAVA ACADEMY FORM */}
+          {type === 'javaAcademy' && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Course Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Java Multithreading & Concurrency Masterclass"
+                  value={javaAcademyForm.title}
+                  onChange={(e) => setJavaAcademyForm({ ...javaAcademyForm, title: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-rose-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Course Level</label>
+                  <select
+                    value={javaAcademyForm.level}
+                    onChange={(e) => setJavaAcademyForm({ ...javaAcademyForm, level: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-rose-500"
+                  >
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Instructor / Faculty</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Prof. R. Vance & Tech Guild"
+                    value={javaAcademyForm.instructor}
+                    onChange={(e) => setJavaAcademyForm({ ...javaAcademyForm, instructor: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-rose-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Course Overview & Syllabus</label>
+                <textarea
+                  rows="3"
+                  required
+                  placeholder="Brief description of modules, hands-on projects, and concepts..."
+                  value={javaAcademyForm.description}
+                  onChange={(e) => setJavaAcademyForm({ ...javaAcademyForm, description: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-rose-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">YouTube Playlist URL</label>
+                  <input
+                    type="text"
+                    placeholder="https://youtube.com/..."
+                    value={javaAcademyForm.youtubePlaylistUrl}
+                    onChange={(e) => setJavaAcademyForm({ ...javaAcademyForm, youtubePlaylistUrl: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-rose-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Practice Problems Link</label>
+                  <input
+                    type="text"
+                    placeholder="https://leetcode.com/..."
+                    value={javaAcademyForm.practiceUrl}
+                    onChange={(e) => setJavaAcademyForm({ ...javaAcademyForm, practiceUrl: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-rose-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">GitHub Code Repository</label>
+                  <input
+                    type="text"
+                    placeholder="https://github.com/..."
+                    value={javaAcademyForm.githubUrl}
+                    onChange={(e) => setJavaAcademyForm({ ...javaAcademyForm, githubUrl: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-rose-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Duration & Modules</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 12 Hours • 8 Modules"
+                    value={javaAcademyForm.duration}
+                    onChange={(e) => setJavaAcademyForm({ ...javaAcademyForm, duration: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-rose-500"
+                  />
+                </div>
+              </div>
+            </div>
           )}
 
           {/* EVENT FORM */}
@@ -1585,7 +2076,7 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Event Description & Rules</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Event Description & Rules *</label>
                 <textarea
                   rows={3}
                   required
@@ -1595,7 +2086,158 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
                   className="w-full px-3 py-2 bg-slate-800 text-sm text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-brand-500"
                 />
               </div>
+
+              {/* Event Status Management */}
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <label className="text-xs font-extrabold text-white flex items-center space-x-1.5 uppercase tracking-wider">
+                    <Sparkles className="w-4 h-4 text-purple-400" />
+                    <span>Event Status Configuration</span>
+                  </label>
+                  <label className="flex items-center space-x-2 text-xs text-cyan-300 font-semibold cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={eventForm.autoStatusEnabled}
+                      onChange={(e) => setEventForm({ ...eventForm, autoStatusEnabled: e.target.checked })}
+                      className="rounded border-slate-700 bg-slate-800 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span>Automatically determine status from dates</span>
+                  </label>
+                </div>
+
+                {/* 3 Selectable Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                  {[
+                    { id: 'upcoming', title: 'Upcoming', desc: 'The event has not started yet.', icon: '🟡' },
+                    { id: 'ongoing', title: 'Ongoing', desc: 'The event is currently running.', icon: '🟢' },
+                    { id: 'archive', title: 'Past Archive', desc: 'The event has finished.', icon: '⚪' }
+                  ].map((card) => {
+                    const isSelected = eventForm.eventStatus === card.id;
+                    return (
+                      <button
+                        key={card.id}
+                        type="button"
+                        onClick={() => setEventForm({ ...eventForm, eventStatus: card.id, autoStatusEnabled: false })}
+                        className={`p-3 rounded-xl border text-left transition-all relative flex flex-col justify-between space-y-1 cursor-pointer ${
+                          isSelected
+                            ? 'bg-purple-950/40 border-purple-500 text-white ring-1 ring-purple-500/50 shadow-md'
+                            : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <span className="text-xs font-extrabold flex items-center gap-1.5">
+                            <span>{card.icon}</span>
+                            <span>{card.title}</span>
+                          </span>
+                          <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                            isSelected ? 'border-purple-400 bg-purple-500' : 'border-slate-700 bg-slate-800'
+                          }`}>
+                            {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 leading-tight">{card.desc}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {eventForm.autoStatusEnabled && (
+                  <p className="text-[11px] text-cyan-400/90 font-medium pt-1">
+                    ℹ️ Smart Mode Active: Status will be calculated automatically based on Start & End dates. Uncheck to manually select.
+                  </p>
+                )}
+              </div>
+
+              {/* Optional Advanced Fields (Winners, Certificate, Result PDF, Recording) */}
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                <h4 className="text-xs font-extrabold text-white flex items-center space-x-1.5 uppercase tracking-wider border-b border-slate-800 pb-2">
+                  <Award className="w-4 h-4 text-amber-400" />
+                  <span>Event Outcomes & Deliverables (Optional)</span>
+                </h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">Winning Team / Winners</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Team AlgoWizards (Priya & Rahul)"
+                      value={eventForm.winningTeam}
+                      onChange={(e) => setEventForm({ ...eventForm, winningTeam: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-slate-800 text-xs text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-brand-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">Certificate Download Link</label>
+                    <input
+                      type="text"
+                      placeholder="https://example.com/certificates.pdf"
+                      value={eventForm.certificateLink}
+                      onChange={(e) => setEventForm({ ...eventForm, certificateLink: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-slate-800 text-xs text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-brand-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">Result PDF URL</label>
+                    <input
+                      type="text"
+                      placeholder="https://example.com/results.pdf"
+                      value={eventForm.resultPdfUrl}
+                      onChange={(e) => setEventForm({ ...eventForm, resultPdfUrl: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-slate-800 text-xs text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-brand-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">Recording / Video Link</label>
+                    <input
+                      type="text"
+                      placeholder="https://youtube.com/watch?v=..."
+                      value={eventForm.recordingUrl}
+                      onChange={(e) => setEventForm({ ...eventForm, recordingUrl: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-slate-800 text-xs text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-brand-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">Feedback Form Link</label>
+                    <input
+                      type="text"
+                      placeholder="https://forms.gle/..."
+                      value={eventForm.feedbackFormUrl}
+                      onChange={(e) => setEventForm({ ...eventForm, feedbackFormUrl: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-slate-800 text-xs text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-brand-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">Winner Announcement & Remarks</label>
+                  <textarea
+                    rows={2}
+                    placeholder="🎉 Team AlgoWizards secured 1st place with 100% test case pass rate!"
+                    value={eventForm.winnerAnnouncement}
+                    onChange={(e) => setEventForm({ ...eventForm, winnerAnnouncement: e.target.value })}
+                    className="w-full px-3 py-1.5 bg-slate-800 text-xs text-slate-100 rounded-xl border border-slate-700 focus:outline-none focus:border-brand-500"
+                  />
+                </div>
+              </div>
             </>
+          )}
+
+          {/* Toast Message Banner */}
+          {toastMessage && (
+            <div className={`p-3 rounded-2xl text-xs font-bold flex items-center space-x-2 animate-in fade-in ${
+              toastMessage.type === 'success' 
+                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' 
+                : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+            }`}>
+              {toastMessage.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" /> : <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />}
+              <span>{toastMessage.text}</span>
+            </div>
           )}
 
           {/* Form Actions */}
@@ -1603,16 +2245,27 @@ export const AdminFormsModal = ({ type, initialData, onClose }) => {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800"
+              disabled={isSaving}
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex items-center space-x-2 px-5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30 transition-all"
+              disabled={isSaving}
+              className="flex items-center space-x-2 px-5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Save className="w-4 h-4" />
-              <span>Save Record</span>
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  <span>{type === 'material' ? 'Save Record' : type === 'aitool' ? 'Save AI Tool' : 'Save Record'}</span>
+                </>
+              )}
             </button>
           </div>
 

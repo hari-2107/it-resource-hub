@@ -6,7 +6,7 @@ import {
   signOut, 
   onAuthStateChanged 
 } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { StorageService } from '../services/storageService';
 import { DEMO_USERS } from '../data/mockData';
 
@@ -20,29 +20,21 @@ const calculateDailyLoginStreak = (userDoc) => {
   const nowIso = now.toISOString();
 
   const lastLoginDate = userDoc.lastLoginDate;
-  let currentStreak = userDoc.streak || 1;
   let totalLoginCount = userDoc.loginCount || 1;
 
-  if (!lastLoginDate) {
-    currentStreak = 1;
+  if (!lastLoginDate || lastLoginDate !== todayStr) {
     totalLoginCount = (userDoc.loginCount || 0) + 1;
-  } else if (lastLoginDate !== todayStr) {
-    totalLoginCount = (userDoc.loginCount || 0) + 1;
-    const lastDate = new Date(lastLoginDate);
-    const currentDate = new Date(todayStr);
-    const diffTime = Math.abs(currentDate - lastDate);
-    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 1) {
-      currentStreak = (userDoc.streak || 1) + 1;
-    } else if (diffDays > 1) {
-      currentStreak = 1;
-    }
   }
+
+  // Preserve existing streak fields without auto-incrementing on login
+  const currentStreak = userDoc.currentStreak ?? userDoc.streak ?? 0;
+  const longestStreak = userDoc.longestStreak ?? currentStreak;
 
   return {
     ...userDoc,
     streak: currentStreak,
+    currentStreak: currentStreak,
+    longestStreak: longestStreak,
     loginCount: totalLoginCount,
     lastLoginDate: todayStr,
     lastLoginAt: nowIso,
@@ -189,6 +181,9 @@ export const AuthProvider = ({ children }) => {
       );
 
       if (matched) {
+        if (matched.deactivated) {
+          throw new Error('This account has been deactivated by an Administrator. Please contact support or an administrator to reactivate your account.');
+        }
         if (matched.password && matched.password !== password) {
           throw new Error('Incorrect password. Please try again.');
         }
@@ -272,10 +267,32 @@ export const AuthProvider = ({ children }) => {
     // Prevent changing role via profile updates
     const { role, ...safeFields } = updatedFields;
     const nowIso = new Date().toISOString();
-    const updated = { ...currentUser, ...safeFields, lastActiveAt: nowIso };
-    setCurrentUser(updated);
-    StorageService.setCurrentUser(updated);
-    StorageService.saveCustomUser(updated);
+
+    let updatedUser;
+    setCurrentUser(prevUser => {
+      if (!prevUser) return null;
+      
+      const currentFunPoints = Number(prevUser.funPoints ?? prevUser.xp ?? 0);
+      let targetFunPoints = safeFields.funPoints !== undefined ? Number(safeFields.funPoints) : currentFunPoints;
+      
+      // If addXp delta is provided, add it atomically to currentFunPoints
+      if (safeFields.addXp !== undefined) {
+        targetFunPoints = currentFunPoints + Number(safeFields.addXp);
+        delete safeFields.addXp;
+      }
+
+      updatedUser = {
+        ...prevUser,
+        ...safeFields,
+        funPoints: targetFunPoints,
+        xp: targetFunPoints,
+        lastActiveAt: nowIso
+      };
+
+      StorageService.setCurrentUser(updatedUser);
+      StorageService.saveCustomUser(updatedUser);
+      return updatedUser;
+    });
 
     if (isFirebaseConfigured && db && currentUser?.uid && !isDemoMode) {
       try {
@@ -313,12 +330,120 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Centralized Production-Ready BrainZone Challenge Completion Pipeline
+  const completeBrainZoneChallenge = async (challengeName = 'BrainZone Challenge', earnedXp = 0, additionalData = {}) => {
+    if (!currentUser) return null;
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const nowIso = new Date().toISOString();
+    let challengePayload;
+
+    setCurrentUser(prevUser => {
+      if (!prevUser) return null;
+
+      const prevStreak = Number(prevUser.currentStreak ?? prevUser.streak ?? 0);
+      const prevLongest = Number(prevUser.longestStreak ?? prevStreak ?? 0);
+      const prevTotalChallenges = Number(prevUser.totalChallengesCompleted ?? 0);
+      const prevActiveDate = prevUser.lastActiveDate || '';
+      const prevHistory = Array.isArray(prevUser.streakHistory) ? [...prevUser.streakHistory] : [];
+      const prevDaysActive = Number(prevUser.totalDaysActive || prevHistory.length || (prevActiveDate ? 1 : 0));
+      const currentXP = Number(prevUser.funPoints ?? prevUser.xp ?? 0);
+
+      let newStreak = prevStreak;
+      let newLongest = prevLongest;
+      let newLastStreakReset = prevUser.lastStreakReset || null;
+      let updatedHistory = [...prevHistory];
+      let newDaysActive = prevDaysActive;
+
+      // 1. Evaluate streak increment or reset
+      if (!prevActiveDate) {
+        // First challenge ever completed!
+        newStreak = 1;
+        if (!updatedHistory.includes(todayStr)) updatedHistory.push(todayStr);
+        newDaysActive = updatedHistory.length;
+      } else if (prevActiveDate === todayStr) {
+        // Challenge completed on the same day -> streak remains unchanged
+        if (!updatedHistory.includes(todayStr)) updatedHistory.push(todayStr);
+        newDaysActive = updatedHistory.length;
+      } else {
+        // Challenge completed on a new day!
+        const lastDate = new Date(prevActiveDate);
+        const todayDate = new Date(todayStr);
+        const diffTime = Math.abs(todayDate - lastDate);
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 1) {
+          // Consecutive day -> increment streak by 1
+          newStreak = prevStreak + 1;
+        } else {
+          // Missed one or more days -> reset streak to 1 (today starts new streak)
+          newStreak = 1;
+          newLastStreakReset = nowIso;
+        }
+
+        if (!updatedHistory.includes(todayStr)) updatedHistory.push(todayStr);
+        newDaysActive = updatedHistory.length;
+      }
+
+      // 2. Longest streak check
+      newLongest = Math.max(newLongest, newStreak);
+
+      // 3. New total challenges count & XP
+      const newTotalChallenges = prevTotalChallenges + 1;
+      const xpToAdd = Math.max(0, Number(earnedXp) || 0);
+      const newXpTotal = currentXP + xpToAdd;
+
+      const { role, ...safeAdditional } = additionalData || {};
+
+      challengePayload = {
+        ...prevUser,
+        ...safeAdditional,
+        funPoints: newXpTotal,
+        xp: newXpTotal,
+        streak: newStreak,
+        currentStreak: newStreak,
+        longestStreak: newLongest,
+        lastActiveDate: todayStr,
+        lastChallengeCompleted: challengeName,
+        totalChallengesCompleted: newTotalChallenges,
+        streakHistory: updatedHistory,
+        totalDaysActive: newDaysActive,
+        lastStreakReset: newLastStreakReset,
+        lastActiveAt: nowIso,
+        updatedAt: nowIso
+      };
+
+      StorageService.setCurrentUser(challengePayload);
+      StorageService.saveCustomUser(challengePayload);
+      return challengePayload;
+    });
+
+    if (isFirebaseConfigured && db && currentUser?.uid && !isDemoMode && challengePayload) {
+      try {
+        const { role, ...docFields } = challengePayload;
+        await setDoc(doc(db, 'users', currentUser.uid), docFields, { merge: true });
+      } catch (err) {
+        console.error("Error updating user document in Firestore:", err);
+      }
+    }
+
+    return challengePayload;
+  };
+
   const isAdmin = currentUser?.role === 'admin';
+  const isCoAdmin = currentUser?.role === 'co-admin' || currentUser?.role === 'coadmin';
+  const isStudent = !isAdmin && !isCoAdmin;
+  const canManageContent = isAdmin || isCoAdmin;
+  const canManageUsersAndRoles = isAdmin;
 
   return (
     <AuthContext.Provider value={{
       currentUser,
       isAdmin,
+      isCoAdmin,
+      isStudent,
+      canManageContent,
+      canManageUsersAndRoles,
       loading,
       isDemoMode,
       setIsDemoMode,
@@ -327,7 +452,8 @@ export const AuthProvider = ({ children }) => {
       logout,
       updateUserProfile,
       toggleMuteCategory,
-      completeWelcomeScreen
+      completeWelcomeScreen,
+      completeBrainZoneChallenge
     }}>
       {children}
     </AuthContext.Provider>

@@ -7,6 +7,23 @@ import { INITIAL_PAGE_CONTROLS } from '../data/mockData';
 
 const DataContext = createContext();
 
+export const getEffectiveEventStatus = (event) => {
+  if (!event) return 'upcoming';
+  const currentDateStr = new Date().toISOString().split('T')[0];
+  
+  if (event.autoStatusEnabled !== false) {
+    if (event.startDate && currentDateStr < event.startDate) {
+      return 'upcoming';
+    } else if (event.startDate && event.endDate && currentDateStr >= event.startDate && currentDateStr <= event.endDate) {
+      return 'ongoing';
+    } else if (event.endDate && currentDateStr > event.endDate) {
+      return 'archive';
+    }
+    return event.eventStatus || 'upcoming';
+  }
+  return event.eventStatus || 'upcoming';
+};
+
 export const DataProvider = ({ children }) => {
   const { currentUser } = useAuth();
 
@@ -25,6 +42,7 @@ export const DataProvider = ({ children }) => {
   const [placementCompanies, setPlacementCompanies] = useState([]);
   const [interviewExperiences, setInterviewExperiences] = useState([]);
   const [placementResources, setPlacementResources] = useState([]);
+  const [javaAcademyResources, setJavaAcademyResources] = useState([]);
   const [events, setEvents] = useState([]);
   const [ratings, setRatings] = useState([]);
   const [userResumes, setUserResumes] = useState([]);
@@ -66,6 +84,7 @@ export const DataProvider = ({ children }) => {
       if (StorageService.getPlacementCompanies) setPlacementCompanies(StorageService.getPlacementCompanies() || []);
       if (StorageService.getInterviewExperiences) setInterviewExperiences(StorageService.getInterviewExperiences() || []);
       if (StorageService.getPlacementResources) setPlacementResources(StorageService.getPlacementResources() || []);
+      if (StorageService.getJavaAcademyResources) setJavaAcademyResources(StorageService.getJavaAcademyResources() || []);
       if (StorageService.getEvents) setEvents(StorageService.getEvents() || []);
       if (StorageService.getRatings) setRatings(StorageService.getRatings() || []);
       if (StorageService.getCustomUsers) setRegisteredUsers(StorageService.getCustomUsers() || []);
@@ -368,30 +387,117 @@ export const DataProvider = ({ children }) => {
     const updated = StorageService.saveInterviewExperience({
       ...expData,
       studentName: expData.isAnonymous ? 'Anonymous Student' : (currentUser?.name || expData.studentName || 'Student'),
-      approved: false // requires admin approval
+      approved: expData.approved !== undefined ? expData.approved : true
     });
     setInterviewExperiences(updated);
+    return updated;
+  };
+
+  const addOrUpdateInterviewExperience = (expData) => {
+    const updated = StorageService.saveInterviewExperience({
+      ...expData,
+      studentName: expData.isAnonymous ? 'Anonymous Student' : (currentUser?.name || expData.studentName || 'Student'),
+      approved: expData.approved !== undefined ? expData.approved : true
+    });
+    setInterviewExperiences(updated);
+    return updated;
   };
 
   const updateInterviewExperienceStatus = (id, approved) => {
     const updated = StorageService.updateInterviewExperienceStatus(id, approved);
     setInterviewExperiences(updated);
+    return updated;
   };
 
   const removeInterviewExperience = (id) => {
     const updated = StorageService.deleteInterviewExperience(id);
     setInterviewExperiences(updated);
+    return updated;
+  };
+
+  // Placement Resources Actions
+  const addOrUpdatePlacementResource = (resData) => {
+    const updated = StorageService.savePlacementResource(resData);
+    setPlacementResources(updated);
+    return updated;
+  };
+
+  const removePlacementResource = (id) => {
+    const updated = StorageService.deletePlacementResource(id);
+    setPlacementResources(updated);
+    return updated;
+  };
+
+  // Java Academy Actions
+  const addOrUpdateJavaAcademyResource = (javaResData) => {
+    const updated = StorageService.saveJavaAcademyResource(javaResData);
+    setJavaAcademyResources(updated);
+    return updated;
+  };
+
+  const removeJavaAcademyResource = (id) => {
+    const updated = StorageService.deleteJavaAcademyResource(id);
+    setJavaAcademyResources(updated);
+    return updated;
   };
 
   // Events & Hackathons Actions
   const addOrUpdateEvent = (eventData) => {
-    const updated = StorageService.saveEvent(eventData);
+    const editorName = currentUser?.name || 'IT Dept Admin';
+    const payload = {
+      ...eventData,
+      lastEditedBy: editorName,
+      createdBy: eventData.createdBy || editorName
+    };
+    const updated = StorageService.saveEvent(payload);
     setEvents(updated);
+    if (logAdminActivity) logAdminActivity(`Saved Event '${eventData.title || 'Untitled'}'`, 'Events');
+  };
+
+  const updateEventStatus = (eventId, newStatus) => {
+    const list = StorageService.getEvents();
+    const editorName = currentUser?.name || 'IT Dept Admin';
+    const updated = list.map(e => e.id === eventId ? {
+      ...e,
+      eventStatus: newStatus,
+      autoStatusEnabled: false,
+      lastEditedBy: editorName,
+      updatedAt: new Date().toISOString().split('T')[0]
+    } : e);
+    StorageService.saveEvents(updated);
+    setEvents(updated);
+    if (logAdminActivity) logAdminActivity(`Updated status of Event ID '${eventId}' to ${newStatus.toUpperCase()}`, 'Events');
+  };
+
+  const bulkUpdateEventStatus = (eventIds, newStatus) => {
+    if (!eventIds || eventIds.length === 0) return;
+    const list = StorageService.getEvents();
+    const editorName = currentUser?.name || 'IT Dept Admin';
+    const updated = list.map(e => eventIds.includes(e.id) ? {
+      ...e,
+      eventStatus: newStatus,
+      autoStatusEnabled: false,
+      lastEditedBy: editorName,
+      updatedAt: new Date().toISOString().split('T')[0]
+    } : e);
+    StorageService.saveEvents(updated);
+    setEvents(updated);
+    if (logAdminActivity) logAdminActivity(`Bulk moved ${eventIds.length} events to ${newStatus.toUpperCase()}`, 'Events');
+  };
+
+  const bulkDeleteEvents = (eventIds) => {
+    if (!eventIds || eventIds.length === 0) return;
+    const list = StorageService.getEvents();
+    const updated = list.filter(e => !eventIds.includes(e.id));
+    StorageService.saveEvents(updated);
+    setEvents(updated);
+    if (logAdminActivity) logAdminActivity(`Bulk deleted ${eventIds.length} events`, 'Events');
   };
 
   const removeEvent = (id) => {
     const updated = StorageService.deleteEvent(id);
     setEvents(updated);
+    if (logAdminActivity) logAdminActivity(`Deleted Event ID '${id}'`, 'Events');
   };
 
   // Rating & Review Actions
@@ -627,11 +733,43 @@ export const DataProvider = ({ children }) => {
   };
 
   const updateUserRole = (userId, newRole) => {
-    const users = StorageService.getCustomUsers();
-    const updated = users.map(u => (u.uid === userId || u.id === userId) ? { ...u, role: newRole } : u);
+    const users = StorageService.getCustomUsers() || registeredUsers || [];
+    const updated = users.map(u => {
+      const matchUid = u.uid && String(u.uid) === String(userId);
+      const matchId = u.id && String(u.id) === String(userId);
+      const matchEmail = u.email && String(u.email).toLowerCase() === String(userId).toLowerCase();
+      return (matchUid || matchId || matchEmail) ? { ...u, role: newRole } : u;
+    });
     StorageService.saveCustomUsers(updated);
     setRegisteredUsers(updated);
     logAdminActivity(`Changed user role to ${newRole}`, 'User', userId);
+  };
+
+  const updateRegisteredUser = (userId, updatedFields) => {
+    const users = StorageService.getCustomUsers() || registeredUsers || [];
+    const updated = users.map(u => {
+      const matchUid = u.uid && String(u.uid) === String(userId);
+      const matchId = u.id && String(u.id) === String(userId);
+      const matchEmail = u.email && String(u.email).toLowerCase() === String(userId).toLowerCase();
+      if (matchUid || matchId || matchEmail) {
+        return { ...u, ...updatedFields };
+      }
+      return u;
+    });
+    StorageService.saveCustomUsers(updated);
+    setRegisteredUsers(updated);
+
+    // Sync currentUser if the updated user is logged in
+    const curUser = StorageService.getCurrentUser();
+    if (curUser) {
+      const matchCurUid = curUser.uid && String(curUser.uid) === String(userId);
+      const matchCurId = curUser.id && String(curUser.id) === String(userId);
+      const matchCurEmail = curUser.email && String(curUser.email).toLowerCase() === String(userId).toLowerCase();
+      if (matchCurUid || matchCurId || matchCurEmail) {
+        const updatedCur = { ...curUser, ...updatedFields };
+        StorageService.setCurrentUser(updatedCur);
+      }
+    }
   };
 
   const addOrUpdateGuessOutputChallenge = (obj) => {
@@ -812,8 +950,20 @@ export const DataProvider = ({ children }) => {
       loading,
       subjects,
       materials,
+      addOrUpdateMaterial,
+      removeMaterial,
+      trackDownload,
+      trackMaterialView,
       aiTools,
+      addOrUpdateAITool,
+      removeAITool,
       announcements,
+      addOrUpdateAnnouncement,
+      removeAnnouncement,
+      togglePinAnnouncement,
+      addBroadcast,
+      updateBroadcast,
+      deleteBroadcast,
       timetables,
       favorites,
       studentMarks,
@@ -825,6 +975,17 @@ export const DataProvider = ({ children }) => {
       placementCompanies,
       interviewExperiences,
       placementResources,
+      javaAcademyResources,
+      addOrUpdatePlacementCompany,
+      removePlacementCompany,
+      addInterviewExperience,
+      addOrUpdateInterviewExperience,
+      updateInterviewExperienceStatus,
+      removeInterviewExperience,
+      addOrUpdatePlacementResource,
+      removePlacementResource,
+      addOrUpdateJavaAcademyResource,
+      removeJavaAcademyResource,
       events,
       ratings,
       userResumes,
@@ -844,12 +1005,11 @@ export const DataProvider = ({ children }) => {
       removeMark,
       updateStudentCustomTimetable,
       resetStudentCustomTimetable,
-      addOrUpdatePlacementCompany,
-      removePlacementCompany,
-      addInterviewExperience,
-      updateInterviewExperienceStatus,
-      removeInterviewExperience,
       addOrUpdateEvent,
+      updateEventStatus,
+      bulkUpdateEventStatus,
+      bulkDeleteEvents,
+      getEffectiveEventStatus,
       removeEvent,
       submitRating,
       addStudentNote,
@@ -875,6 +1035,7 @@ export const DataProvider = ({ children }) => {
       removeITFact,
       clearActivityLogs,
       updateUserRole,
+      updateRegisteredUser,
       guessOutputChallenges,
       addOrUpdateGuessOutputChallenge,
       removeGuessOutputChallenge,

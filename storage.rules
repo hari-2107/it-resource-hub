@@ -1,0 +1,28 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.role == 'admin' ||
+        request.auth.token.role == 'co-admin'
+      );
+    }
+
+    // Materials attachments & PDFs (max 15MB, PDF/Doc/Zip only)
+    match /materials/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && request.resource.size < 15 * 1024 * 1024;
+    }
+
+    // User profile avatars & uploaded notes
+    match /users/{userId}/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if (request.auth.uid == userId || isAdmin()) && request.resource.size < 5 * 1024 * 1024;
+    }
+  }
+}

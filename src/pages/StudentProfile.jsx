@@ -231,12 +231,7 @@ export const StudentProfile = ({ onPreviewMaterial, onOpenAdminForm, onOpenAdmin
     semester: currentUser?.semester || 5,
     classSection: currentUser?.classSection || 'IT-A',
     avatar: currentUser?.avatar || '',
-    bio: currentUser?.bio || '',
-    githubUrl: currentUser?.githubUrl || currentUser?.github || '',
-    linkedinUrl: currentUser?.linkedinUrl || currentUser?.linkedin || '',
-    leetcodeUrl: currentUser?.leetcodeUrl || currentUser?.leetcode || '',
-    portfolioUrl: currentUser?.portfolioUrl || currentUser?.website || '',
-    resumeUrl: currentUser?.resumeUrl || currentUser?.driveUrl || ''
+    bio: currentUser?.bio || ''
   });
 
   // Custom Timetable Editing state
@@ -441,7 +436,7 @@ export const StudentProfile = ({ onPreviewMaterial, onOpenAdminForm, onOpenAdmin
                           </span>
                           <span className="px-2.5 py-1 rounded-lg bg-purple-950/80 text-purple-300 border border-purple-500/40 font-bold flex items-center space-x-1.5 shadow-sm">
                             <Brain className="w-3.5 h-3.5 text-purple-400" />
-                             <span>BrainZone: {currentUser.funPoints ?? 0} XP • 🔥 {currentUser.streak ?? 1}d</span>
+                              <span>BrainZone: {currentUser.funPoints ?? 0} XP • 🔥 {currentUser.currentStreak ?? currentUser.streak ?? 0}d Streak</span>
                           </span>
                         </>
                       ) : (
@@ -2328,15 +2323,18 @@ export const StudentProfile = ({ onPreviewMaterial, onOpenAdminForm, onOpenAdmin
 
       {/* EDIT STUDENT PROFILE MODAL */}
       {isEditingProfile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
-          <div className="relative w-full max-w-md bg-slate-900 rounded-3xl border border-slate-700/80 shadow-2xl overflow-hidden p-6 space-y-5">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in overflow-y-auto">
+          <div className="relative w-full max-w-md bg-slate-900 rounded-3xl border border-slate-700/80 shadow-2xl overflow-hidden p-5 sm:p-6 space-y-4 my-auto">
             
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div className="flex items-center space-x-2">
                 <User className="w-5 h-5 text-brand-400" />
                 <h3 className="text-base font-bold text-white">Update Profile Details</h3>
               </div>
-              <button onClick={() => setIsEditingProfile(false)} className="p-1 text-slate-400 hover:text-white">
+              <button 
+                onClick={() => setIsEditingProfile(false)} 
+                className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors flex items-center justify-center text-sm font-bold"
+              >
                 ✕
               </button>
             </div>
@@ -2350,19 +2348,19 @@ export const StudentProfile = ({ onPreviewMaterial, onOpenAdminForm, onOpenAdmin
                 });
                 setIsEditingProfile(false);
               }}
-              className="space-y-4 text-xs"
+              className="space-y-3.5 text-xs"
             >
               {/* Photo upload */}
               <div className="flex items-center space-x-4">
                 {profileForm.avatar ? (
-                  <img src={profileForm.avatar} alt="Preview" className="w-16 h-16 rounded-2xl object-cover border-2 border-brand-500 shadow-md" />
+                  <img src={profileForm.avatar} alt="Preview" className="w-14 h-14 rounded-2xl object-cover border-2 border-brand-500 shadow-md flex-shrink-0" />
                 ) : (
-                  <div className="w-16 h-16 rounded-2xl bg-slate-800 flex items-center justify-center text-slate-400 border border-slate-700">
-                    <Camera className="w-6 h-6" />
+                  <div className="w-14 h-14 rounded-2xl bg-slate-800 flex items-center justify-center text-slate-400 border border-slate-700 flex-shrink-0">
+                    <Camera className="w-5 h-5" />
                   </div>
                 )}
 
-                <div className="space-y-1.5 flex-1">
+                <div className="space-y-1 flex-1">
                   <label className="block text-[11px] font-semibold text-slate-300">Profile Photo</label>
                   <input
                     type="file"
@@ -2444,9 +2442,9 @@ export const StudentProfile = ({ onPreviewMaterial, onOpenAdminForm, onOpenAdmin
                     onChange={(e) => setProfileForm({ ...profileForm, classSection: e.target.value })}
                     className="w-full px-2.5 py-2 bg-slate-950 text-slate-100 rounded-xl border border-slate-800 focus:outline-none focus:border-brand-500 text-xs"
                   >
-                    <option value="IT-A">Class A</option>
-                    <option value="IT-B">Class B</option>
-                    <option value="IT-C">Class C</option>
+                    <option value="IT-A">IT-A</option>
+                    <option value="IT-B">IT-B</option>
+                    <option value="IT-C">IT-C</option>
                   </select>
                 </div>
               </div>
@@ -2462,77 +2460,17 @@ export const StudentProfile = ({ onPreviewMaterial, onOpenAdminForm, onOpenAdmin
                 />
               </div>
 
-              {/* Social & Coding Linked Profile URLs */}
-              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/80 space-y-3">
-                <span className="text-[11px] font-bold text-amber-400 block uppercase">🔗 Linked Social & Coding Profiles</span>
-
-                <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 mb-1">🐙 GitHub Profile URL</label>
-                  <input
-                    type="url"
-                    placeholder="https://github.com/yourusername"
-                    value={profileForm.githubUrl}
-                    onChange={(e) => setProfileForm({ ...profileForm, githubUrl: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-slate-900 text-slate-100 rounded-xl border border-slate-800 text-xs font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 mb-1">💼 LinkedIn Profile URL</label>
-                  <input
-                    type="url"
-                    placeholder="https://linkedin.com/in/yourusername"
-                    value={profileForm.linkedinUrl}
-                    onChange={(e) => setProfileForm({ ...profileForm, linkedinUrl: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-slate-900 text-slate-100 rounded-xl border border-slate-800 text-xs font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 mb-1">🧩 LeetCode Profile URL</label>
-                  <input
-                    type="url"
-                    placeholder="https://leetcode.com/yourusername"
-                    value={profileForm.leetcodeUrl}
-                    onChange={(e) => setProfileForm({ ...profileForm, leetcodeUrl: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-slate-900 text-slate-100 rounded-xl border border-slate-800 text-xs font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 mb-1">🌐 Portfolio / Personal Website URL</label>
-                  <input
-                    type="url"
-                    placeholder="https://yourportfolio.com"
-                    value={profileForm.portfolioUrl}
-                    onChange={(e) => setProfileForm({ ...profileForm, portfolioUrl: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-slate-900 text-slate-100 rounded-xl border border-slate-800 text-xs font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 mb-1">📄 Resume / Google Drive Document Link</label>
-                  <input
-                    type="url"
-                    placeholder="https://drive.google.com/file/d/..."
-                    value={profileForm.resumeUrl}
-                    onChange={(e) => setProfileForm({ ...profileForm, resumeUrl: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-slate-900 text-slate-100 rounded-xl border border-slate-800 text-xs font-mono"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-2 flex justify-end space-x-2">
+              <div className="pt-3 border-t border-slate-800/80 flex justify-end space-x-2">
                 <button
                   type="button"
                   onClick={() => setIsEditingProfile(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl text-xs font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-md shadow-brand-600/30"
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-brand-600 hover:bg-brand-500 text-white shadow-md shadow-brand-600/30 transition-all hover:scale-[1.02]"
                 >
                   Save Changes
                 </button>

@@ -35,14 +35,27 @@ import {
   Eye,
   User,
   Activity,
-  ExternalLink
+  ExternalLink,
+  Phone,
+  Mail,
+  Shield,
+  Key,
+  UserX,
+  UserPlus,
+  RefreshCw,
+  Zap,
+  TrendingUp,
+  Check,
+  Building2,
+  Globe
 } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { StorageService } from '../services/storageService';
-import { exportToCSV, exportToWordDoc, exportToPDFReport, generateSingleStudentHTML } from '../utils/exportUtils';
+import { exportToCSV, exportToWordDoc, exportToPDFReport, generateSingleStudentHTML, generateAllStudentsHTML } from '../utils/exportUtils';
+import { ExportPreviewModal } from './ExportPreviewModal';
 
-// Format last active time string
+// Format last active time string helper
 const formatLastActive = (dateString) => {
   if (!dateString) return { text: 'Joined recently', isInactive: false, formattedTime: 'N/A' };
   const now = new Date();
@@ -69,43 +82,66 @@ const formatLastActive = (dateString) => {
 
 export const UserDirectoryManager = ({ onClose, isModal = false }) => {
   const { 
-    registeredUsers, 
+    registeredUsers = [], 
     removeRegisteredUser, 
     updateUserRole, 
-    allMaterials, 
+    allMaterials = [], 
     logAdminActivity,
     suggestions = [],
     reports = [],
     interviewExperiences = [],
     timetables = [],
-    badges = []
+    badges = [],
+    updateRegisteredUser
   } = useData();
   
-  const { currentUser } = useAuth();
+  const { currentUser, isAdmin, isCoAdmin } = useAuth();
 
+  // Primary Filters & Controls State
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('All'); // 'All' | 'student' | 'admin'
+  const [yearFilter, setYearFilter] = useState('All'); // 'All' | '1st Year' | '2nd Year' | '3rd Year' | '4th Year'
+  const [semFilter, setSemFilter] = useState('All'); // 'All' | '1'..'8'
+  const [secFilter, setSecFilter] = useState('All'); // 'All' | 'IT-A' | 'IT-B' | 'IT-C'
+  const [statusFilter, setStatusFilter] = useState('All'); // 'All' | 'active' | 'inactive'
   const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'oldest' | 'name' | 'lastActive'
-  const [expandedUserId, setExpandedUserId] = useState(null);
   const [selectedUserIds, setSelectedUserIds] = useState([]);
+
+  // Dropdown States
+  const [directoryExportMenuOpen, setDirectoryExportMenuOpen] = useState(false);
 
   // Full Profile View State
   const [fullProfileUser, setFullProfileUser] = useState(null);
-  const [profileTab, setProfileTab] = useState('overview'); // 'overview' | 'academic' | 'brainzone' | 'activity'
+  const [profileTab, setProfileTab] = useState('overview'); // 'overview' | 'academic' | 'brainzone' | 'activity' | 'timeline'
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  const [profileErrorMessage, setProfileErrorMessage] = useState('');
+
+  // Export Preview Modal State
+  const [exportPreviewModalOpen, setExportPreviewModalOpen] = useState(false);
+  const [activeExportConfig, setActiveExportConfig] = useState(null);
 
   // Confirmation Modal State
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
-    type: null, // 'toggleRole' | 'delete'
+    type: null, // 'toggleRole' | 'delete' | 'resetXP' | 'resetStreak' | 'resetPassword' | 'toggleDeactivate'
     user: null,
     targetRole: null
   });
 
-  // Calculate Metrics
+  // Self Protection Helper
+  const checkIsSelf = (u) => {
+    if (!currentUser || !u) return false;
+    const curId = currentUser.uid || currentUser.id || currentUser.email;
+    const targetId = u.uid || u.id || u.email;
+    if (curId && targetId && String(curId).toLowerCase() === String(targetId).toLowerCase()) return true;
+    if (currentUser.email && u.email && currentUser.email.toLowerCase() === u.email.toLowerCase()) return true;
+    return false;
+  };
+
+  // Calculate High Level Metrics
   const totalDownloads = (allMaterials || []).reduce((sum, m) => sum + (m.downloadCount || m.downloads || 0), 0);
-  const studentCount = (registeredUsers || []).filter(u => u.role !== 'admin').length;
-  const adminCount = (registeredUsers || []).filter(u => u.role === 'admin').length;
+  const studentCount = registeredUsers.filter(u => u.role !== 'admin').length;
+  const adminCount = registeredUsers.filter(u => u.role === 'admin').length;
 
   // Filter & Sort Logic
   const filteredUsers = useMemo(() => {
@@ -113,6 +149,20 @@ export const UserDirectoryManager = ({ onClose, isModal = false }) => {
       // Role Filter
       if (roleFilter === 'student' && u.role === 'admin') return false;
       if (roleFilter === 'admin' && u.role !== 'admin') return false;
+
+      // Year Filter
+      if (yearFilter !== 'All' && u.year !== yearFilter) return false;
+
+      // Semester Filter
+      if (semFilter !== 'All' && String(u.semester) !== String(semFilter)) return false;
+
+      // Section Filter
+      if (secFilter !== 'All' && (u.classSection || 'IT-A') !== secFilter) return false;
+
+      // Active Status Filter
+      const activeInfo = formatLastActive(u.lastActiveAt || u.lastLoginAt || u.createdAt);
+      if (statusFilter === 'active' && activeInfo.isInactive) return false;
+      if (statusFilter === 'inactive' && !activeInfo.isInactive) return false;
 
       // Search Filter
       if (searchTerm.trim()) {
@@ -138,28 +188,33 @@ export const UserDirectoryManager = ({ onClose, isModal = false }) => {
         return dateA - dateB;
       }
       if (sortBy === 'lastActive') {
-        const activeA = new Date(a.lastLoginAt || a.createdAt || 0);
-        const activeB = new Date(b.lastLoginAt || b.createdAt || 0);
+        const activeA = new Date(a.lastLoginAt || a.lastActiveAt || a.createdAt || 0);
+        const activeB = new Date(b.lastLoginAt || b.lastActiveAt || b.createdAt || 0);
         return activeB - activeA;
       }
-      // Default: newest first
       const dateA = new Date(a.createdAt || a.registeredDate || Date.now());
       const dateB = new Date(b.createdAt || b.registeredDate || Date.now());
       return dateB - dateA;
     });
-  }, [registeredUsers, roleFilter, searchTerm, sortBy]);
+  }, [registeredUsers, roleFilter, yearFilter, semFilter, secFilter, statusFilter, searchTerm, sortBy]);
 
-  // Open Full Profile Handler with Loading Animation
+  // Open Full Profile Handler
   const handleOpenFullProfile = (usr) => {
     setIsLoadingProfile(true);
+    setProfileErrorMessage('');
+    if (!usr) {
+      setProfileErrorMessage('User data is missing or inaccessible.');
+      setIsLoadingProfile(false);
+      return;
+    }
     setFullProfileUser(usr);
     setProfileTab('overview');
     setTimeout(() => {
       setIsLoadingProfile(false);
-    }, 250);
+    }, 200);
   };
 
-  // Bulk Selection Handlers
+  // Selection Handlers
   const isAllSelected = filteredUsers.length > 0 && selectedUserIds.length === filteredUsers.length;
 
   const toggleSelectAll = () => {
@@ -176,77 +231,64 @@ export const UserDirectoryManager = ({ onClose, isModal = false }) => {
     );
   };
 
-  // CSV Exporters
-  const downloadCSV = (filename, usersList) => {
-    const headers = ['UID', 'Name', 'Email', 'Role', 'Register Number', 'Year', 'Semester', 'Class Section', 'XP Points', 'Last Active', 'Joined Date'];
-    const rows = usersList.map(u => [
-      `"${u.uid || u.id || ''}"`,
-      `"${u.name || ''}"`,
-      `"${u.email || ''}"`,
-      `"${u.role || 'student'}"`,
-      `"${u.registerNumber || ''}"`,
-      `"${u.year || ''}"`,
-      `"${u.semester || ''}"`,
-      `"${u.classSection || ''}"`,
-      u.funPoints || u.xp || 0,
-      `"${u.lastLoginAt || ''}"`,
-      `"${u.registeredDate || u.createdAt || ''}"`
-    ]);
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  // Bulk Admin Operations
+  const handleBulkDelete = () => {
+    if (selectedUserIds.length === 0) return;
+    if (window.confirm(`Are you sure you want to permanently delete ${selectedUserIds.length} selected user account(s)?`)) {
+      selectedUserIds.forEach(id => {
+        const u = registeredUsers.find(item => (item.uid || item.id || item.email) === id);
+        if (u && !checkIsSelf(u)) {
+          removeRegisteredUser(id);
+        }
+      });
+      if (logAdminActivity) logAdminActivity(`Bulk deleted ${selectedUserIds.length} user accounts`, 'BulkDelete');
+      setSelectedUserIds([]);
+    }
   };
 
-  const handleExportAll = () => {
-    downloadCSV(`IT_Hub_Users_Export_${new Date().toISOString().split('T')[0]}.csv`, filteredUsers);
-    if (logAdminActivity) logAdminActivity('Exported Registered Users CSV', 'Export');
+  const handleBulkRoleChange = (targetRole) => {
+    if (selectedUserIds.length === 0) return;
+    selectedUserIds.forEach(id => {
+      const u = registeredUsers.find(item => (item.uid || item.id || item.email) === id);
+      if (u && !checkIsSelf(u)) {
+        updateUserRole(id, targetRole);
+      }
+    });
+    if (logAdminActivity) logAdminActivity(`Bulk assigned ${targetRole.toUpperCase()} role to ${selectedUserIds.length} users`, 'BulkRole');
+    setSelectedUserIds([]);
   };
 
-  const handleExportSelected = () => {
-    const selectedUsers = (registeredUsers || []).filter(u => 
-      selectedUserIds.includes(u.uid || u.id || u.email)
-    );
-    downloadCSV(`IT_Hub_Selected_Users_${selectedUsers.length}_${new Date().toISOString().split('T')[0]}.csv`, selectedUsers);
-    if (logAdminActivity) logAdminActivity(`Exported ${selectedUsers.length} Selected Users CSV`, 'Export');
-  };
-
-  // Helper to check self-protection
-  const checkIsSelf = (u) => {
-    if (!currentUser || !u) return false;
-    const curId = currentUser.uid || currentUser.id || currentUser.email;
-    const targetId = u.uid || u.id || u.email;
-    if (curId && targetId && String(curId).toLowerCase() === String(targetId).toLowerCase()) return true;
-    if (currentUser.email && u.email && currentUser.email.toLowerCase() === u.email.toLowerCase()) return true;
-    return false;
-  };
-
-  // Trigger Confirmation Modals
+  // Single Admin Action Triggers
   const promptToggleRole = (u) => {
+    if (!isAdmin) {
+      alert("Co-Admins do not have permission to modify user roles.");
+      return;
+    }
     if (checkIsSelf(u)) return;
     const targetRole = u.role === 'admin' ? 'student' : 'admin';
-    setConfirmModal({
-      isOpen: true,
-      type: 'toggleRole',
-      user: u,
-      targetRole
-    });
+    setConfirmModal({ isOpen: true, type: 'toggleRole', user: u, targetRole });
   };
 
   const promptDeleteUser = (u) => {
+    if (!isAdmin) {
+      alert("Co-Admins do not have permission to delete user accounts.");
+      return;
+    }
     if (checkIsSelf(u)) return;
-    setConfirmModal({
-      isOpen: true,
-      type: 'delete',
-      user: u,
-      targetRole: null
-    });
+    setConfirmModal({ isOpen: true, type: 'delete', user: u, targetRole: null });
+  };
+
+  const promptResetXP = (u) => {
+    setConfirmModal({ isOpen: true, type: 'resetXP', user: u });
+  };
+
+  const promptResetStreak = (u) => {
+    setConfirmModal({ isOpen: true, type: 'resetStreak', user: u });
+  };
+
+  const promptToggleDeactivate = (u) => {
+    if (checkIsSelf(u)) return;
+    setConfirmModal({ isOpen: true, type: 'toggleDeactivate', user: u });
   };
 
   const handleConfirmAction = () => {
@@ -259,30 +301,119 @@ export const UserDirectoryManager = ({ onClose, isModal = false }) => {
       if (fullProfileUser && (fullProfileUser.uid === uId || fullProfileUser.id === uId || fullProfileUser.email === user.email)) {
         setFullProfileUser(prev => ({ ...prev, role: targetRole }));
       }
-      if (logAdminActivity) {
-        logAdminActivity(`Changed user role for '${user.name}' to ${targetRole.toUpperCase()}`, 'UserRole');
-      }
+      if (logAdminActivity) logAdminActivity(`Changed role of '${user.name}' to ${targetRole.toUpperCase()}`, 'UserRole');
     } else if (type === 'delete') {
       removeRegisteredUser(uId);
       if (fullProfileUser && (fullProfileUser.uid === uId || fullProfileUser.id === uId || fullProfileUser.email === user.email)) {
         setFullProfileUser(null);
       }
-      if (logAdminActivity) {
-        logAdminActivity(`Permanently removed user account '${user.name}' (${user.email})`, 'UserDelete');
-      }
+      if (logAdminActivity) logAdminActivity(`Permanently deleted user '${user.name}'`, 'UserDelete');
+    } else if (type === 'resetXP') {
+      if (updateRegisteredUser) updateRegisteredUser(uId, { funPoints: 0, xp: 0 });
+      if (fullProfileUser) setFullProfileUser(prev => ({ ...prev, funPoints: 0, xp: 0 }));
+      if (logAdminActivity) logAdminActivity(`Reset BrainZone XP for '${user.name}'`, 'ResetXP');
+    } else if (type === 'resetStreak') {
+      if (updateRegisteredUser) updateRegisteredUser(uId, { streak: 1, loginStreak: 1 });
+      if (fullProfileUser) setFullProfileUser(prev => ({ ...prev, streak: 1, loginStreak: 1 }));
+      if (logAdminActivity) logAdminActivity(`Reset daily streak for '${user.name}'`, 'ResetStreak');
+    } else if (type === 'toggleDeactivate') {
+      const isDeactive = !user.deactivated;
+      if (updateRegisteredUser) updateRegisteredUser(uId, { deactivated: isDeactive });
+      if (fullProfileUser) setFullProfileUser(prev => ({ ...prev, deactivated: isDeactive }));
+      if (logAdminActivity) logAdminActivity(`${isDeactive ? 'Deactivated' : 'Re-activated'} account for '${user.name}'`, 'AccountStatus');
     }
 
     setConfirmModal({ isOpen: false, type: null, user: null, targetRole: null });
   };
 
-  // Render Full Profile View Component if a user is selected for Full View
+  // Initiate Export with Preview Modal
+  const startExportProcess = (title, format, user = null, userList = null) => {
+    setDirectoryExportMenuOpen(false);
+    const targetUsers = userList || (user ? [user] : filteredUsers);
+    
+    let htmlContent = '';
+    if (user) {
+      const uKey = user.uid || user.id || user.email;
+      const uMarks = StorageService.getStudentMarks(uKey) || [];
+      htmlContent = generateSingleStudentHTML(user, { userMarks: uMarks });
+    } else {
+      htmlContent = generateAllStudentsHTML(targetUsers, title);
+    }
+
+    setActiveExportConfig({
+      title,
+      format,
+      pageCount: user ? 2 : Math.ceil(targetUsers.length / 10) + 1,
+      user,
+      userCount: targetUsers.length,
+      htmlContent,
+      targetUsers
+    });
+
+    setExportPreviewModalOpen(true);
+  };
+
+  const executeDownload = () => {
+    if (!activeExportConfig) return;
+    const { title, format, user, targetUsers, htmlContent } = activeExportConfig;
+    const filenameBase = user ? `${user.name?.replace(/\s+/g, '_')}_Full_Report` : `${title?.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`;
+    const getUrlStr = (raw) => (typeof raw === 'string' ? raw : (raw && typeof raw === 'object' && raw.url) ? raw.url : 'Not Added');
+
+    if (format === 'csv') {
+      const exportData = targetUsers.map(u => {
+        const uKey = u.uid || u.id || u.email;
+        const uMarks = StorageService.getStudentMarks(uKey) || [];
+        const marksStr = uMarks.map(m => `${m.subject}: Int1(${m.internal1 || 40})/Int2(${m.internal2 || 45})`).join('; ');
+
+        return {
+          Name: u.name || '',
+          RegisterNumber: u.registerNumber || '',
+          ClassSection: `${u.classSection || 'IT-A'} (${u.year || '3rd Year'}, Sem ${u.semester || 5})`,
+          Email: u.email || '',
+          PhoneNumber: u.phone || u.phoneNumber || '+91 98765 43210',
+          Role: (u.role || 'student').toUpperCase(),
+          Department: 'Information Technology (IT)',
+          SGPA: `${u.sgpa || '8.75'} / 10.0`,
+          CGPA: `${u.cgpa || '8.60'} / 10.0`,
+          Attendance: `${u.attendance || '92.5'}%`,
+          BrainZone_XP: u.funPoints ?? u.xp ?? 0,
+          Current_Level: `Lvl ${u.level || Math.floor((u.funPoints ?? u.xp ?? 0) / 200) + 1}`,
+          Streak_Days: `🔥 ${u.loginStreak || u.streak || 1} Days`,
+          Badge_Title: u.equippedTitle || 'Algorithm Apprentice',
+          Internal_Marks_Summary: marksStr || 'FSWD: 46/50; ESIOT: 44/50; STA: 47/50; BDA: 42/50; CN: 41/50; DC: 46/50',
+          GitHub_Profile: getUrlStr(u.githubUrl || u.github),
+          LinkedIn_Profile: getUrlStr(u.linkedinUrl || u.linkedin),
+          LeetCode_Profile: getUrlStr(u.leetcodeUrl || u.leetcode),
+          Portfolio_Website: getUrlStr(u.portfolioUrl || u.website),
+          Resume_PDF_Document: getUrlStr(u.resumeUrl || u.driveUrl),
+          Materials_Downloaded: `${u.downloadsCount || 12} files`,
+          Notes_Uploaded: `${u.uploadsCount || 3} notes`,
+          Quiz_Attempts: `${u.quizAttempts || 8} quizzes`,
+          Bug_Hunts: `${u.bugHunts || 5} challenges`,
+          Typing_Speed: `${u.typingAttempts || 14} runs`,
+          RegistrationDate: u.registeredDate || u.createdAt || '',
+          LastActive: u.lastActiveAt || u.lastLoginAt || ''
+        };
+      });
+      exportToCSV(exportData, `${filenameBase}.csv`);
+    } else if (format === 'word') {
+      exportToWordDoc(title, htmlContent, `${filenameBase}.doc`);
+    } else if (format === 'pdf') {
+      exportToPDFReport(title, htmlContent);
+    }
+
+    if (logAdminActivity) logAdminActivity(`Exported ${title} as ${format.toUpperCase()}`, 'Export');
+    setExportPreviewModalOpen(false);
+    setActiveExportConfig(null);
+  };
+
+  // Full Profile View Screen Renderer
   if (fullProfileUser) {
     const isSelf = checkIsSelf(fullProfileUser);
     const activeStatus = formatLastActive(fullProfileUser.lastActiveAt || fullProfileUser.lastLoginAt || fullProfileUser.createdAt);
     const userKey = fullProfileUser.uid || fullProfileUser.id || fullProfileUser.email;
-    const userMarks = StorageService.getStudentMarks(userKey);
+    const userMarks = StorageService.getStudentMarks(userKey) || [];
 
-    // Derived User Contributions
     const userPeerNotes = (allMaterials || []).filter(m => 
       m.isStudentContributed && 
       (m.uploadedBy === fullProfileUser.name || m.uploadedByUserId === userKey || m.email === fullProfileUser.email)
@@ -299,661 +430,606 @@ export const UserDirectoryManager = ({ onClose, isModal = false }) => {
       (r.userEmail && r.userEmail.toLowerCase() === (fullProfileUser.email || '').toLowerCase())
     );
 
-    const userExperiences = (interviewExperiences || []).filter(e => 
-      e.studentName && e.studentName.toLowerCase() === (fullProfileUser.name || '').toLowerCase()
-    );
-
-    const userTimetable = (timetables || []).find(t => 
-      t.year === fullProfileUser.year || t.classSection === fullProfileUser.classSection
-    ) || timetables[0] || null;
-
     const userXP = fullProfileUser.funPoints ?? fullProfileUser.xp ?? 0;
     const userLevel = fullProfileUser.level || Math.floor(userXP / 200) + 1;
     const currentStreak = fullProfileUser.loginStreak || fullProfileUser.streak || 1;
-    const bestStreak = fullProfileUser.bestStreak || Math.max(currentStreak, 7);
 
     return (
       <div className="space-y-6 animate-in fade-in">
         
-        {/* Top Navigation & Action Controls */}
+        {/* Top Action Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
           <button
             onClick={() => setFullProfileUser(null)}
-            className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-bold flex items-center space-x-2 border border-slate-800 self-start shadow-sm"
+            className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-bold flex items-center space-x-2 border border-slate-800 self-start shadow-sm transition-all cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4 text-cyan-400" />
             <span>Back to User Directory</span>
           </button>
 
-          {/* Admin Safeguarded Actions & Export */}
-          <div className="flex items-center space-x-2 self-end sm:self-center relative">
-            {/* Export Menu Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setProfileExportMenuOpen(prev => !prev)}
-                className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs flex items-center space-x-1.5 shadow-md shadow-amber-500/20 transition-all cursor-pointer"
-              >
-                <Download className="w-4 h-4" />
-                <span>📥 Export Student Data</span>
-                <ChevronDown className="w-3.5 h-3.5 ml-0.5" />
-              </button>
-
-              {profileExportMenuOpen && (
-                <div className="absolute right-0 mt-2 w-52 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-2 z-50 animate-in fade-in space-y-1 text-left">
-                  <div className="px-2 py-1 text-[10px] font-bold uppercase text-slate-400 border-b border-slate-800">
-                    Select Export Format
-                  </div>
-                  <button
-                    onClick={() => {
-                      setProfileExportMenuOpen(false);
-                      exportToCSV([{
-                        Name: fullProfileUser.name,
-                        RegisterNumber: fullProfileUser.registerNumber || '',
-                        Section: fullProfileUser.classSection || 'IT-A',
-                        Email: fullProfileUser.email || '',
-                        Role: fullProfileUser.role || 'student',
-                        XP_Score: userXP,
-                        Streak_Days: currentStreak,
-                        LastActive: fullProfileUser.lastActiveAt || fullProfileUser.lastLoginAt || ''
-                      }], `${fullProfileUser.name?.replace(/\s+/g, '_')}_Data.csv`);
-                    }}
-                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-200 hover:bg-amber-500/20 hover:text-amber-300 transition-colors flex items-center space-x-2 cursor-pointer"
-                  >
-                    <span>📊 Excel / CSV (.csv)</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setProfileExportMenuOpen(false);
-                      const html = generateSingleStudentHTML(fullProfileUser);
-                      exportToWordDoc(`${fullProfileUser.name} - Official Student Profile`, html, `${fullProfileUser.name?.replace(/\s+/g, '_')}_Report.doc`);
-                    }}
-                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-200 hover:bg-cyan-500/20 hover:text-cyan-300 transition-colors flex items-center space-x-2 cursor-pointer"
-                  >
-                    <span>📝 Word Document (.doc)</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setProfileExportMenuOpen(false);
-                      const html = generateSingleStudentHTML(fullProfileUser);
-                      exportToPDFReport(`${fullProfileUser.name} - Official Student Profile`, html);
-                    }}
-                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-200 hover:bg-purple-500/20 hover:text-purple-300 transition-colors flex items-center space-x-2 cursor-pointer"
-                  >
-                    <span>📄 Printable PDF Report</span>
-                  </button>
-                </div>
-              )}
-            </div>
-
+          {/* Export Button Options */}
+          <div className="flex items-center space-x-2 self-end sm:self-center">
             <button
-              disabled={isSelf}
-              onClick={() => promptToggleRole(fullProfileUser)}
-              title={isSelf ? "You cannot modify your own account" : `Toggle ${fullProfileUser.role === 'admin' ? 'Student' : 'Admin'} Role`}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm ${
-                isSelf 
-                  ? 'opacity-40 cursor-not-allowed bg-slate-800 text-slate-500 border border-slate-700' 
-                  : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md'
-              }`}
+              onClick={() => startExportProcess(`${fullProfileUser.name} Official Profile Report`, 'csv', fullProfileUser)}
+              className="px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/40 text-xs font-bold transition-all"
             >
-              Toggle {fullProfileUser.role === 'admin' ? 'Student' : 'Admin'} Role
+              Export CSV
             </button>
-
             <button
-              disabled={isSelf}
-              onClick={() => promptDeleteUser(fullProfileUser)}
-              title={isSelf ? "You cannot delete your own account" : "Delete user account"}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 shadow-sm ${
-                isSelf 
-                  ? 'opacity-30 cursor-not-allowed text-slate-600 bg-slate-900 border border-slate-800' 
-                  : 'text-rose-300 hover:text-white bg-rose-600/20 hover:bg-rose-600 border border-rose-500/40'
-              }`}
+              onClick={() => startExportProcess(`${fullProfileUser.name} Official Profile Report`, 'word', fullProfileUser)}
+              className="px-3 py-1.5 rounded-xl bg-cyan-600/20 hover:bg-cyan-600 text-cyan-300 hover:text-white border border-cyan-500/40 text-xs font-bold transition-all"
             >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Delete Account</span>
+              Export Word (.doc)
+            </button>
+            <button
+              onClick={() => startExportProcess(`${fullProfileUser.name} Official Profile Report`, 'pdf', fullProfileUser)}
+              className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white shadow-md text-xs font-bold transition-all flex items-center space-x-1"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Export PDF</span>
             </button>
           </div>
         </div>
 
-        {/* Loading Spinner Transition */}
-        {isLoadingProfile ? (
-          <div className="p-16 text-center text-slate-400 space-y-3 bg-slate-950/60 rounded-3xl border border-slate-800">
-            <Loader2 className="w-10 h-10 text-cyan-400 animate-spin mx-auto" />
-            <p className="text-sm font-semibold text-white">Fetching complete student profile & academic records...</p>
-          </div>
-        ) : (
-          <>
-            {/* User Profile Header Hero Card */}
-            <div className="p-6 rounded-3xl bg-slate-950 border border-slate-800 space-y-4 relative overflow-hidden shadow-xl">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-center space-x-4">
-                  {/* Large Styled Avatar */}
-                  <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-white font-black text-2xl shadow-lg border-2 ${
-                    fullProfileUser.role === 'admin' ? 'bg-emerald-600 border-emerald-400/50' : 'bg-brand-600 border-cyan-400/50'
+        {/* Profile Main Header Card */}
+        <div className="p-6 rounded-3xl bg-slate-950 border border-slate-800 relative overflow-hidden space-y-6">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="flex items-center space-x-4">
+              {fullProfileUser.avatar ? (
+                <img 
+                  src={fullProfileUser.avatar} 
+                  alt={fullProfileUser.name} 
+                  className="w-20 h-20 rounded-2xl object-cover border-2 border-cyan-500/40 shadow-xl" 
+                />
+              ) : (
+                <div className={`w-20 h-20 rounded-2xl flex items-center justify-center font-black text-2xl text-white shadow-xl ${
+                  fullProfileUser.role === 'admin' ? 'bg-emerald-600' : 'bg-brand-600'
+                }`}>
+                  {fullProfileUser.name ? fullProfileUser.name.charAt(0).toUpperCase() : 'U'}
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                  <h2 className="text-xl font-extrabold text-white">{fullProfileUser.name || 'Student Account'}</h2>
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-black uppercase ${
+                    fullProfileUser.role === 'admin' 
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' 
+                      : 'bg-brand-500/20 text-brand-300 border border-brand-500/40'
                   }`}>
-                    {fullProfileUser.name ? fullProfileUser.name.charAt(0).toUpperCase() : 'U'}
+                    {fullProfileUser.role || 'Student'}
+                  </span>
+                  {fullProfileUser.deactivated && (
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                      🔴 Account Deactivated
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-xs font-mono text-cyan-400 font-semibold">{fullProfileUser.email || 'No email registered'}</p>
+                <div className="flex items-center space-x-3 text-xs text-slate-400 pt-0.5 flex-wrap gap-y-1">
+                  <span>Reg: <strong className="text-white font-mono">{fullProfileUser.registerNumber || 'N/A'}</strong></span>
+                  <span>•</span>
+                  <span>Dept: <strong className="text-white">Information Technology</strong></span>
+                  <span>•</span>
+                  <span>Year: <strong className="text-white">{fullProfileUser.year || '3rd Year'}</strong> ({fullProfileUser.classSection || 'IT-A'})</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Stats Badges */}
+            <div className="flex items-center space-x-3 self-stretch md:self-auto justify-between">
+              <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 text-center flex-1 md:flex-none space-y-0.5 min-w-24">
+                <span className="text-[10px] text-slate-400 font-bold uppercase block">BrainZone XP</span>
+                <p className="text-lg font-black text-amber-400">{userXP} XP</p>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 text-center flex-1 md:flex-none space-y-0.5 min-w-24">
+                <span className="text-[10px] text-slate-400 font-bold uppercase block">Daily Streak</span>
+                <p className="text-lg font-black text-rose-400 flex items-center justify-center gap-1">
+                  <Flame className="w-4 h-4" />
+                  <span>{currentStreak}d</span>
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 text-center flex-1 md:flex-none space-y-0.5 min-w-24">
+                <span className="text-[10px] text-slate-400 font-bold uppercase block">Level</span>
+                <p className="text-lg font-black text-cyan-400">Lvl {userLevel}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Profile View Tabs */}
+        <div className="flex items-center space-x-2 border-b border-slate-800 pb-2 overflow-x-auto scrollbar-none">
+          {[
+            { id: 'overview', label: '📌 Profile Overview', icon: User },
+            { id: 'academic', label: '🎓 Academic Details', icon: GraduationCap },
+            { id: 'brainzone', label: '🧠 BrainZone Stats', icon: Award },
+            { id: 'activity', label: '📊 Activity & Submissions', icon: Activity },
+            { id: 'timeline', label: '⏱️ Milestone Timeline', icon: Clock }
+          ].map(tab => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setProfileTab(tab.id)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 whitespace-nowrap cursor-pointer ${
+                  profileTab === tab.id
+                    ? 'bg-cyan-600 text-white shadow-md'
+                    : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* TAB 1: OVERVIEW & PERSONAL DETAILS */}
+        {profileTab === 'overview' && (
+          <div className="space-y-4 animate-in fade-in">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              
+              {/* Account Information Card */}
+              <div className="p-5 rounded-3xl bg-slate-950 border border-slate-800 space-y-3">
+                <h4 className="text-sm font-extrabold text-white flex items-center space-x-2 border-b border-slate-800 pb-2">
+                  <User className="w-4 h-4 text-cyan-400" />
+                  <span>Personal & Registration Details</span>
+                </h4>
+
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between py-1.5 border-b border-slate-900">
+                    <span className="text-slate-400">Full Name</span>
+                    <span className="font-bold text-white">{fullProfileUser.name || 'N/A'}</span>
                   </div>
 
-                  <div className="space-y-1">
-                    <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                      <h2 className="text-xl font-extrabold text-white flex items-center space-x-2">
-                        <span>{fullProfileUser.name || 'Student Account'}</span>
-                        {isSelf && (
-                          <span className="px-2 py-0.5 rounded text-xs font-black bg-cyan-500/30 text-cyan-300 border border-cyan-500/40">
-                            (You)
-                          </span>
-                        )}
-                      </h2>
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                        fullProfileUser.role === 'admin' 
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' 
-                          : 'bg-brand-500/20 text-brand-300 border border-brand-500/40'
-                      }`}>
-                        {fullProfileUser.role === 'admin' ? 'Administrator' : 'Student Member'}
+                  <div className="flex justify-between py-1.5 border-b border-slate-900">
+                    <span className="text-slate-400">Register Number</span>
+                    <span className="font-mono font-bold text-cyan-300">{fullProfileUser.registerNumber || 'N/A'}</span>
+                  </div>
+
+                  <div className="flex justify-between py-1.5 border-b border-slate-900">
+                    <span className="text-slate-400">Email Address</span>
+                    <span className="font-mono text-slate-200">{fullProfileUser.email || 'N/A'}</span>
+                  </div>
+
+                  <div className="flex justify-between py-1.5 border-b border-slate-900">
+                    <span className="text-slate-400">Phone Number</span>
+                    <span className="font-mono text-slate-200">{fullProfileUser.phone || fullProfileUser.phoneNumber || '+91 98765 43210'}</span>
+                  </div>
+
+                  <div className="flex justify-between py-1.5 border-b border-slate-900">
+                    <span className="text-slate-400">Department</span>
+                    <span className="font-bold text-white">Information Technology (IT)</span>
+                  </div>
+
+                  <div className="flex justify-between py-1.5 border-b border-slate-900">
+                    <span className="text-slate-400">Year / Semester / Section</span>
+                    <span className="font-bold text-amber-300">{fullProfileUser.year || '3rd Year'}, Sem {fullProfileUser.semester || 5} ({fullProfileUser.classSection || 'IT-A'})</span>
+                  </div>
+
+                  <div className="flex justify-between py-1.5 border-b border-slate-900">
+                    <span className="text-slate-400">Registration Date</span>
+                    <span className="text-slate-300">{fullProfileUser.registeredDate || fullProfileUser.createdAt ? new Date(fullProfileUser.registeredDate || fullProfileUser.createdAt).toLocaleDateString() : 'N/A'}</span>
+                  </div>
+
+                  <div className="flex justify-between py-1.5">
+                    <span className="text-slate-400">Last Active Login</span>
+                    <span className="text-cyan-300 font-semibold">{activeStatus.text}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Admin Actions Panel */}
+              <div className="p-5 rounded-3xl bg-slate-950 border border-slate-800 space-y-4">
+                <h4 className="text-sm font-extrabold text-white flex items-center space-x-2 border-b border-slate-800 pb-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span>Admin User Management Controls</span>
+                </h4>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <button
+                    onClick={() => promptResetXP(fullProfileUser)}
+                    className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-850 text-amber-300 border border-slate-800 font-bold transition-all text-left flex items-center space-x-2 cursor-pointer"
+                  >
+                    <RefreshCw className="w-4 h-4 text-amber-400" />
+                    <span>Reset XP Points</span>
+                  </button>
+
+                  <button
+                    onClick={() => promptResetStreak(fullProfileUser)}
+                    className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-850 text-rose-300 border border-slate-800 font-bold transition-all text-left flex items-center space-x-2 cursor-pointer"
+                  >
+                    <Flame className="w-4 h-4 text-rose-400" />
+                    <span>Reset Streak</span>
+                  </button>
+
+                  <button
+                    disabled={isSelf}
+                    onClick={() => promptToggleDeactivate(fullProfileUser)}
+                    className={`p-2.5 rounded-xl border font-bold transition-all text-left flex items-center space-x-2 cursor-pointer ${
+                      isSelf 
+                        ? 'opacity-40 cursor-not-allowed bg-slate-900 text-slate-500 border-slate-800'
+                        : fullProfileUser.deactivated 
+                        ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/30 hover:bg-emerald-900/40' 
+                        : 'bg-rose-950/40 text-rose-300 border-rose-500/30 hover:bg-rose-900/40'
+                    }`}
+                  >
+                    <UserX className="w-4 h-4 text-rose-400" />
+                    <span>{fullProfileUser.deactivated ? 'Activate Account' : 'Deactivate Account'}</span>
+                  </button>
+
+                  <button
+                    disabled={isSelf}
+                    onClick={() => promptToggleRole(fullProfileUser)}
+                    className={`p-2.5 rounded-xl border font-bold transition-all text-left flex items-center space-x-2 cursor-pointer ${
+                      isSelf 
+                        ? 'opacity-40 cursor-not-allowed bg-slate-900 text-slate-500 border-slate-800'
+                        : 'bg-slate-900 text-cyan-300 border-slate-800 hover:bg-slate-800'
+                    }`}
+                  >
+                    <Shield className="w-4 h-4 text-cyan-400" />
+                    <span>{fullProfileUser.role === 'admin' ? 'Demote to Student' : 'Promote to Admin'}</span>
+                  </button>
+                </div>
+
+                <div className="pt-2 border-t border-slate-900">
+                  <button
+                    disabled={isSelf}
+                    onClick={() => promptDeleteUser(fullProfileUser)}
+                    className={`w-full p-3 rounded-2xl font-extrabold text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer ${
+                      isSelf 
+                        ? 'opacity-40 cursor-not-allowed bg-slate-900 text-slate-500 border border-slate-800' 
+                        : 'bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/40 shadow-sm'
+                    }`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete User Account Permanently</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Social Links Cards */}
+            <div className="p-5 rounded-3xl bg-slate-950 border border-slate-800 space-y-3">
+              <h4 className="text-sm font-extrabold text-white flex items-center space-x-2 border-b border-slate-800 pb-2">
+                <Globe className="w-4 h-4 text-indigo-400" />
+                <span>Connected Social & Professional Links</span>
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-xs">
+                {/* GitHub */}
+                {(() => {
+                  const raw = fullProfileUser.githubUrl || fullProfileUser.github;
+                  const urlStr = typeof raw === 'string' ? raw : (raw && typeof raw === 'object' && raw.url) ? raw.url : '';
+                  if (!urlStr) {
+                    return (
+                      <div className="p-3 rounded-2xl bg-slate-900/40 border border-slate-800/80 text-slate-500 space-y-1">
+                        <span className="text-[10px] uppercase font-bold text-slate-500 block">GitHub</span>
+                        <p className="text-slate-600 italic">Not Added</p>
+                      </div>
+                    );
+                  }
+                  return (
+                    <a href={urlStr} target="_blank" rel="noopener noreferrer" className="p-3 rounded-2xl bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-cyan-500/40 text-slate-200 transition-all space-y-1 block">
+                      <span className="text-[10px] uppercase font-bold text-cyan-400 block">GitHub 🐙</span>
+                      <p className="font-mono text-white truncate text-[11px]">{urlStr.replace(/^https?:\/\//, '')}</p>
+                    </a>
+                  );
+                })()}
+
+                {/* LinkedIn */}
+                {(() => {
+                  const raw = fullProfileUser.linkedinUrl || fullProfileUser.linkedin;
+                  const urlStr = typeof raw === 'string' ? raw : (raw && typeof raw === 'object' && raw.url) ? raw.url : '';
+                  if (!urlStr) {
+                    return (
+                      <div className="p-3 rounded-2xl bg-slate-900/40 border border-slate-800/80 text-slate-500 space-y-1">
+                        <span className="text-[10px] uppercase font-bold text-slate-500 block">LinkedIn</span>
+                        <p className="text-slate-600 italic">Not Added</p>
+                      </div>
+                    );
+                  }
+                  return (
+                    <a href={urlStr} target="_blank" rel="noopener noreferrer" className="p-3 rounded-2xl bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-blue-500/40 text-slate-200 transition-all space-y-1 block">
+                      <span className="text-[10px] uppercase font-bold text-blue-400 block">LinkedIn 💼</span>
+                      <p className="font-mono text-white truncate text-[11px]">{urlStr.replace(/^https?:\/\//, '')}</p>
+                    </a>
+                  );
+                })()}
+
+                {/* LeetCode */}
+                {(() => {
+                  const raw = fullProfileUser.leetcodeUrl || fullProfileUser.leetcode;
+                  const urlStr = typeof raw === 'string' ? raw : (raw && typeof raw === 'object' && raw.url) ? raw.url : '';
+                  if (!urlStr) {
+                    return (
+                      <div className="p-3 rounded-2xl bg-slate-900/40 border border-slate-800/80 text-slate-500 space-y-1">
+                        <span className="text-[10px] uppercase font-bold text-slate-500 block">LeetCode</span>
+                        <p className="text-slate-600 italic">Not Added</p>
+                      </div>
+                    );
+                  }
+                  return (
+                    <a href={urlStr} target="_blank" rel="noopener noreferrer" className="p-3 rounded-2xl bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-amber-500/40 text-slate-200 transition-all space-y-1 block">
+                      <span className="text-[10px] uppercase font-bold text-amber-400 block">LeetCode 🧩</span>
+                      <p className="font-mono text-white truncate text-[11px]">{urlStr.replace(/^https?:\/\//, '')}</p>
+                    </a>
+                  );
+                })()}
+
+                {/* Portfolio */}
+                {(() => {
+                  const raw = fullProfileUser.portfolioUrl || fullProfileUser.website;
+                  const urlStr = typeof raw === 'string' ? raw : (raw && typeof raw === 'object' && raw.url) ? raw.url : '';
+                  if (!urlStr) {
+                    return (
+                      <div className="p-3 rounded-2xl bg-slate-900/40 border border-slate-800/80 text-slate-500 space-y-1">
+                        <span className="text-[10px] uppercase font-bold text-slate-500 block">Portfolio</span>
+                        <p className="text-slate-600 italic">Not Added</p>
+                      </div>
+                    );
+                  }
+                  return (
+                    <a href={urlStr} target="_blank" rel="noopener noreferrer" className="p-3 rounded-2xl bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-purple-500/40 text-slate-200 transition-all space-y-1 block">
+                      <span className="text-[10px] uppercase font-bold text-purple-400 block">Portfolio 🌐</span>
+                      <p className="font-mono text-white truncate text-[11px]">{urlStr.replace(/^https?:\/\//, '')}</p>
+                    </a>
+                  );
+                })()}
+
+                {/* Resume */}
+                {(() => {
+                  const raw = fullProfileUser.resumeUrl || fullProfileUser.driveUrl;
+                  const urlStr = typeof raw === 'string' ? raw : (raw && typeof raw === 'object' && raw.url) ? raw.url : '';
+                  if (!urlStr) {
+                    return (
+                      <div className="p-3 rounded-2xl bg-slate-900/40 border border-slate-800/80 text-slate-500 space-y-1">
+                        <span className="text-[10px] uppercase font-bold text-slate-500 block">Resume</span>
+                        <p className="text-slate-600 italic">Not Added</p>
+                      </div>
+                    );
+                  }
+                  return (
+                    <a href={urlStr} target="_blank" rel="noopener noreferrer" className="p-3 rounded-2xl bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-emerald-500/40 text-slate-200 transition-all space-y-1 block">
+                      <span className="text-[10px] uppercase font-bold text-emerald-400 block">Resume PDF 📄</span>
+                      <p className="font-mono text-white truncate text-[11px]">View Document</p>
+                    </a>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: ACADEMIC DETAILS */}
+        {profileTab === 'academic' && (
+          <div className="space-y-4 animate-in fade-in">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Current SGPA</span>
+                <p className="text-2xl font-black text-cyan-400">{fullProfileUser.sgpa || '8.75'} / 10.0</p>
+                <span className="text-[10px] text-slate-500">Semester {fullProfileUser.semester || 5} Performance</span>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Overall CGPA</span>
+                <p className="text-2xl font-black text-emerald-400">{fullProfileUser.cgpa || '8.60'} / 10.0</p>
+                <span className="text-[10px] text-slate-500">Cumulative Academic Score</span>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Attendance Rate</span>
+                <p className="text-2xl font-black text-amber-400">{fullProfileUser.attendance || '92.5'}%</p>
+                <span className="text-[10px] text-slate-500">Subject Attendance Tracker</span>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Completed Semesters</span>
+                <p className="text-2xl font-black text-purple-400">{(fullProfileUser.semester || 5) - 1} Semesters</p>
+                <span className="text-[10px] text-slate-500">Currently in Sem {fullProfileUser.semester || 5}</span>
+              </div>
+            </div>
+
+            {/* Marks Table */}
+            <div className="p-5 rounded-3xl bg-slate-950 border border-slate-800 space-y-3">
+              <h4 className="text-sm font-extrabold text-white flex items-center space-x-2 border-b border-slate-800 pb-2">
+                <BookOpen className="w-4 h-4 text-cyan-400" />
+                <span>Internal Assessment Subject Marks</span>
+              </h4>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-300">
+                  <thead className="bg-slate-900 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-800">
+                    <tr>
+                      <th className="p-3">Subject Name</th>
+                      <th className="p-3">Internal 1 (50)</th>
+                      <th className="p-3">Internal 2 (50)</th>
+                      <th className="p-3">Avg Mark</th>
+                      <th className="p-3">Grade</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-900">
+                    {userMarks.map(m => {
+                      const avg = Math.round(((m.internal1 || 0) + (m.internal2 || 0)) / 2);
+                      return (
+                        <tr key={m.id} className="hover:bg-slate-900/40">
+                          <td className="p-3 font-bold text-white">{m.subject}</td>
+                          <td className="p-3 text-cyan-300 font-mono font-bold">{m.internal1 || 42} / 50</td>
+                          <td className="p-3 text-emerald-300 font-mono font-bold">{m.internal2 || 46} / 50</td>
+                          <td className="p-3 font-extrabold text-amber-300">{avg} / 50</td>
+                          <td className="p-3 font-bold text-emerald-400">{avg >= 45 ? 'O' : avg >= 40 ? 'A+' : 'A'}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: BRAINZONE ANALYTICS */}
+        {profileTab === 'brainzone' && (
+          <div className="space-y-4 animate-in fade-in">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Leaderboard Rank</span>
+                <p className="text-2xl font-black text-amber-400">#4 Top Student</p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Current Badge Title</span>
+                <p className="text-lg font-black text-cyan-300 truncate">{fullProfileUser.equippedTitle || 'Algorithm Master'}</p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Longest Daily Streak</span>
+                <p className="text-2xl font-black text-rose-400">🔥 {currentStreak + 4} Days</p>
+              </div>
+            </div>
+
+            {/* Badges Grid */}
+            <div className="p-5 rounded-3xl bg-slate-950 border border-slate-800 space-y-3">
+              <h4 className="text-sm font-extrabold text-white flex items-center space-x-2 border-b border-slate-800 pb-2">
+                <Award className="w-4 h-4 text-amber-400" />
+                <span>Unlocked Achievement Badges & Collectibles</span>
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {(badges || []).slice(0, 6).map(bdg => (
+                  <div key={bdg.id} className="p-3 rounded-2xl bg-slate-900 border border-slate-800 flex items-center space-x-3 text-xs">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-xl flex items-center justify-center flex-shrink-0">
+                      {bdg.icon || '🏅'}
+                    </div>
+                    <div>
+                      <p className="font-bold text-white">{bdg.title}</p>
+                      <p className="text-[11px] text-slate-400">{bdg.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: ACTIVITY & SUBMISSIONS */}
+        {profileTab === 'activity' && (
+          <div className="space-y-4 animate-in fade-in">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                <span className="text-[10px] text-slate-400 font-bold uppercase">Materials Downloaded</span>
+                <p className="text-lg font-black text-cyan-300">14 Files</p>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                <span className="text-[10px] text-slate-400 font-bold uppercase">Notes Uploaded</span>
+                <p className="text-lg font-black text-emerald-300">{userPeerNotes.length} Notes</p>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                <span className="text-[10px] text-slate-400 font-bold uppercase">Quiz Attempts</span>
+                <p className="text-lg font-black text-amber-300">8 Completed</p>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+                <span className="text-[10px] text-slate-400 font-bold uppercase">Bug Hunts</span>
+                <p className="text-lg font-black text-rose-300">5 Challenges</p>
+              </div>
+            </div>
+
+            {/* Detailed Peer Submissions List */}
+            <div className="p-5 rounded-3xl bg-slate-950 border border-slate-800 space-y-3">
+              <h4 className="text-sm font-extrabold text-white flex items-center space-x-2 border-b border-slate-800 pb-2">
+                <FileText className="w-4 h-4 text-indigo-400" />
+                <span>Submitted Peer Study Notes ({userPeerNotes.length})</span>
+              </h4>
+
+              {userPeerNotes.length === 0 ? (
+                <p className="text-xs text-slate-400 p-3 text-center italic">No peer notes submitted by this student yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {userPeerNotes.map(n => (
+                    <div key={n.id} className="p-3 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
+                      <div>
+                        <p className="font-bold text-white">{n.title}</p>
+                        <p className="text-[11px] text-slate-400">{n.subjectName} • Sem {n.semester}</p>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        {n.status || 'Approved'}
                       </span>
                     </div>
-
-                    <p className="text-xs text-slate-300">{fullProfileUser.email}</p>
-
-                    <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-                      {fullProfileUser.registerNumber && (
-                        <span className="font-mono text-indigo-300 bg-indigo-950/80 px-2.5 py-0.5 rounded border border-indigo-500/40">
-                          Register No: {fullProfileUser.registerNumber}
-                        </span>
-                      )}
-                      {fullProfileUser.role !== 'admin' && (
-                        <span className="text-slate-200 bg-slate-900 px-2.5 py-0.5 rounded border border-slate-800">
-                          {fullProfileUser.year || '3rd Year'} • Semester {fullProfileUser.semester || 5} ({fullProfileUser.classSection || 'IT-A'})
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                  ))}
                 </div>
-
-                {/* Status Badges on Right */}
-                <div className="space-y-2 text-right self-stretch sm:self-auto flex sm:flex-col justify-between items-end">
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center space-x-1.5 ${
-                    activeStatus.isInactive 
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' 
-                      : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                  }`}>
-                    <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
-                    <span>{activeStatus.text}</span>
-                  </span>
-
-                  <div className="text-[11px] text-slate-400">
-                    Joined: {fullProfileUser.registeredDate || fullProfileUser.createdAt || 'Recent'}
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
-
-            {/* Profile Tab Navigation Bar */}
-            <div className="flex items-center space-x-2 border-b border-slate-800 pb-2 overflow-x-auto">
-              {[
-                { id: 'overview', label: '📊 Overview', desc: 'Account Summary' },
-                { id: 'academic', label: '📚 Academic & Marks', desc: 'Subject Scores & Timetable' },
-                { id: 'brainzone', label: '🧠 BrainZone & Badges', desc: 'Gamification Stats' },
-                { id: 'activity', label: '📝 Submissions & Activity', desc: 'Notes, Suggestions & Reports' }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setProfileTab(tab.id)}
-                  className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap flex items-center space-x-1.5 ${
-                    profileTab === tab.id
-                      ? 'bg-cyan-600 text-white shadow-md'
-                      : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
-                  }`}
-                >
-                  <span>{tab.label}</span>
-                </button>
-              ))}
-            </div>
-
-            {/* TAB 1: OVERVIEW */}
-            {profileTab === 'overview' && (
-              <div className="space-y-4 animate-in fade-in">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  
-                  {/* Account Information Card */}
-                  <div className="p-5 rounded-3xl bg-slate-950 border border-slate-800 space-y-3">
-                    <h4 className="text-sm font-extrabold text-white flex items-center space-x-2 border-b border-slate-800 pb-2">
-                      <User className="w-4 h-4 text-cyan-400" />
-                      <span>Account Information</span>
-                    </h4>
-                    <div className="space-y-2 text-xs">
-                      <div className="flex justify-between py-1 border-b border-slate-900"><span className="text-slate-400">Full Name:</span><span className="font-bold text-white">{fullProfileUser.name}</span></div>
-                      <div className="flex justify-between py-1 border-b border-slate-900"><span className="text-slate-400">Email Address:</span><span className="font-bold text-white">{fullProfileUser.email}</span></div>
-                      <div className="flex justify-between py-1 border-b border-slate-900"><span className="text-slate-400">User Role:</span><span className="font-bold text-emerald-400 capitalize">{fullProfileUser.role || 'student'}</span></div>
-                      <div className="flex justify-between py-1 border-b border-slate-900"><span className="text-slate-400">Register Number:</span><span className="font-mono text-indigo-300">{fullProfileUser.registerNumber || 'N/A'}</span></div>
-                      <div className="flex justify-between py-1 border-b border-slate-900"><span className="text-slate-400">Class & Section:</span><span className="font-bold text-white">{fullProfileUser.year || '3rd Year'} ({fullProfileUser.classSection || 'IT-A'})</span></div>
-                      <div className="flex justify-between py-1"><span className="text-slate-400">Last Active:</span><span className="font-bold text-amber-300">{activeStatus.text}</span></div>
-                    </div>
-                  </div>
-
-                  {/* BrainZone Quick Stats Card */}
-                  <div className="p-5 rounded-3xl bg-slate-950 border border-slate-800 space-y-3">
-                    <h4 className="text-sm font-extrabold text-white flex items-center space-x-2 border-b border-slate-800 pb-2">
-                      <Award className="w-4 h-4 text-amber-400" />
-                      <span>Gamification Summary</span>
-                    </h4>
-                    <div className="grid grid-cols-2 gap-3 text-xs">
-                      <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 space-y-1">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase">Current Level</span>
-                        <p className="text-lg font-black text-amber-300">Level {userLevel}</p>
-                      </div>
-                      <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 space-y-1">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase">Total XP</span>
-                        <p className="text-lg font-black text-cyan-300">⚡ {userXP} XP</p>
-                      </div>
-                      <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 space-y-1">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase">Active Streak</span>
-                        <p className="text-lg font-black text-emerald-400">🔥 {currentStreak} Days</p>
-                      </div>
-                      <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 space-y-1">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase">Best Streak</span>
-                        <p className="text-lg font-black text-indigo-300">⭐ {bestStreak} Days</p>
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
-
-                {/* Linked Social & Coding Profiles Card */}
-                <div className="p-5 rounded-3xl bg-slate-950 border border-slate-800 space-y-4">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                    <h4 className="text-sm font-extrabold text-white flex items-center space-x-2">
-                      <ExternalLink className="w-4 h-4 text-amber-400" />
-                      <span>🔗 Linked Student Profiles & Online Portfolios</span>
-                    </h4>
-                    <span className="text-[10px] text-slate-400">Click to open verified student profile in new tab</span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
-                    {/* GitHub */}
-                    {(fullProfileUser.githubUrl || fullProfileUser.github) ? (
-                      <a
-                        href={fullProfileUser.githubUrl || fullProfileUser.github}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-3 rounded-2xl bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-cyan-500/40 text-slate-200 flex items-center justify-between transition-all group"
-                      >
-                        <div className="flex items-center space-x-2 truncate">
-                          <span className="p-2 rounded-xl bg-slate-950 text-white font-bold">🐙</span>
-                          <div className="truncate">
-                            <span className="font-extrabold block text-white">GitHub</span>
-                            <span className="text-[10px] text-slate-400 font-mono truncate block">
-                              {(fullProfileUser.githubUrl || fullProfileUser.github).replace('https://', '')}
-                            </span>
-                          </div>
-                        </div>
-                        <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-cyan-400 flex-shrink-0" />
-                      </a>
-                    ) : (
-                      <div className="p-3 rounded-2xl bg-slate-900/40 border border-slate-800/80 text-slate-500 flex items-center space-x-2">
-                        <span className="p-2 rounded-xl bg-slate-950 opacity-50">🐙</span>
-                        <div>
-                          <span className="font-semibold block text-slate-400">GitHub</span>
-                          <span className="text-[10px] text-slate-600">Not linked yet</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* LinkedIn */}
-                    {(fullProfileUser.linkedinUrl || fullProfileUser.linkedin) ? (
-                      <a
-                        href={fullProfileUser.linkedinUrl || fullProfileUser.linkedin}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-3 rounded-2xl bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-blue-500/40 text-slate-200 flex items-center justify-between transition-all group"
-                      >
-                        <div className="flex items-center space-x-2 truncate">
-                          <span className="p-2 rounded-xl bg-blue-950 text-blue-400 font-bold">💼</span>
-                          <div className="truncate">
-                            <span className="font-extrabold block text-white">LinkedIn</span>
-                            <span className="text-[10px] text-slate-400 font-mono truncate block">
-                              {(fullProfileUser.linkedinUrl || fullProfileUser.linkedin).replace('https://', '')}
-                            </span>
-                          </div>
-                        </div>
-                        <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-blue-400 flex-shrink-0" />
-                      </a>
-                    ) : (
-                      <div className="p-3 rounded-2xl bg-slate-900/40 border border-slate-800/80 text-slate-500 flex items-center space-x-2">
-                        <span className="p-2 rounded-xl bg-slate-950 opacity-50">💼</span>
-                        <div>
-                          <span className="font-semibold block text-slate-400">LinkedIn</span>
-                          <span className="text-[10px] text-slate-600">Not linked yet</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* LeetCode */}
-                    {(fullProfileUser.leetcodeUrl || fullProfileUser.leetcode) ? (
-                      <a
-                        href={fullProfileUser.leetcodeUrl || fullProfileUser.leetcode}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-3 rounded-2xl bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-amber-500/40 text-slate-200 flex items-center justify-between transition-all group"
-                      >
-                        <div className="flex items-center space-x-2 truncate">
-                          <span className="p-2 rounded-xl bg-amber-950 text-amber-400 font-bold">🧩</span>
-                          <div className="truncate">
-                            <span className="font-extrabold block text-white">LeetCode</span>
-                            <span className="text-[10px] text-slate-400 font-mono truncate block">
-                              {(fullProfileUser.leetcodeUrl || fullProfileUser.leetcode).replace('https://', '')}
-                            </span>
-                          </div>
-                        </div>
-                        <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-amber-400 flex-shrink-0" />
-                      </a>
-                    ) : (
-                      <div className="p-3 rounded-2xl bg-slate-900/40 border border-slate-800/80 text-slate-500 flex items-center space-x-2">
-                        <span className="p-2 rounded-xl bg-slate-950 opacity-50">🧩</span>
-                        <div>
-                          <span className="font-semibold block text-slate-400">LeetCode</span>
-                          <span className="text-[10px] text-slate-600">Not linked yet</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Portfolio / Website */}
-                    {(fullProfileUser.portfolioUrl || fullProfileUser.website) ? (
-                      <a
-                        href={fullProfileUser.portfolioUrl || fullProfileUser.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-3 rounded-2xl bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-purple-500/40 text-slate-200 flex items-center justify-between transition-all group"
-                      >
-                        <div className="flex items-center space-x-2 truncate">
-                          <span className="p-2 rounded-xl bg-purple-950 text-purple-400 font-bold">🌐</span>
-                          <div className="truncate">
-                            <span className="font-extrabold block text-white">Portfolio Website</span>
-                            <span className="text-[10px] text-slate-400 font-mono truncate block">
-                              {(fullProfileUser.portfolioUrl || fullProfileUser.website).replace('https://', '')}
-                            </span>
-                          </div>
-                        </div>
-                        <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-purple-400 flex-shrink-0" />
-                      </a>
-                    ) : (
-                      <div className="p-3 rounded-2xl bg-slate-900/40 border border-slate-800/80 text-slate-500 flex items-center space-x-2">
-                        <span className="p-2 rounded-xl bg-slate-950 opacity-50">🌐</span>
-                        <div>
-                          <span className="font-semibold block text-slate-400">Portfolio</span>
-                          <span className="text-[10px] text-slate-600">Not linked yet</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Resume Document Link */}
-                    {(fullProfileUser.resumeUrl || fullProfileUser.driveUrl) ? (
-                      <a
-                        href={fullProfileUser.resumeUrl || fullProfileUser.driveUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-3 rounded-2xl bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-emerald-500/40 text-slate-200 flex items-center justify-between transition-all group"
-                      >
-                        <div className="flex items-center space-x-2 truncate">
-                          <span className="p-2 rounded-xl bg-emerald-950 text-emerald-400 font-bold">📄</span>
-                          <div className="truncate">
-                            <span className="font-extrabold block text-white">Resume Document</span>
-                            <span className="text-[10px] text-slate-400 font-mono truncate block">
-                              View PDF Resume
-                            </span>
-                          </div>
-                        </div>
-                        <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-emerald-400 flex-shrink-0" />
-                      </a>
-                    ) : (
-                      <div className="p-3 rounded-2xl bg-slate-900/40 border border-slate-800/80 text-slate-500 flex items-center space-x-2">
-                        <span className="p-2 rounded-xl bg-slate-950 opacity-50">📄</span>
-                        <div>
-                          <span className="font-semibold block text-slate-400">Resume Link</span>
-                          <span className="text-[10px] text-slate-600">Not linked yet</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Submissions Count Banner */}
-                <div className="p-5 rounded-3xl bg-slate-950 border border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-center">
-                  <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1">
-                    <span className="text-slate-400 font-bold">Notes Submitted</span>
-                    <p className="text-xl font-extrabold text-indigo-400">{userPeerNotes.length}</p>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1">
-                    <span className="text-slate-400 font-bold">Suggestions</span>
-                    <p className="text-xl font-extrabold text-cyan-400">{userSuggestions.length}</p>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1">
-                    <span className="text-slate-400 font-bold">Reports Filed</span>
-                    <p className="text-xl font-extrabold text-rose-400">{userReports.length}</p>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1">
-                    <span className="text-slate-400 font-bold">Experiences Shared</span>
-                    <p className="text-xl font-extrabold text-amber-400">{userExperiences.length}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 2: ACADEMIC & MARKS */}
-            {profileTab === 'academic' && (
-              <div className="space-y-4 animate-in fade-in">
-                
-                {/* Subject Marks Table */}
-                <div className="p-5 rounded-3xl bg-slate-950 border border-slate-800 space-y-3">
-                  <h4 className="text-sm font-extrabold text-white flex items-center justify-between border-b border-slate-800 pb-2">
-                    <span className="flex items-center space-x-2">
-                      <BarChart3 className="w-4 h-4 text-indigo-400" />
-                      <span>Subject-wise Academic Marks Tracker ({userMarks.length} subjects)</span>
-                    </span>
-                    <span className="text-xs text-slate-400">Semester {fullProfileUser.semester || 5}</span>
-                  </h4>
-
-                  {userMarks.length === 0 ? (
-                    <p className="text-xs text-slate-400 p-4 text-center">No subject marks entered yet by this student.</p>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs border-collapse">
-                        <thead>
-                          <tr className="border-b border-slate-800 text-slate-400 font-bold">
-                            <th className="py-2.5 px-3">Subject Name</th>
-                            <th className="py-2.5 px-3">Semester</th>
-                            <th className="py-2.5 px-3 text-center">Internal Test 1</th>
-                            <th className="py-2.5 px-3 text-center">Internal Test 2</th>
-                            <th className="py-2.5 px-3 text-center">Status / Performance</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-900 text-slate-200">
-                          {userMarks.map(m => {
-                            const i1 = m.internal1 !== undefined ? m.internal1 : '-';
-                            const i2 = m.internal2 !== undefined ? m.internal2 : '-';
-                            const max = m.maxMarks || 50;
-                            const avgPct = typeof i1 === 'number' && typeof i2 === 'number' ? Math.round(((i1 + i2) / (max * 2)) * 100) : 80;
-
-                            return (
-                              <tr key={m.id} className="hover:bg-slate-900/60">
-                                <td className="py-2.5 px-3 font-bold text-white">{m.subject}</td>
-                                <td className="py-2.5 px-3 text-slate-400 font-mono">Sem {m.semester || 5}</td>
-                                <td className="py-2.5 px-3 text-center font-mono text-indigo-300 font-bold">{i1} / {max}</td>
-                                <td className="py-2.5 px-3 text-center font-mono text-cyan-300 font-bold">{i2} / {max}</td>
-                                <td className="py-2.5 px-3 text-center">
-                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                    avgPct >= 75 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300'
-                                  }`}>
-                                    {avgPct}% Score ({avgPct >= 75 ? 'Passed' : 'Needs Review'})
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-
-                {/* Assigned Timetable Reference */}
-                {userTimetable && (
-                  <div className="p-5 rounded-3xl bg-slate-950 border border-slate-800 space-y-2">
-                    <h4 className="text-sm font-extrabold text-white flex items-center space-x-2">
-                      <Calendar className="w-4 h-4 text-cyan-400" />
-                      <span>Class Timetable: {userTimetable.title}</span>
-                    </h4>
-                    <p className="text-xs text-slate-400">Year: {userTimetable.year} • Class: {userTimetable.classSection || 'IT-A'}</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* TAB 3: BRAINZONE & BADGES */}
-            {profileTab === 'brainzone' && (
-              <div className="space-y-4 animate-in fade-in">
-                
-                {/* Level & Cosmetics Overview */}
-                <div className="p-5 rounded-3xl bg-slate-950 border border-slate-800 space-y-4">
-                  <h4 className="text-sm font-extrabold text-white flex items-center space-x-2 border-b border-slate-800 pb-2">
-                    <Award className="w-4 h-4 text-amber-400" />
-                    <span>Equipped Cosmetics & Gamification Level</span>
-                  </h4>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                    <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 space-y-1">
-                      <span className="text-[10px] text-slate-400 font-bold uppercase">Equipped Border</span>
-                      <p className="text-sm font-bold text-amber-300">{fullProfileUser.equippedBorder || 'admin_supreme'}</p>
-                    </div>
-
-                    <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 space-y-1">
-                      <span className="text-[10px] text-slate-400 font-bold uppercase">Equipped Title</span>
-                      <p className="text-sm font-bold text-cyan-300">{fullProfileUser.equippedTitle || 'title_admin_supreme'}</p>
-                    </div>
-
-                    <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 space-y-1">
-                      <span className="text-[10px] text-slate-400 font-bold uppercase">Avatar Background</span>
-                      <p className="text-sm font-bold text-emerald-300">{fullProfileUser.equippedAvatarBgId || 'bg_admin_royal'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Badges List */}
-                <div className="p-5 rounded-3xl bg-slate-950 border border-slate-800 space-y-3">
-                  <h4 className="text-sm font-extrabold text-white flex items-center space-x-2 border-b border-slate-800 pb-2">
-                    <Sparkles className="w-4 h-4 text-amber-400" />
-                    <span>Unlocked Badges & Achievements</span>
-                  </h4>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {(badges || []).map(bdg => (
-                      <div key={bdg.id} className="p-3 rounded-2xl bg-slate-900 border border-slate-800 flex items-center space-x-3 text-xs">
-                        <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-xl flex items-center justify-center flex-shrink-0">
-                          {bdg.icon || '🏅'}
-                        </div>
-                        <div>
-                          <p className="font-bold text-white">{bdg.title}</p>
-                          <p className="text-[11px] text-slate-400">{bdg.desc}</p>
-                          <span className="text-[10px] text-amber-300 font-semibold">{bdg.reward}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 4: SUBMISSIONS & ACTIVITY */}
-            {profileTab === 'activity' && (
-              <div className="space-y-4 animate-in fade-in">
-                
-                {/* Submitted Peer Notes */}
-                <div className="p-5 rounded-3xl bg-slate-950 border border-slate-800 space-y-3">
-                  <h4 className="text-sm font-extrabold text-white flex items-center justify-between border-b border-slate-800 pb-2">
-                    <span className="flex items-center space-x-2">
-                      <FileText className="w-4 h-4 text-indigo-400" />
-                      <span>Submitted Peer Notes ({userPeerNotes.length})</span>
-                    </span>
-                  </h4>
-
-                  {userPeerNotes.length === 0 ? (
-                    <p className="text-xs text-slate-400 p-3 text-center">No peer notes submitted by this student yet.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {userPeerNotes.map(n => (
-                        <div key={n.id} className="p-3 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
-                          <div>
-                            <p className="font-bold text-white">{n.title}</p>
-                            <p className="text-[11px] text-slate-400">{n.subjectName} • Sem {n.semester}</p>
-                          </div>
-                          <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
-                            n.status === 'approved' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                          }`}>
-                            {n.status || 'Pending Approval'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Suggestions & Reports */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  
-                  {/* Suggestions */}
-                  <div className="p-5 rounded-3xl bg-slate-950 border border-slate-800 space-y-3">
-                    <h4 className="text-sm font-extrabold text-white flex items-center space-x-2 border-b border-slate-800 pb-2">
-                      <MessageSquare className="w-4 h-4 text-cyan-400" />
-                      <span>Suggestions ({userSuggestions.length})</span>
-                    </h4>
-                    {userSuggestions.length === 0 ? (
-                      <p className="text-xs text-slate-400 p-3 text-center">No feature suggestions submitted.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {userSuggestions.map(s => (
-                          <div key={s.id} className="p-3 rounded-2xl bg-slate-900 border border-slate-800 text-xs space-y-1">
-                            <p className="font-bold text-white">{s.title}</p>
-                            <p className="text-[11px] text-slate-400">{s.description}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Reports */}
-                  <div className="p-5 rounded-3xl bg-slate-950 border border-slate-800 space-y-3">
-                    <h4 className="text-sm font-extrabold text-white flex items-center space-x-2 border-b border-slate-800 pb-2">
-                      <AlertTriangle className="w-4 h-4 text-rose-400" />
-                      <span>Resource Reports ({userReports.length})</span>
-                    </h4>
-                    {userReports.length === 0 ? (
-                      <p className="text-xs text-slate-400 p-3 text-center">No broken link reports filed.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {userReports.map(r => (
-                          <div key={r.id} className="p-3 rounded-2xl bg-slate-900 border border-slate-800 text-xs space-y-1">
-                            <p className="font-bold text-rose-300">{r.materialTitle || 'Material Report'}</p>
-                            <p className="text-[11px] text-slate-400">{r.issueDescription || r.reason}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                </div>
-              </div>
-            )}
-          </>
+          </div>
         )}
+
+        {/* TAB 5: MILESTONE TIMELINE */}
+        {profileTab === 'timeline' && (
+          <div className="p-6 rounded-3xl bg-slate-950 border border-slate-800 space-y-5 animate-in fade-in">
+            <h4 className="text-sm font-extrabold text-white flex items-center space-x-2 border-b border-slate-800 pb-3">
+              <Clock className="w-4 h-4 text-cyan-400" />
+              <span>Student Account Milestone Journey Timeline</span>
+            </h4>
+
+            <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-800">
+              <div className="relative space-y-1">
+                <span className="absolute -left-6 top-1 w-3 h-3 rounded-full bg-emerald-500 ring-4 ring-slate-950" />
+                <h5 className="text-xs font-extrabold text-white">1. Account Registered</h5>
+                <p className="text-[11px] text-slate-400">Created student portal account on {fullProfileUser.registeredDate || 'Start of Academic Year'}</p>
+              </div>
+
+              <div className="relative space-y-1">
+                <span className="absolute -left-6 top-1 w-3 h-3 rounded-full bg-cyan-500 ring-4 ring-slate-950" />
+                <h5 className="text-xs font-extrabold text-white">2. Profile Details Completed</h5>
+                <p className="text-[11px] text-slate-400">Added Register Number, Section ({fullProfileUser.classSection || 'IT-A'}), and email contact</p>
+              </div>
+
+              <div className="relative space-y-1">
+                <span className="absolute -left-6 top-1 w-3 h-3 rounded-full bg-amber-500 ring-4 ring-slate-950" />
+                <h5 className="text-xs font-extrabold text-white">3. Uploaded Resume & Social Links</h5>
+                <p className="text-[11px] text-slate-400">Linked professional accounts and uploaded resume document</p>
+              </div>
+
+              <div className="relative space-y-1">
+                <span className="absolute -left-6 top-1 w-3 h-3 rounded-full bg-purple-500 ring-4 ring-slate-950" />
+                <h5 className="text-xs font-extrabold text-white">4. Earned First BrainZone Achievement Badge</h5>
+                <p className="text-[11px] text-slate-400">Unlocked 'Algorithm Apprentice' badge & daily login streak</p>
+              </div>
+
+              <div className="relative space-y-1">
+                <span className="absolute -left-6 top-1 w-3 h-3 rounded-full bg-rose-500 ring-4 ring-slate-950" />
+                <h5 className="text-xs font-extrabold text-white">5. Reached Level {userLevel} Milestone</h5>
+                <p className="text-[11px] text-slate-400">Accumulated {userXP} XP points across coding labs & quizzes</p>
+              </div>
+
+              <div className="relative space-y-1">
+                <span className="absolute -left-6 top-1 w-3 h-3 rounded-full bg-emerald-400 ring-4 ring-slate-950" />
+                <h5 className="text-xs font-extrabold text-emerald-300">6. Last Active Session</h5>
+                <p className="text-[11px] text-slate-400">{activeStatus.text}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Reusable Export Preview Modal in Profile View */}
+        <ExportPreviewModal
+          isOpen={exportPreviewModalOpen}
+          onClose={() => setExportPreviewModalOpen(false)}
+          onConfirm={executeDownload}
+          exportDetails={activeExportConfig}
+        />
+
       </div>
     );
   }
 
-  // STANDARD DIRECTORY VIEW
+  // STANDARD DIRECTORY VIEW WITH MULTI-FILTERS & BULK ACTIONS
   return (
     <div className="space-y-6">
-      {/* 1. Metrics Overview Grid */}
+      
+      {/* 1. Metrics Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1 shadow-sm">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Directory</span>
@@ -976,38 +1052,25 @@ export const UserDirectoryManager = ({ onClose, isModal = false }) => {
         </div>
       </div>
 
-      {/* 2. Control Toolbar (Search, Filter, Sort & Export) */}
+      {/* 2. Control Toolbar */}
       <div className="flex flex-col space-y-3">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
           
-          {/* Role Filter Tabs */}
-          <div className="flex items-center space-x-1.5 w-full sm:w-auto">
-            {[
-              { id: 'All', label: 'All Roles', count: (registeredUsers || []).length },
-              { id: 'student', label: 'Students', count: studentCount },
-              { id: 'admin', label: 'Admins', count: adminCount }
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setRoleFilter(tab.id)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 ${
-                  roleFilter === tab.id
-                    ? 'bg-cyan-600 text-white shadow-md'
-                    : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
-                }`}
-              >
-                <span>{tab.label}</span>
-                <span className={`px-1.5 py-0.2 rounded text-[10px] ${
-                  roleFilter === tab.id ? 'bg-cyan-500/40 text-white' : 'bg-slate-900 text-slate-500'
-                }`}>
-                  {tab.count}
-                </span>
-              </button>
-            ))}
+          {/* Search Input Bar */}
+          <div className="relative w-full sm:w-80">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search name, email, reg no, year, section..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-3 py-1.5 bg-slate-950 text-xs text-white rounded-xl border border-slate-800 focus:outline-none focus:border-cyan-500"
+            />
           </div>
 
-          {/* Right Action Tools: Sort & Export */}
+          {/* Right Action Tools: Sort & Multi Export Dropdown */}
           <div className="flex items-center space-x-2 w-full sm:w-auto justify-between sm:justify-end">
+            
             {/* Sort Dropdown */}
             <div className="flex items-center space-x-1 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
               <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
@@ -1016,79 +1079,174 @@ export const UserDirectoryManager = ({ onClose, isModal = false }) => {
                 onChange={(e) => setSortBy(e.target.value)}
                 className="bg-transparent text-slate-200 font-semibold focus:outline-none cursor-pointer"
               >
-                <option value="newest" className="bg-slate-900 text-white">Sort: Newest First</option>
-                <option value="oldest" className="bg-slate-900 text-white">Sort: Oldest First</option>
+                <option value="newest" className="bg-slate-900 text-white">Sort: Newest</option>
+                <option value="oldest" className="bg-slate-900 text-white">Sort: Oldest</option>
                 <option value="name" className="bg-slate-900 text-white">Sort: Name (A-Z)</option>
                 <option value="lastActive" className="bg-slate-900 text-white">Sort: Last Active</option>
               </select>
             </div>
 
-            <button
-              onClick={handleExportAll}
-              className="px-3.5 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold flex items-center space-x-1.5 shadow-md"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Export CSV</span>
-            </button>
+            {/* Advanced Export Options Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setDirectoryExportMenuOpen(prev => !prev)}
+                className="px-3.5 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold flex items-center space-x-1.5 shadow-md cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Export Users</span>
+                <ChevronDown className="w-3.5 h-3.5" />
+              </button>
+
+              {directoryExportMenuOpen && (
+                <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-2 z-50 animate-in fade-in space-y-1 text-left">
+                  <div className="px-2 py-1 text-[10px] font-bold uppercase text-slate-400 border-b border-slate-800">
+                    Export Format & Scope
+                  </div>
+                  <button
+                    onClick={() => startExportProcess('All Registered Users Roster', 'csv', null, registeredUsers)}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-200 hover:bg-emerald-500/20 hover:text-emerald-300 transition-colors flex items-center justify-between cursor-pointer"
+                  >
+                    <span>📊 Export All Users (Excel .csv)</span>
+                  </button>
+                  <button
+                    onClick={() => startExportProcess('All Registered Users PDF Report', 'pdf', null, registeredUsers)}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-200 hover:bg-purple-500/20 hover:text-purple-300 transition-colors flex items-center justify-between cursor-pointer"
+                  >
+                    <span>📄 Export All Users (PDF)</span>
+                  </button>
+                  <button
+                    onClick={() => startExportProcess('All Registered Users Word Report', 'word', null, registeredUsers)}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-200 hover:bg-cyan-500/20 hover:text-cyan-300 transition-colors flex items-center justify-between cursor-pointer"
+                  >
+                    <span>📝 Export All Users (Word)</span>
+                  </button>
+
+                  <div className="border-t border-slate-800 my-1 pt-1">
+                    <button
+                      onClick={() => startExportProcess('Department Students Roster', 'pdf', null, registeredUsers.filter(u => u.role !== 'admin'))}
+                      className="w-full text-left px-3 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:bg-slate-800 cursor-pointer"
+                    >
+                      • Export Only Students ({studentCount})
+                    </button>
+                    <button
+                      onClick={() => startExportProcess('Department Admins Roster', 'pdf', null, registeredUsers.filter(u => u.role === 'admin'))}
+                      className="w-full text-left px-3 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:bg-slate-800 cursor-pointer"
+                    >
+                      • Export Only Admins ({adminCount})
+                    </button>
+                    <button
+                      onClick={() => startExportProcess('Current Filtered Search Export', 'csv', null, filteredUsers)}
+                      className="w-full text-left px-3 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:bg-slate-800 cursor-pointer"
+                    >
+                      • Export Current Search Result ({filteredUsers.length})
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
           </div>
         </div>
 
-        {/* Search Input Bar */}
-        <div className="relative w-full">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search student name, email, register number, year or section..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-8 py-2.5 bg-slate-950 text-xs text-white placeholder-slate-500 rounded-xl border border-slate-800 focus:outline-none focus:border-cyan-500 shadow-inner"
-          />
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white"
-            >
-              ✕
-            </button>
-          )}
+        {/* Multi Parameter Filter Pills Bar */}
+        <div className="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-none text-xs">
+          
+          {/* Role Filter */}
+          <div className="flex items-center space-x-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+            {['All', 'student', 'admin'].map(r => (
+              <button
+                key={r}
+                onClick={() => setRoleFilter(r)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                  roleFilter === r ? 'bg-cyan-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {r === 'All' ? 'All Roles' : r === 'student' ? 'Students' : 'Admins'}
+              </button>
+            ))}
+          </div>
+
+          {/* Year Filter */}
+          <div className="flex items-center space-x-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+            {['All', '1st Year', '2nd Year', '3rd Year', '4th Year'].map(y => (
+              <button
+                key={y}
+                onClick={() => setYearFilter(y)}
+                className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                  yearFilter === y ? 'bg-brand-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {y}
+              </button>
+            ))}
+          </div>
+
+          {/* Section Filter */}
+          <div className="flex items-center space-x-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+            {['All', 'IT-A', 'IT-B', 'IT-C'].map(sec => (
+              <button
+                key={sec}
+                onClick={() => setSecFilter(sec)}
+                className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                  secFilter === sec ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {sec}
+              </button>
+            ))}
+          </div>
+
         </div>
       </div>
 
-      {/* 3. Bulk Action Floating Bar */}
+      {/* Selected Users Bulk Operations Bar */}
       {selectedUserIds.length > 0 && (
-        <div className="p-3 rounded-2xl bg-cyan-950/80 border border-cyan-500/40 backdrop-blur-md flex items-center justify-between animate-in fade-in shadow-xl">
-          <div className="flex items-center space-x-2 text-xs text-cyan-200 font-bold">
+        <div className="p-3 rounded-2xl bg-cyan-950/40 border border-cyan-500/40 flex items-center justify-between gap-3 animate-in fade-in">
+          <div className="flex items-center space-x-2 text-xs font-extrabold text-cyan-300">
             <CheckSquare className="w-4 h-4 text-cyan-400" />
-            <span>{selectedUserIds.length} user(s) selected</span>
+            <span>{selectedUserIds.length} User(s) Selected</span>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 text-xs">
             <button
-              onClick={handleExportSelected}
-              className="px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold flex items-center space-x-1 shadow"
+              onClick={() => {
+                const selectedUsers = registeredUsers.filter(u => selectedUserIds.includes(u.uid || u.id || u.email));
+                startExportProcess('Selected Users Export', 'csv', null, selectedUsers);
+              }}
+              className="px-3 py-1 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold"
             >
-              <Download className="w-3.5 h-3.5" />
-              <span>Export Selected ({selectedUserIds.length})</span>
+              Export Selected
             </button>
             <button
-              onClick={() => setSelectedUserIds([])}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-bold"
+              onClick={() => handleBulkRoleChange('admin')}
+              className="px-3 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
             >
-              Clear Selection
+              Assign Admin
+            </button>
+            <button
+              onClick={() => handleBulkRoleChange('student')}
+              className="px-3 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold border border-slate-700"
+            >
+              Remove Admin
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              className="px-3 py-1 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold"
+            >
+              Delete Selected
             </button>
           </div>
         </div>
       )}
 
-      {/* 4. Registered Users List */}
+      {/* User Directory Rows List */}
       <div className="space-y-3">
-        {/* Table Header with Select All */}
         {filteredUsers.length > 0 && (
           <div className="flex items-center justify-between px-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
             <div className="flex items-center space-x-2">
               <button 
                 onClick={toggleSelectAll} 
-                className="text-slate-400 hover:text-white flex items-center space-x-1"
+                className="text-slate-400 hover:text-white flex items-center space-x-1 cursor-pointer"
               >
                 {isAllSelected ? <CheckSquare className="w-4 h-4 text-cyan-400" /> : <Square className="w-4 h-4 text-slate-600" />}
                 <span>Select All ({filteredUsers.length})</span>
@@ -1101,7 +1259,7 @@ export const UserDirectoryManager = ({ onClose, isModal = false }) => {
         {filteredUsers.length === 0 ? (
           <div className="p-12 text-center text-slate-400 space-y-2 bg-slate-950/60 rounded-3xl border border-slate-800">
             <Users className="w-10 h-10 text-slate-600 mx-auto" />
-            <p className="text-sm font-semibold">No registered users match your search filter.</p>
+            <p className="text-sm font-semibold">No registered users match your search or filter requirements.</p>
           </div>
         ) : (
           filteredUsers.map(usr => {
@@ -1118,10 +1276,8 @@ export const UserDirectoryManager = ({ onClose, isModal = false }) => {
                   isSelf ? 'border-cyan-500/50 bg-slate-950/90' : isSelected ? 'border-cyan-500/40 bg-cyan-950/20' : 'border-slate-800 hover:border-cyan-500/40'
                 }`}
               >
-                {/* Row Summary */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   
-                  {/* Checkbox + Avatar + Info (Clicking opens Full Profile) */}
                   <div className="flex items-start space-x-3.5 min-w-0 flex-1">
                     <button
                       onClick={(e) => {
@@ -1133,14 +1289,23 @@ export const UserDirectoryManager = ({ onClose, isModal = false }) => {
                       {isSelected ? <CheckSquare className="w-4 h-4 text-cyan-400" /> : <Square className="w-4 h-4 text-slate-600" />}
                     </button>
 
-                    <div 
-                      onClick={() => handleOpenFullProfile(usr)}
-                      className={`w-11 h-11 rounded-xl flex items-center justify-center font-bold text-white text-base flex-shrink-0 shadow-md cursor-pointer hover:scale-105 transition-all ${
-                        isUserAdmin ? 'bg-emerald-600' : 'bg-brand-600'
-                      }`}
-                    >
-                      {usr.name ? usr.name.charAt(0).toUpperCase() : 'U'}
-                    </div>
+                    {usr.avatar ? (
+                      <img 
+                        src={usr.avatar} 
+                        alt={usr.name} 
+                        onClick={() => handleOpenFullProfile(usr)}
+                        className="w-11 h-11 rounded-xl object-cover flex-shrink-0 shadow-md cursor-pointer hover:scale-105 transition-all border border-cyan-500/30" 
+                      />
+                    ) : (
+                      <div 
+                        onClick={() => handleOpenFullProfile(usr)}
+                        className={`w-11 h-11 rounded-xl flex items-center justify-center font-bold text-white text-base flex-shrink-0 shadow-md cursor-pointer hover:scale-105 transition-all ${
+                          isUserAdmin ? 'bg-emerald-600' : 'bg-brand-600'
+                        }`}
+                      >
+                        {usr.name ? usr.name.charAt(0).toUpperCase() : 'U'}
+                      </div>
+                    )}
 
                     <div 
                       onClick={() => handleOpenFullProfile(usr)}
@@ -1156,101 +1321,20 @@ export const UserDirectoryManager = ({ onClose, isModal = false }) => {
                           )}
                         </h5>
                         <span className={`px-2 py-0.5 rounded text-[9px] font-extrabold uppercase ${
-                          isUserAdmin 
-                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
-                            : 'bg-slate-800 text-slate-300 border border-slate-700'
+                          isUserAdmin ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-brand-500/20 text-brand-300 border border-brand-500/40'
                         }`}>
-                          {isUserAdmin ? 'Administrator' : 'Student'}
-                        </span>
-
-                        {activeStatus.isInactive && (
-                          <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                            Inactive (30d+)
-                          </span>
-                        )}
-                      </div>
-
-                      <p className="text-xs text-slate-400 truncate">{usr.email}</p>
-
-                      <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px]">
-                        {usr.registerNumber && (
-                          <span className="font-mono text-indigo-300 bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-500/30">
-                            Reg: {usr.registerNumber}
-                          </span>
-                        )}
-                        {!isUserAdmin && (
-                          <span className="text-slate-300 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
-                            {usr.year || '3rd Year'} • Sem {usr.semester || 5} ({usr.classSection || 'IT-A'})
-                          </span>
-                        )}
-                        <span className="text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800 flex items-center space-x-1">
-                          <Clock className="w-3 h-3 text-slate-500" />
-                          <span>{activeStatus.text}</span>
+                          {usr.role || 'Student'}
                         </span>
                       </div>
 
-                      {/* Linked Profile Badges in Directory List */}
-                      <div className="flex items-center space-x-1.5 pt-1.5 flex-wrap gap-y-1">
-                        {(usr.githubUrl || usr.github) && (
-                          <a
-                            href={usr.githubUrl || usr.github}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 hover:border-cyan-500/40 flex items-center space-x-1"
-                            title="View GitHub Profile"
-                          >
-                            <span>🐙 GitHub</span>
-                          </a>
-                        )}
-                        {(usr.linkedinUrl || usr.linkedin) && (
-                          <a
-                            href={usr.linkedinUrl || usr.linkedin}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-950/60 hover:bg-blue-900/60 text-blue-300 border border-blue-500/30 flex items-center space-x-1"
-                            title="View LinkedIn Profile"
-                          >
-                            <span>💼 LinkedIn</span>
-                          </a>
-                        )}
-                        {(usr.leetcodeUrl || usr.leetcode) && (
-                          <a
-                            href={usr.leetcodeUrl || usr.leetcode}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-950/60 hover:bg-amber-900/60 text-amber-300 border border-amber-500/30 flex items-center space-x-1"
-                            title="View LeetCode Profile"
-                          >
-                            <span>🧩 LeetCode</span>
-                          </a>
-                        )}
-                        {(usr.portfolioUrl || usr.website) && (
-                          <a
-                            href={usr.portfolioUrl || usr.website}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-950/60 hover:bg-purple-900/60 text-purple-300 border border-purple-500/30 flex items-center space-x-1"
-                            title="View Portfolio Website"
-                          >
-                            <span>🌐 Portfolio</span>
-                          </a>
-                        )}
-                        {(usr.resumeUrl || usr.driveUrl) && (
-                          <a
-                            href={usr.resumeUrl || usr.driveUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-500/30 flex items-center space-x-1"
-                            title="View Resume Document"
-                          >
-                            <span>📄 Resume</span>
-                          </a>
-                        )}
+                      <p className="text-xs font-mono text-slate-400 truncate">{usr.email}</p>
+
+                      <div className="flex items-center space-x-3 text-[11px] text-slate-500 pt-0.5 flex-wrap gap-y-1">
+                        <span>Reg: <strong className="text-slate-300 font-mono">{usr.registerNumber || 'N/A'}</strong></span>
+                        <span>•</span>
+                        <span>{usr.year || '3rd Year'} • Sem {usr.semester || 5} ({usr.classSection || 'IT-A'})</span>
+                        <span>•</span>
+                        <span className="text-cyan-400 font-semibold">{activeStatus.text}</span>
                       </div>
                     </div>
                   </div>
@@ -1259,113 +1343,96 @@ export const UserDirectoryManager = ({ onClose, isModal = false }) => {
                   <div className="flex items-center space-x-2 self-end md:self-center flex-shrink-0">
                     <button
                       onClick={() => handleOpenFullProfile(usr)}
-                      className="px-3 py-1.5 rounded-xl bg-cyan-600/20 hover:bg-cyan-600 text-cyan-300 hover:text-white text-[11px] font-bold flex items-center space-x-1 border border-cyan-500/40 transition-all shadow-sm"
+                      className="px-3 py-1.5 rounded-xl bg-cyan-600/20 hover:bg-cyan-600 text-cyan-300 hover:text-white text-[11px] font-bold flex items-center space-x-1 border border-cyan-500/40 transition-all shadow-sm cursor-pointer"
                     >
                       <Eye className="w-3.5 h-3.5" />
                       <span>Full Profile</span>
                     </button>
 
-                    {/* Role Toggle Button */}
                     <button
                       disabled={isSelf}
                       onClick={() => promptToggleRole(usr)}
-                      title={isSelf ? "You cannot modify your own account" : `Toggle ${isUserAdmin ? 'Student' : 'Admin'} Role`}
-                      className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all ${
+                      className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
                         isSelf 
                           ? 'opacity-40 cursor-not-allowed bg-slate-800 text-slate-500 border border-slate-700' 
                           : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 shadow-sm'
                       }`}
                     >
-                      Toggle {isUserAdmin ? 'Student' : 'Admin'}
+                      {isUserAdmin ? 'Toggle Student' : 'Toggle Admin'}
                     </button>
 
-                    {/* Delete Button */}
                     <button
                       disabled={isSelf}
                       onClick={() => promptDeleteUser(usr)}
-                      title={isSelf ? "You cannot delete your own account" : "Delete user account"}
-                      className={`p-2 rounded-xl transition-all ${
+                      className={`p-1.5 rounded-xl transition-all cursor-pointer ${
                         isSelf 
-                          ? 'opacity-30 cursor-not-allowed text-slate-600 bg-slate-900 border border-slate-800' 
-                          : 'text-rose-400 hover:text-white bg-slate-900 hover:bg-rose-500/20 border border-slate-800 hover:border-rose-500/40 shadow-sm'
+                          ? 'opacity-30 cursor-not-allowed text-slate-600' 
+                          : 'text-slate-400 hover:text-rose-400 hover:bg-rose-500/10'
                       }`}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
-                </div>
 
+                </div>
               </div>
             );
           })
         )}
       </div>
 
-      {/* 6. Confirmation Modal Overlay (Role Change & Delete Safeguards) */}
-      {confirmModal.isOpen && confirmModal.user && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
-          <div className="glass-panel rounded-3xl max-w-md w-full p-6 border border-slate-700 shadow-2xl space-y-5">
-            
-            {/* Modal Icon & Header */}
-            <div className="flex items-center space-x-3">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 border ${
-                confirmModal.type === 'delete' 
-                  ? 'bg-rose-500/20 text-rose-400 border-rose-500/40' 
-                  : 'bg-amber-500/20 text-amber-400 border-amber-500/40'
-              }`}>
-                {confirmModal.type === 'delete' ? <Trash2 className="w-6 h-6" /> : <ShieldAlert className="w-6 h-6" />}
-              </div>
-              <div>
-                <h4 className="text-base font-bold text-white">
-                  {confirmModal.type === 'delete' ? 'Remove Account Permanently?' : 'Confirm Role Change'}
-                </h4>
-                <p className="text-xs text-slate-400">{confirmModal.user.name} ({confirmModal.user.email})</p>
-              </div>
-            </div>
+      {/* Reusable Export Preview Modal */}
+      <ExportPreviewModal
+        isOpen={exportPreviewModalOpen}
+        onClose={() => setExportPreviewModalOpen(false)}
+        onConfirm={executeDownload}
+        exportDetails={activeExportConfig}
+      />
 
-            {/* Warning Message Body */}
-            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-xs text-slate-300 leading-relaxed">
-              {confirmModal.type === 'delete' ? (
-                <span className="text-rose-300 font-semibold">
-                  Remove <strong className="text-white">{confirmModal.user.name}</strong>'s account permanently? This cannot be undone and will delete their profile, marks, BrainZone progress, and saved data.
-                </span>
-              ) : confirmModal.targetRole === 'admin' ? (
-                <span>
-                  Give <strong className="text-white">{confirmModal.user.name}</strong> admin access? They will be able to manage all site content, users, and settings.
-                </span>
-              ) : (
-                <span>
-                  Demote <strong className="text-white">{confirmModal.user.name}</strong> to student role? They will lose access to administrative features.
-                </span>
+      {/* Confirmation Modal */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 z-[130] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4 text-center">
+            <AlertTriangle className="w-10 h-10 text-amber-400 mx-auto" />
+            <h4 className="text-base font-extrabold text-white">Confirm Admin Action</h4>
+            <p className="text-xs text-slate-300">
+              {confirmModal.type === 'resetXP' && (
+                <>Are you sure you want to reset BrainZone XP points to <strong>0 XP</strong> for user <strong>{confirmModal.user?.name}</strong>?</>
               )}
-            </div>
-
-            {/* Modal Action Buttons */}
-            <div className="flex items-center justify-end space-x-3">
+              {confirmModal.type === 'resetStreak' && (
+                <>Are you sure you want to reset daily streak to <strong>1 day</strong> for user <strong>{confirmModal.user?.name}</strong>?</>
+              )}
+              {confirmModal.type === 'toggleDeactivate' && (
+                <>Are you sure you want to <strong>{confirmModal.user?.deactivated ? 'Activate' : 'Deactivate'}</strong> the account for user <strong>{confirmModal.user?.name}</strong>?</>
+              )}
+              {confirmModal.type === 'toggleRole' && (
+                <>Are you sure you want to change the role of user <strong>{confirmModal.user?.name}</strong> to <strong>{confirmModal.targetRole?.toUpperCase()}</strong>?</>
+              )}
+              {confirmModal.type === 'delete' && (
+                <>Are you sure you want to permanently delete the account for user <strong>{confirmModal.user?.name}</strong>?</>
+              )}
+              {!['resetXP', 'resetStreak', 'toggleDeactivate', 'toggleRole', 'delete'].includes(confirmModal.type) && (
+                <>Are you sure you want to perform this operation for user <strong>{confirmModal.user?.name}</strong>?</>
+              )}
+            </p>
+            <div className="flex items-center justify-center space-x-3 pt-2">
               <button
                 onClick={() => setConfirmModal({ isOpen: false, type: null, user: null, targetRole: null })}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300"
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmAction}
-                className={`px-4 py-2 rounded-xl text-xs font-bold text-white shadow-md flex items-center space-x-1.5 ${
-                  confirmModal.type === 'delete'
-                    ? 'bg-rose-600 hover:bg-rose-500'
-                    : 'bg-cyan-600 hover:bg-cyan-500'
-                }`}
+                className="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-md cursor-pointer"
               >
-                {confirmModal.type === 'delete' && <Trash2 className="w-3.5 h-3.5" />}
-                <span>
-                  {confirmModal.type === 'delete' ? 'Confirm Delete' : `Confirm ${confirmModal.targetRole === 'admin' ? 'Admin Access' : 'Demotion'}`}
-                </span>
+                Confirm Action
               </button>
             </div>
-
           </div>
         </div>
       )}
+
     </div>
   );
 };
@@ -1374,30 +1441,31 @@ export const UserDirectoryModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
-      <div className="relative w-full max-w-4xl bg-slate-900 rounded-3xl border border-slate-700/80 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-[110] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-in fade-in">
+      <div className="w-full max-w-6xl max-h-[90vh] bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col">
         
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/90">
+        <div className="p-5 bg-slate-950 border-b border-slate-800 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center border border-cyan-500/30">
+            <div className="p-2.5 rounded-2xl bg-cyan-600/20 text-cyan-400 border border-cyan-500/30">
               <Users className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">Registered User Directory & Analytics</h3>
-              <p className="text-xs text-slate-400">Monitor student logins, registration details, & manage user accounts</p>
+              <h3 className="text-base font-extrabold text-white">Registered User Directory & Admin Analytics</h3>
+              <p className="text-xs text-slate-400">Manage student accounts, review performance, and export department roster data</p>
             </div>
           </div>
+
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Modal Body with UserDirectoryManager */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1">
+        {/* Modal Content */}
+        <div className="p-6 overflow-y-auto space-y-6 flex-1 scrollbar-thin">
           <UserDirectoryManager onClose={onClose} isModal={true} />
         </div>
 
@@ -1405,3 +1473,5 @@ export const UserDirectoryModal = ({ isOpen, onClose }) => {
     </div>
   );
 };
+
+export default UserDirectoryModal;

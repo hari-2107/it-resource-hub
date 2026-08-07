@@ -23,6 +23,53 @@ import { AnnouncementsPage } from './pages/AnnouncementsPage';
 import { StudentProfile } from './pages/StudentProfile';
 import { LoginRegister } from './pages/LoginRegister';
 import { PlacementPrepHub } from './pages/PlacementPrepHub';
+
+class AdminModalErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("Admin Modal Top-Level Error Boundary caught error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
+          <div className="glass-panel p-8 rounded-3xl max-w-lg w-full text-center space-y-4 border border-rose-500/40 shadow-2xl">
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center mx-auto">
+              <span className="text-xl">⚠️</span>
+            </div>
+            <div>
+              <h3 className="text-base font-extrabold text-white">Failed to load Admin Center.</h3>
+              <p className="text-xs text-rose-300 font-mono mt-2 p-3 bg-slate-900 rounded-xl border border-rose-500/30 text-left overflow-x-auto max-h-40">
+                {this.state.error?.stack || this.state.error?.toString() || 'An unexpected error occurred while launching the Admin Center.'}
+              </p>
+            </div>
+            <div className="flex items-center justify-center space-x-3 pt-2">
+              <button
+                onClick={() => {
+                  this.setState({ hasError: false, error: null });
+                  if (this.props.onClose) this.props.onClose();
+                }}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/30 transition-all"
+              >
+                Close & Retry
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import { EventsPage } from './pages/EventsPage';
 import { BrainZonePage } from './pages/BrainZonePage';
 import { JavaLearningPage } from './pages/JavaLearningPage';
@@ -63,8 +110,10 @@ const MainAppContent = () => {
   };
 
   const handleNavigate = (tab, param = null) => {
-    if (tab === 'announcements') {
+    if (tab === 'announcements' || tab === 'notices' || tab === 'notice' || tab === 'notices-page') {
       setSelectedAnnouncementId(param || null);
+      setActiveTab('announcements');
+      return;
     }
     if (tab === 'learnjava') {
       setActiveTab('placement');
@@ -271,7 +320,7 @@ const MainAppContent = () => {
           </PageControlGuard>
         )}
 
-        {activeTab === 'announcements' && (
+        {(activeTab === 'announcements' || activeTab === 'notices' || activeTab === 'notice' || activeTab === 'notices-page') && (
           <PageControlGuard pageId="announcements" onGoHome={() => handleNavigate('home')}>
             <AnnouncementsPage 
               onOpenAdminForm={openAdminForm}
@@ -369,13 +418,15 @@ const MainAppContent = () => {
 
       {/* Admin Management Modal */}
       {adminManagementState.isOpen && (
-        <AdminManagementModal
-          key={adminManagementState.initialTab}
-          initialTab={adminManagementState.initialTab}
-          onClose={() => setAdminManagementState({ isOpen: false, initialTab: 'suggestions' })}
-          onOpenAdminForm={openAdminForm}
-          onOpenVersionHistory={openVersionHistory}
-        />
+        <AdminModalErrorBoundary onClose={() => setAdminManagementState({ isOpen: false, initialTab: 'suggestions' })}>
+          <AdminManagementModal
+            key={adminManagementState.initialTab}
+            initialTab={adminManagementState.initialTab}
+            onClose={() => setAdminManagementState({ isOpen: false, initialTab: 'suggestions' })}
+            onOpenAdminForm={openAdminForm}
+            onOpenVersionHistory={openVersionHistory}
+          />
+        </AdminModalErrorBoundary>
       )}
 
       {/* User Directory & Analytics Modal */}

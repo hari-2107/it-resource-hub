@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { 
-  Globe, 
-  Plus, 
-  Edit3, 
-  Trash2, 
-  ExternalLink, 
-  CheckCircle2, 
-  AlertCircle, 
-  Code, 
-  Briefcase, 
-  FileText, 
-  BookOpen, 
-  User, 
-  X, 
+import {
+  Globe,
+  Plus,
+  Edit3,
+  Trash2,
+  ExternalLink,
+  CheckCircle2,
+  AlertCircle,
+  Code,
+  Briefcase,
+  FileText,
+  BookOpen,
+  User,
+  X,
   Sparkles,
   Link as LinkIcon,
   Copy
@@ -45,9 +45,9 @@ const PlatformIcon = ({ name, customIcon, className = "w-6 h-6" }) => {
 
   if (customIcon) {
     return (
-      <img 
-        src={customIcon} 
-        alt={name} 
+      <img
+        src={customIcon}
+        alt={name}
         className={`${className} object-contain rounded`}
         onError={(e) => { e.target.style.display = 'none'; }}
       />
@@ -466,7 +466,7 @@ export const ProfessionalProfilesSection = () => {
 
   return (
     <div className="space-y-6">
-      
+
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center space-x-2 bg-emerald-600 text-white px-4 py-3 rounded-2xl shadow-2xl border border-emerald-400/40 animate-in slide-in-from-bottom-5">
@@ -478,7 +478,7 @@ export const ProfessionalProfilesSection = () => {
       {/* SECTION HEADER CARD */}
       <div className="glass-panel rounded-3xl p-6 sm:p-7 border border-slate-800 relative overflow-hidden bg-slate-900/80 backdrop-blur-md">
         <div className="absolute -top-12 -right-12 w-64 h-64 bg-brand-600/10 rounded-full blur-3xl pointer-events-none" />
-        
+
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
           <div className="space-y-1">
             <div className="flex items-center space-x-2.5">
@@ -504,12 +504,12 @@ export const ProfessionalProfilesSection = () => {
         {/* RESPONSIVE CARDS GRID */}
         {/* Desktop: 4 cards/row | Tablet: 2 cards | Mobile: 1 card */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-          
+
           {/* DEFAULT 3 CARDS: GitHub, LinkedIn, LeetCode */}
           {defaultCards.map((card) => {
             const colors = getPlatformColor(card.name);
             return (
-              <div 
+              <div
                 key={card.key}
                 className="glass-panel rounded-2xl p-5 border border-slate-800/90 bg-slate-900/60 backdrop-blur-md flex flex-col justify-between space-y-4 hover:border-slate-700 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-brand-500/5 group"
               >
@@ -590,7 +590,7 @@ export const ProfessionalProfilesSection = () => {
                       className="w-full py-2.5 px-3 rounded-xl text-xs font-bold bg-slate-800/90 hover:bg-brand-600 text-slate-300 hover:text-white border border-slate-700 hover:border-brand-500 shadow-sm flex items-center justify-center space-x-1.5 transition-all"
                     >
                       <Plus className="w-4 h-4 text-brand-400 group-hover:text-white" />
-                      <span>➕ Add Profile</span>
+                      <span> Add Profile</span>
                     </button>
                   )}
                 </div>
@@ -602,7 +602,7 @@ export const ProfessionalProfilesSection = () => {
           {customCards.map((custom) => {
             const colors = getPlatformColor(custom.name);
             return (
-              <div 
+              <div
                 key={custom.id}
                 className="glass-panel rounded-2xl p-5 border border-slate-800/90 bg-slate-900/60 backdrop-blur-md flex flex-col justify-between space-y-4 hover:border-slate-700 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-brand-500/5 group"
               >
@@ -671,7 +671,7 @@ export const ProfessionalProfilesSection = () => {
           })}
 
           {/* LARGE "+" ADD CUSTOM PROFILE CARD */}
-          <div 
+          <div
             onClick={() => openAddEditModal('custom_new')}
             className="rounded-2xl p-6 border-2 border-dashed border-slate-800 hover:border-brand-500/60 bg-slate-950/40 hover:bg-slate-900/80 transition-all duration-300 flex flex-col items-center justify-center text-center space-y-3 cursor-pointer group hover:scale-[1.02] min-h-[190px]"
           >
@@ -696,7 +696,7 @@ export const ProfessionalProfilesSection = () => {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
           <div className="relative w-full max-w-lg bg-slate-900 rounded-3xl border border-slate-700/80 shadow-2xl overflow-hidden">
-            
+
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/90">
               <div className="flex items-center space-x-2">
@@ -705,7 +705,7 @@ export const ProfessionalProfilesSection = () => {
                   {modalMode === 'edit' ? `Edit ${formName || 'Profile'}` : 'Add Professional Profile'}
                 </h3>
               </div>
-              <button 
+              <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
                 className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
@@ -716,7 +716,7 @@ export const ProfessionalProfilesSection = () => {
 
             {/* Modal Form */}
             <form onSubmit={handleSaveModal} className="p-6 space-y-4 text-xs">
-              
+
               {/* Validation Error Banner */}
               {formError && (
                 <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center space-x-2">
@@ -754,11 +754,10 @@ export const ProfessionalProfilesSection = () => {
                         setFormName(preset.name);
                         if (!formUrl) setFormUrl(preset.placeholder);
                       }}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
-                        formName.toLowerCase() === preset.name.toLowerCase()
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${formName.toLowerCase() === preset.name.toLowerCase()
                           ? 'bg-brand-600 text-white font-bold'
                           : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                      }`}
+                        }`}
                     >
                       {preset.name}
                     </button>
@@ -837,7 +836,7 @@ export const ProfessionalProfilesSection = () => {
               <AlertCircle className="w-6 h-6 flex-shrink-0" />
               <h3 className="text-base font-bold text-white">Remove Profile Link?</h3>
             </div>
-            
+
             <p className="text-xs text-slate-300 leading-relaxed">
               Are you sure you want to remove your <strong className="text-white">{deleteConfirmTarget.name}</strong> profile link from your student profile?
             </p>

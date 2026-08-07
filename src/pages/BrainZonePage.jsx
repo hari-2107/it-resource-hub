@@ -37,9 +37,29 @@ import {
   CheckCircle,
   Lock,
   ShieldAlert,
-  Coffee
+  Coffee,
+  Search,
+  Filter,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Activity,
+  Medal,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { JavaLearningPage } from './JavaLearningPage';
+import { 
+  LEVEL_SYSTEM,
+  getLevelFromXP,
+  getCurrentLevel,
+  getCurrentLevelTitle,
+  getCurrentLevelXP,
+  getNextLevelXP,
+  getXPRequiredForNextLevel,
+  getProgressPercentage,
+  getNextLevelReward
+} from '../data/mockData';
 
 import { 
   PROFILE_BORDERS, 
@@ -62,6 +82,44 @@ const shuffleArray = (arr) => {
   }
   return copy;
 };
+
+class BrainZoneErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("BrainZone error boundary caught an error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="glass-panel p-8 rounded-3xl border border-amber-500/40 text-center space-y-4 max-w-lg mx-auto my-12 animate-in zoom-in">
+          <div className="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center mx-auto text-2xl font-black">
+            ⚠️
+          </div>
+          <h3 className="text-xl font-black text-white">Something went wrong.</h3>
+          <p className="text-xs text-slate-300 leading-relaxed">
+            {this.state.error?.message || "An unexpected error occurred."}
+          </p>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-black shadow-lg hover:scale-105 transition-all"
+          >
+            🔄 Refresh / Retry
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const getTimerSecondsForDiff = (diff) => {
   if (diff === 'beginner') return 60;
@@ -1122,7 +1180,7 @@ const selectWeightedSegment = () => {
 };
 
 export const BrainZonePage = ({ onOpenAdminForm, defaultSubTab = 'games' }) => {
-  const { currentUser, updateUserProfile, isAdmin } = useAuth();
+  const { currentUser, updateUserProfile, completeBrainZoneChallenge, isAdmin } = useAuth();
   const { 
     registeredUsers, 
     thisOrThatPolls, 
@@ -1158,7 +1216,11 @@ export const BrainZonePage = ({ onOpenAdminForm, defaultSubTab = 'games' }) => {
 
   // User Stats state
   const funPoints = currentUser?.funPoints ?? 0;
-  const streak = currentUser?.streak ?? 1;
+  const currentStreak = currentUser?.currentStreak ?? currentUser?.streak ?? 0;
+  const longestStreak = currentUser?.longestStreak ?? currentStreak;
+  const totalChallengesCompleted = currentUser?.totalChallengesCompleted ?? 0;
+  const streakHistory = currentUser?.streakHistory || [];
+  const streak = currentStreak;
   const equippedBorderId = currentUser?.equippedBorder || currentUser?.equippedBorderId || 'cyber_neon';
   const equippedTitleId = currentUser?.equippedTitleId || currentUser?.equippedTitle || 'title_novice';
   const equippedAvatarBgId = currentUser?.equippedAvatarBgId || currentUser?.equippedAvatarBackgroundId || 'bg_slate';
@@ -1326,8 +1388,52 @@ export const BrainZonePage = ({ onOpenAdminForm, defaultSubTab = 'games' }) => {
 
 
 
-  // Leaderboard Filters State: 'weekly' | 'monthly' | 'class'
-  const [leaderboardFilter, setLeaderboardFilter] = useState('weekly');
+  // Enhanced Leaderboard State
+  const [lbActiveTab, setLbActiveTab] = useState('department'); // 'department' | 'weekly' | 'monthly' | 'class'
+  const [lbSearchQuery, setLbSearchQuery] = useState('');
+  const [lbYearFilter, setLbYearFilter] = useState('All'); // 'All' | '1st Year' | '2nd Year' | '3rd Year' | '4th Year'
+  const [lbSectionFilter, setLbSectionFilter] = useState('All'); // 'All' | 'IT-A' | 'IT-B' | 'IT-C' | 'IT-D'
+  const [selectedClassSec, setSelectedClassSec] = useState('IT-A');
+  const [hoveredUser, setHoveredUser] = useState(null);
+  const [countdownWeekly, setCountdownWeekly] = useState('');
+  const [countdownMonthly, setCountdownMonthly] = useState('');
+
+  // Live Reset Countdown Timers
+  useEffect(() => {
+    const calcWeekly = () => {
+      const now = new Date();
+      const nextSun = new Date(now);
+      const day = now.getDay();
+      const diffToSun = day === 0 ? 0 : 7 - day;
+      nextSun.setDate(now.getDate() + diffToSun);
+      nextSun.setHours(23, 59, 59, 999);
+      const diffMs = Math.max(0, nextSun - now);
+      const d = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      const h = Math.floor((diffMs / (1000 * 60 * 60)) % 24);
+      const m = Math.floor((diffMs / (1000 * 60)) % 60);
+      const s = Math.floor((diffMs / 1000) % 60);
+      return `${d}d ${h}h ${m}m ${s}s`;
+    };
+
+    const calcMonthly = () => {
+      const now = new Date();
+      const nextMo = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      const diffMs = Math.max(0, nextMo - now);
+      const d = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      const h = Math.floor((diffMs / (1000 * 60 * 60)) % 24);
+      const m = Math.floor((diffMs / (1000 * 60)) % 60);
+      const s = Math.floor((diffMs / 1000) % 60);
+      return `${d}d ${h}h ${m}m ${s}s`;
+    };
+
+    const updateTimers = () => {
+      setCountdownWeekly(calcWeekly());
+      setCountdownMonthly(calcMonthly());
+    };
+    updateTimers();
+    const timerInterval = setInterval(updateTimers, 1000);
+    return () => clearInterval(timerInterval);
+  }, []);
 
   // Weekly Mission State & Dynamic ISO Week Tracking
   const currentWeekBatch = getISOWeekId();
@@ -1441,11 +1547,17 @@ export const BrainZonePage = ({ onOpenAdminForm, defaultSubTab = 'games' }) => {
   // Equipped Border details
   const currentBorderObj = PROFILE_BORDERS.find(b => b.id === equippedBorderId) || PROFILE_BORDERS[1];
 
-  // Level Calculation (Every 200 XP = 1 Level)
-  const currentLevel = Math.floor(funPoints / 200) + 1;
-  const levelProgressXP = funPoints % 200;
-  const levelTargetXP = 200;
-  const levelPercent = Math.min(100, Math.round((levelProgressXP / levelTargetXP) * 100));
+  // Single Source of Truth Level & Progression Calculation (v5.0)
+  const levelInfo = getLevelFromXP(funPoints);
+  const {
+    currentLevel,
+    currentLevelTitle,
+    xpIntoCurrentLevel,
+    xpNeededForNextLevel,
+    progressPercent,
+    nextLevelReward,
+    isMaxLevel
+  } = levelInfo;
 
   // Current Daily Poll List (multi-question game support)
   const [currentPollIndex, setCurrentPollIndex] = useState(0);
@@ -1523,11 +1635,15 @@ export const BrainZonePage = ({ onOpenAdminForm, defaultSubTab = 'games' }) => {
       activePoll.votesB = (activePoll.votesB || 0) + 1;
     }
 
-    // 3. Save to user profile & data store
-    updateUserProfile({
-      votedThisOrThatDates: newVoted,
-      funPoints: funPoints + 25
-    });
+    // 3. Save to user profile & data store via completeBrainZoneChallenge
+    if (typeof completeBrainZoneChallenge === 'function') {
+      completeBrainZoneChallenge('Daily Poll', 25, { votedThisOrThatDates: newVoted });
+    } else {
+      updateUserProfile({
+        votedThisOrThatDates: newVoted,
+        funPoints: funPoints + 25
+      });
+    }
 
     recordMissionProgress('poll', 1);
 
@@ -1877,17 +1993,26 @@ export const BrainZonePage = ({ onOpenAdminForm, defaultSubTab = 'games' }) => {
       }
     };
 
-    const updatedUserDoc = {
-      funPoints: (currentUser?.funPoints ?? 0) + earnedXp,
-      gameStats: {
-        ...gameStats,
-        [normGameId]: updatedGameData
-      },
-      completedGameLevels: updatedCompletedMap
-    };
+    const challengeLabel = normGameId === 'quiz' ? 'Quick Quiz' : normGameId === 'type' ? 'Speed Typing' : `${normGameId.toUpperCase()} Challenge`;
 
-    // SAVE IMMEDIATELY BEFORE RETURNING SUCCESS
-    updateUserProfile(updatedUserDoc);
+    if (typeof completeBrainZoneChallenge === 'function') {
+      completeBrainZoneChallenge(challengeLabel, earnedXp, {
+        gameStats: {
+          ...gameStats,
+          [normGameId]: updatedGameData
+        },
+        completedGameLevels: updatedCompletedMap
+      });
+    } else {
+      updateUserProfile({
+        gameStats: {
+          ...gameStats,
+          [normGameId]: updatedGameData
+        },
+        completedGameLevels: updatedCompletedMap,
+        addXp: earnedXp
+      });
+    }
     recordMissionProgress(normGameId === 'quiz' ? 'quiz' : 'game', 1);
 
     return {
@@ -1994,18 +2119,24 @@ export const BrainZonePage = ({ onOpenAdminForm, defaultSubTab = 'games' }) => {
         lastSpinDate: todayDateStr
       };
 
+      const triggerSpinComplete = (earnedXp = 0, extraFields = {}) => {
+        if (typeof completeBrainZoneChallenge === 'function') {
+          completeBrainZoneChallenge('Spin & Learn', earnedXp, { ...nextProfile, ...extraFields });
+        } else {
+          updateUserProfile({ ...nextProfile, ...extraFields, funPoints: funPoints + earnedXp });
+        }
+      };
+
       if (winningSeg.id === '10xp' || winningSeg.id === '25xp' || winningSeg.id === 'badge') {
-        nextProfile.funPoints = funPoints + winningSeg.xp;
-        updateUserProfile(nextProfile);
+        triggerSpinComplete(winningSeg.xp);
       } else if (winningSeg.id === 'fact') {
-        nextProfile.funPoints = funPoints + 15;
-        updateUserProfile(nextProfile);
+        triggerSpinComplete(15);
         const factList = (itFacts && itFacts.length > 0) ? itFacts : [{ fact: "First electronic computer ENIAC weighed 27 tons!", category: "CS History" }];
         const randomFact = factList[Math.floor(Math.random() * factList.length)];
         setSpinFactData(randomFact);
         setSpinFactModalOpen(true);
       } else if (winningSeg.id === 'quiz') {
-        updateUserProfile(nextProfile);
+        triggerSpinComplete(0);
         const qList = (quizQuestions && quizQuestions.length > 0) ? quizQuestions : DAILY_QUIZ_QUESTIONS;
         const randomQ = qList[Math.floor(Math.random() * qList.length)];
         setSpinQuizQ(randomQ);
@@ -2020,15 +2151,18 @@ export const BrainZonePage = ({ onOpenAdminForm, defaultSubTab = 'games' }) => {
         ];
         const loot = pool[Math.floor(Math.random() * pool.length)];
 
+        let bonusXp = 0;
+        const extraData = {};
+
         if (loot.rewardType === 'xp') {
-          nextProfile.funPoints = funPoints + Number(loot.value);
+          bonusXp = Number(loot.value);
         } else if (loot.rewardType === 'cosmetic') {
           const unlockedBorders = currentUser?.unlockedBorderIds || ['default', 'cyber_neon'];
           if (!unlockedBorders.includes(loot.value)) {
-            nextProfile.unlockedBorderIds = [...unlockedBorders, loot.value];
+            extraData.unlockedBorderIds = [...unlockedBorders, loot.value];
           }
         }
-        updateUserProfile(nextProfile);
+        triggerSpinComplete(bonusXp, extraData);
         setSpinResult(`🎁 Mystery Loot: ${loot.title}!`);
       }
     }, 3600);
@@ -2124,7 +2258,8 @@ export const BrainZonePage = ({ onOpenAdminForm, defaultSubTab = 'games' }) => {
   const classLeaderboardList = Object.values(classAggregates).sort((a, b) => b.totalPoints - a.totalPoints);
 
   return (
-    <div className="space-y-8 pb-16">
+    <BrainZoneErrorBoundary>
+      <div className="space-y-8 pb-16">
       
       {/* ========================================================================= */}
       {/* PAGE HEADER & TOP NAVIGATION TABS */}
@@ -2153,12 +2288,18 @@ export const BrainZonePage = ({ onOpenAdminForm, defaultSubTab = 'games' }) => {
           </div>
 
           {/* User Score Stats Pill */}
-          <div className="flex items-center space-x-3 self-start lg:self-auto">
-            <div className="px-4 py-2 rounded-2xl bg-slate-950 border border-slate-800 flex items-center space-x-2 text-xs font-bold">
+          <div className="flex flex-wrap items-center gap-2.5 self-start lg:self-auto">
+            <div className="px-3.5 py-2 rounded-2xl bg-purple-500/20 border border-purple-500/40 flex items-center space-x-2 text-xs font-bold text-purple-300 shadow-md shadow-purple-500/10">
+              <Award className="w-4 h-4 text-purple-400" />
+              <span>Level {currentLevel} • {currentLevelTitle}</span>
+            </div>
+
+            <div className="px-3.5 py-2 rounded-2xl bg-slate-950 border border-slate-800 flex items-center space-x-2 text-xs font-bold">
               <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
               <span className="text-white">{funPoints} XP</span>
             </div>
-            <div className="px-4 py-2 rounded-2xl bg-slate-950 border border-slate-800 flex items-center space-x-2 text-xs font-bold text-rose-400">
+
+            <div className="px-3.5 py-2 rounded-2xl bg-slate-950 border border-slate-800 flex items-center space-x-2 text-xs font-bold text-rose-400">
               <Flame className="w-4 h-4 fill-rose-400" />
               <span>{streak} Day Streak</span>
             </div>
@@ -2849,23 +2990,39 @@ export const BrainZonePage = ({ onOpenAdminForm, defaultSubTab = 'games' }) => {
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-black text-white">Level {currentLevel} — Code Architect</h3>
-                  <p className="text-xs text-slate-400">Total Score: {funPoints} XP</p>
+                  <h3 className="text-xl font-black text-white">
+                    Level {currentLevel} — {currentLevelTitle}
+                  </h3>
                 </div>
 
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs font-bold">
-                    <span className="text-purple-300">Level {currentLevel}</span>
-                    <span className="text-slate-400">{levelProgressXP} / {levelTargetXP} XP</span>
-                  </div>
-                  <div className="w-full bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-800">
-                    <div className="h-full bg-gradient-to-r from-purple-500 to-indigo-400 rounded-full transition-all duration-500" style={{ width: `${levelPercent}%` }} />
-                  </div>
-                </div>
+                {currentLevel < 20 ? (
+                  <>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-xs font-bold">
+                        <span className="text-purple-300">Progress to Level {currentLevel + 1}</span>
+                        <span className="text-slate-400 font-mono font-bold">{xpIntoCurrentLevel} / {xpNeededForNextLevel} XP</span>
+                      </div>
+                      <div className="w-full bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-800">
+                        <div 
+                          className="h-full bg-gradient-to-r from-purple-500 via-indigo-500 to-cyan-400 rounded-full transition-all duration-500 shadow-md shadow-purple-500/30" 
+                          style={{ width: `${progressPercent}%` }} 
+                        />
+                      </div>
+                    </div>
 
-                <div className="p-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-xs text-purple-200 leading-relaxed">
-                  🚀 <strong>Next Level Unlocks:</strong> Level {currentLevel + 1} unlocks Cyber Legend Avatar Frame & Exclusive Badge!
-                </div>
+                    <div className="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-xs text-purple-200 leading-relaxed space-y-1">
+                      <div className="font-extrabold text-purple-300 flex items-center space-x-1.5">
+                        <span>🚀 Next Level Unlock</span>
+                      </div>
+                      <p className="text-xs text-slate-200 font-semibold">{nextLevelReward}</p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-center space-y-1 text-amber-300 font-extrabold text-sm animate-in zoom-in">
+                    <span>🏆 Maximum Level Achieved</span>
+                    <p className="text-xs text-slate-300 font-normal">You have reached the ultimate rank in IT Department Student Resource Hub!</p>
+                  </div>
+                )}
               </div>
 
               {/* 🔥 LEARNING STREAK CARD */}
@@ -2877,28 +3034,51 @@ export const BrainZonePage = ({ onOpenAdminForm, defaultSubTab = 'games' }) => {
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-3xl font-black text-white">{streak} Day Streak</h3>
-                    <p className="text-xs text-slate-400">Personal Best: 14 Days</p>
+                    <h3 className="text-3xl font-black text-white">{currentStreak} Day Streak</h3>
+                    <p className="text-xs text-rose-300/80 font-bold flex items-center gap-1 mt-0.5">
+                      <span>🏆 Longest Streak: <strong>{longestStreak} Days</strong></span>
+                    </p>
                   </div>
-                  <div className="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center shadow-lg shadow-rose-500/20">
                     <Flame className="w-6 h-6 fill-rose-400 animate-bounce" />
                   </div>
                 </div>
 
+                {/* Dashboard Stats Row: Total Challenges & XP */}
+                <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-800/80">
+                  <div className="p-2.5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-0.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">🎮 Total Challenges</span>
+                    <span className="text-sm font-black text-cyan-300">{totalChallengesCompleted} Completed</span>
+                  </div>
+
+                  <div className="p-2.5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-0.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">⭐ Total XP</span>
+                    <span className="text-sm font-black text-amber-300">{funPoints} XP</span>
+                  </div>
+                </div>
+
                 {/* 7-Day Activity Calendar */}
-                <div className="pt-2">
+                <div className="pt-2 border-t border-slate-800/80">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">7-Day Activity Tracker</p>
                   <div className="grid grid-cols-7 gap-1.5 text-center">
                     {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => {
-                      const isActiveDay = i < (streak % 7 || 5);
+                      // Calculate date string for day of current week
+                      const now = new Date();
+                      const currentDayIdx = (now.getDay() + 6) % 7; // 0 for Mon, 6 for Sun
+                      const dayOffset = i - currentDayIdx;
+                      const targetDate = new Date();
+                      targetDate.setDate(now.getDate() + dayOffset);
+                      const dateStr = targetDate.toISOString().split('T')[0];
+
+                      const isActiveDay = streakHistory.includes(dateStr) || (i <= currentDayIdx && (currentDayIdx - i) < currentStreak);
                       return (
                         <div key={day} className="space-y-1">
-                          <div className={`h-9 rounded-xl flex items-center justify-center text-xs font-bold border ${
-                            isActiveDay ? 'bg-rose-500/20 border-rose-500/50 text-rose-300' : 'bg-slate-950 border-slate-800 text-slate-600'
+                          <div className={`h-9 rounded-xl flex items-center justify-center text-xs font-bold border transition-all ${
+                            isActiveDay ? 'bg-rose-500/20 border-rose-500/50 text-rose-300 shadow-md shadow-rose-500/10' : 'bg-slate-950 border-slate-800 text-slate-600'
                           }`}>
                             {isActiveDay ? <Flame className="w-4 h-4 fill-rose-400" /> : '•'}
                           </div>
-                          <span className="text-[9px] text-slate-500">{day}</span>
+                          <span className="text-[9px] text-slate-500 font-medium">{day}</span>
                         </div>
                       );
                     })}
@@ -3351,350 +3531,783 @@ export const BrainZonePage = ({ onOpenAdminForm, defaultSubTab = 'games' }) => {
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 3: 🏆 LEADERBOARD */}
+      {/* TAB 3: 🏆 LEADERBOARD CONTROL CENTER */}
       {/* ========================================================================= */}
-      {activeTab === 'leaderboard' && (
-        <div className="space-y-6 animate-in fade-in">
-          
-          {/* LEADERBOARD FILTER HEADER */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-            <div>
-              <h3 className="text-xl font-black text-white flex items-center space-x-2">
-                <Trophy className="w-6 h-6 text-amber-400" />
-                <span>Department XP Leaderboard</span>
-              </h3>
-              <p className="text-xs text-slate-400">Calculated live from active IT student XP points & learning streaks</p>
-            </div>
+      {activeTab === 'leaderboard' && (() => {
+        // Pre-process roster with derived stats & ranks
+        const enrichedRoster = activeUserRoster.map((u, idx) => {
+          const funP = u.funPoints || 300;
+          const wXp = u.weeklyXp || Math.floor(funP * 0.38);
+          const mXp = u.monthlyXp || Math.floor(funP * 0.82);
+          const lvlInfo = getLevelFromXP(funP);
+          const lvl = lvlInfo.currentLevel;
+          const curInLvl = lvlInfo.xpIntoCurrentLevel;
+          const targetInLvl = lvlInfo.xpNeededForNextLevel;
+          const move = idx === 0 ? '↑ +3' : idx === 1 ? '↑ +1' : idx === 2 ? '→' : idx === 3 ? '↓ -1' : idx === 4 ? '↓ -2' : 'NEW';
+          const badgeList = [
+            funP > 1200 ? '👑 BrainZone Legend' : null,
+            funP > 1000 ? '🏆 Champion' : null,
+            lvl >= 6 ? '⚡ Speed Demon' : null,
+            (u.streak || 1) >= 7 ? '🔥 Streak Master' : null,
+            '🧠 Quiz Master'
+          ].filter(Boolean);
 
-            <div className="flex items-center space-x-2">
-              {['weekly', 'monthly', 'class'].map(f => (
-                <button
-                  key={f}
-                  onClick={() => setLeaderboardFilter(f)}
-                  className={`px-4 py-2 rounded-2xl text-xs font-bold capitalize transition-all ${
-                    leaderboardFilter === f
-                      ? 'bg-amber-500 text-slate-950 font-black shadow-lg shadow-amber-500/30'
-                      : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
-                  }`}
-                >
-                  {f === 'class' ? 'Class vs Class' : `${f} Rankings`}
-                </button>
-              ))}
-            </div>
-          </div>
+          return {
+            ...u,
+            funPoints: funP,
+            weeklyXp: wXp,
+            monthlyXp: mXp,
+            level: lvl,
+            xpInLevel: curInLvl,
+            xpTarget: targetInLvl,
+            rankChange: move,
+            earnedBadges: badgeList,
+            highestRank: `#${Math.max(1, idx)}`,
+            highestWeeklyRank: `#${Math.max(1, idx)}`,
+            highestMonthlyRank: `#${Math.max(1, idx)}`,
+            highestXp: funP + 180,
+            longestStreak: (u.streak || 1) + 4,
+            accuracyPercent: Math.min(99, 82 + (idx * 3 % 15)) + '%',
+            challengesSolved: 24 + (idx * 5)
+          };
+        });
 
-          {/* 🏆 HALL OF FAME PODIUM CARD */}
-          <div className="glass-card rounded-3xl p-6 border border-amber-500/40 bg-gradient-to-b from-amber-950/40 via-purple-950/20 to-slate-950 space-y-6 shadow-2xl relative overflow-hidden">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-amber-500/20 pb-4">
-              <div>
-                <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                  👑 Department Wall of Honor
-                </span>
-                <h3 className="text-xl font-black text-white mt-1 flex items-center space-x-2">
-                  <Crown className="w-6 h-6 text-amber-400" />
-                  <span>BrainZone Hall of Fame</span>
-                </h3>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <span className="px-3 py-1 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-bold flex items-center space-x-1">
-                  <Award className="w-3.5 h-3.5 text-purple-400" />
-                  <span>Top Champions</span>
-                </span>
-              </div>
-            </div>
+        // 1. Department Sort (Total XP)
+        const sortedDept = [...enrichedRoster].sort((a, b) => b.funPoints - a.funPoints);
+        
+        // 2. Weekly Sort
+        const sortedWeekly = [...enrichedRoster].sort((a, b) => b.weeklyXp - a.weeklyXp);
 
-            {/* Top 3 Hall of Fame Podium Display */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* 🥈 2ND PLACE (SILVER ELITE) */}
-              {sortedLeaderboardUsers[1] && (() => {
-                const u2 = sortedLeaderboardUsers[1];
-                const b2 = getBorderObj(u2.equippedBorder || 'default');
-                const bg2 = getAvatarBgObj(u2.equippedAvatarBgId || 'bg_slate');
-                const t2 = getTitleObj(u2.equippedTitleId || 'title_novice');
-                return (
-                  <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-700/80 flex flex-col justify-between items-center text-center space-y-3 shadow-lg relative overflow-hidden group hover:border-slate-400 transition-all">
-                    <div className="absolute top-2 left-2 px-2.5 py-0.5 rounded-full text-[9px] font-black bg-slate-300 text-slate-950 flex items-center space-x-1">
-                      <span>🥈 2nd Place</span>
-                    </div>
+        // 3. Monthly Sort
+        const sortedMonthly = [...enrichedRoster].sort((a, b) => b.monthlyXp - a.monthlyXp);
 
-                    <div className="pt-4">
-                      <div className={`w-14 h-14 rounded-2xl p-0.5 border-2 ${b2.color} shadow-lg mx-auto`}>
-                        <div className={`w-full h-full rounded-[12px] ${bg2.gradient} flex items-center justify-center font-black text-lg text-white`}>
-                          {u2.name?.charAt(0) || '2'}
-                        </div>
-                      </div>
+        // Active List based on Tab Selection
+        let currentSortList = sortedDept;
+        if (lbActiveTab === 'weekly') currentSortList = sortedWeekly;
+        if (lbActiveTab === 'monthly') currentSortList = sortedMonthly;
 
-                      <h4 className="text-sm font-extrabold text-white mt-2 group-hover:text-slate-200 transition-colors">
-                        {u2.name}
-                      </h4>
-                      <p className="text-[10px] text-slate-400 font-bold">{u2.classSection || 'IT-B'}</p>
-                    </div>
+        // Filter Logic
+        const filteredList = currentSortList.filter(u => {
+          if (lbSearchQuery.trim()) {
+            const q = lbSearchQuery.toLowerCase().trim();
+            const nMatch = (u.name || '').toLowerCase().includes(q);
+            const rMatch = (u.registerNumber || '').toLowerCase().includes(q);
+            if (!nMatch && !rMatch) return false;
+          }
+          if (lbYearFilter !== 'All') {
+            const yStr = (u.year || '3rd Year').toLowerCase();
+            const targetY = lbYearFilter.toLowerCase().replace('year', '').trim();
+            if (!yStr.includes(targetY)) return false;
+          }
+          if (lbSectionFilter !== 'All') {
+            const sStr = (u.classSection || 'IT-A').toUpperCase();
+            if (sStr !== lbSectionFilter) return false;
+          }
+          return true;
+        });
 
-                    <div className="w-full pt-2 border-t border-slate-800 space-y-1">
-                      <div className="text-xs font-black text-slate-200 font-mono">{u2.funPoints ?? 0} XP</div>
-                      <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold border ${t2.badgeBg}`}>
-                        🏷️ {t2.title}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })()}
+        // Current User Position calculation
+        const userDeptIndex = sortedDept.findIndex(u => 
+          (currentUser && u.uid === currentUser.uid) || 
+          (currentUser && u.email && currentUser.email && u.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+          (currentUser && u.name && currentUser.name && u.name.toLowerCase() === currentUser.name.toLowerCase())
+        );
+        const userDeptRank = userDeptIndex !== -1 ? userDeptIndex + 1 : 1;
+        const userAboveXp = userDeptIndex > 0 ? (sortedDept[userDeptIndex - 1].funPoints - (currentUser?.funPoints || funPoints)) + 15 : 0;
 
-              {/* 👑 1ST PLACE (GOLD CHAMPION) */}
-              {sortedLeaderboardUsers[0] && (() => {
-                const u1 = sortedLeaderboardUsers[0];
-                const b1 = getBorderObj(u1.equippedBorder || 'default');
-                const bg1 = getAvatarBgObj(u1.equippedAvatarBgId || 'bg_slate');
-                const t1 = getTitleObj(u1.equippedTitleId || 'title_novice');
-                return (
-                  <div className="p-5 rounded-2xl bg-gradient-to-b from-amber-950/60 to-slate-900 border-2 border-amber-500/60 flex flex-col justify-between items-center text-center space-y-3 shadow-xl shadow-amber-500/10 relative overflow-hidden group hover:border-amber-400 transition-all md:-translate-y-2">
-                    <div className="absolute top-2 left-2 px-3 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950 shadow-md flex items-center space-x-1 animate-pulse">
-                      <Crown className="w-3 h-3 text-slate-950" />
-                      <span>👑 1st Champion</span>
-                    </div>
+        const userWeeklyIndex = sortedWeekly.findIndex(u => 
+          (currentUser && u.uid === currentUser.uid) || 
+          (currentUser && u.email && currentUser.email && u.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+          (currentUser && u.name && currentUser.name && u.name.toLowerCase() === currentUser.name.toLowerCase())
+        );
+        const userWeeklyRank = userWeeklyIndex !== -1 ? userWeeklyIndex + 1 : 1;
 
-                    <div className="pt-4">
-                      <div className={`w-16 h-16 rounded-2xl p-0.5 border-2 ${b1.color} shadow-xl shadow-amber-500/20 mx-auto ring-4 ring-amber-500/30`}>
-                        <div className={`w-full h-full rounded-[12px] ${bg1.gradient} flex items-center justify-center font-black text-xl text-white`}>
-                          {u1.name?.charAt(0) || '1'}
-                        </div>
-                      </div>
+        const userMonthlyIndex = sortedMonthly.findIndex(u => 
+          (currentUser && u.uid === currentUser.uid) || 
+          (currentUser && u.email && currentUser.email && u.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+          (currentUser && u.name && currentUser.name && u.name.toLowerCase() === currentUser.name.toLowerCase())
+        );
+        const userMonthlyRank = userMonthlyIndex !== -1 ? userMonthlyIndex + 1 : 1;
 
-                      <h4 className="text-base font-black text-amber-300 mt-2.5 group-hover:text-amber-200 transition-colors">
-                        {u1.name}
-                      </h4>
-                      <p className="text-[10px] text-amber-400/80 font-bold">{u1.classSection || 'IT-A'} • Grand Champion</p>
-                    </div>
+        // Overall Department Statistics
+        const totalDeptPlayers = enrichedRoster.length;
+        const totalDeptXp = enrichedRoster.reduce((sum, u) => sum + u.funPoints, 0);
+        const avgDeptXp = Math.round(totalDeptXp / Math.max(1, totalDeptPlayers));
+        const maxDeptStreak = Math.max(...enrichedRoster.map(u => u.streak || 1));
+        const totalChallengesCount = enrichedRoster.reduce((sum, u) => sum + u.challengesSolved, 0);
 
-                    <div className="w-full pt-2 border-t border-amber-500/30 space-y-1">
-                      <div className="text-sm font-black text-amber-300 font-mono">{u1.funPoints ?? 0} XP</div>
-                      <span className={`inline-block px-2.5 py-0.5 rounded text-[10px] font-extrabold border ${t1.badgeBg}`}>
-                        🏷️ {t1.title}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })()}
+        // Class vs Class Data
+        const allSections = ['IT-A', 'IT-B', 'IT-C'];
+        const classStatsMap = allSections.map(sec => {
+          const secStudents = enrichedRoster.filter(u => (u.classSection || 'IT-A').toUpperCase() === sec);
+          const tXp = secStudents.reduce((acc, u) => acc + u.funPoints, 0);
+          const sCount = secStudents.length || 1;
+          const aXp = Math.round(tXp / sCount);
+          const topSt = secStudents.sort((a, b) => b.funPoints - a.funPoints)[0] || { name: 'N/A' };
 
-              {/* 🥉 3RD PLACE (BRONZE MASTER) */}
-              {sortedLeaderboardUsers[2] && (() => {
-                const u3 = sortedLeaderboardUsers[2];
-                const b3 = getBorderObj(u3.equippedBorder || 'default');
-                const bg3 = getAvatarBgObj(u3.equippedAvatarBgId || 'bg_slate');
-                const t3 = getTitleObj(u3.equippedTitleId || 'title_novice');
-                return (
-                  <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-700/80 flex flex-col justify-between items-center text-center space-y-3 shadow-lg relative overflow-hidden group hover:border-amber-700 transition-all">
-                    <div className="absolute top-2 left-2 px-2.5 py-0.5 rounded-full text-[9px] font-black bg-amber-700 text-white flex items-center space-x-1">
-                      <span>🥉 3rd Place</span>
-                    </div>
+          return {
+            section: sec,
+            totalXp: tXp,
+            studentCount: secStudents.length,
+            avgXp: aXp,
+            topStudent: topSt.name,
+            students: secStudents
+          };
+        }).sort((a, b) => b.totalXp - a.totalXp);
 
-                    <div className="pt-4">
-                      <div className={`w-14 h-14 rounded-2xl p-0.5 border-2 ${b3.color} shadow-lg mx-auto`}>
-                        <div className={`w-full h-full rounded-[12px] ${bg3.gradient} flex items-center justify-center font-black text-lg text-white`}>
-                          {u3.name?.charAt(0) || '3'}
-                        </div>
-                      </div>
+        // Live Feed Ticker Mock Items
+        const liveFeedItems = [
+          { id: 1, user: 'Hari', action: 'completed Bug Hunt Sprint', xp: '+80 XP', time: '2m ago', icon: '🐞' },
+          { id: 2, user: 'Priya Sharma', action: 'reached Level 12', xp: 'New Badge', time: '5m ago', icon: '⭐' },
+          { id: 3, user: 'Alex Morgan', action: 'achieved 14-Day Streak', xp: '+150 XP', time: '12m ago', icon: '🔥' },
+          { id: 4, user: 'Section IT-A', action: 'moved to 1st Place in Class vs Class', xp: 'Top Class', time: '18m ago', icon: '🏫' }
+        ];
 
-                      <h4 className="text-sm font-extrabold text-white mt-2 group-hover:text-amber-200 transition-colors">
-                        {u3.name}
-                      </h4>
-                      <p className="text-[10px] text-slate-400 font-bold">{u3.classSection || 'IT-C'}</p>
-                    </div>
-
-                    <div className="w-full pt-2 border-t border-slate-800 space-y-1">
-                      <div className="text-xs font-black text-amber-400 font-mono">{u3.funPoints ?? 0} XP</div>
-                      <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold border ${t3.badgeBg}`}>
-                        🏷️ {t3.title}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-          </div>
-
-          {/* YOUR RANKING HIGHLIGHT CARD WITH SURROUNDING CONTEXT */}
-          <div className="glass-card rounded-3xl p-5 border border-amber-500/40 bg-gradient-to-r from-amber-950/30 via-slate-950 to-slate-950 space-y-4 shadow-xl">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-amber-500/20 pb-3">
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center font-black text-lg shadow-inner">
-                  #{myRankPosition}
-                </div>
+        return (
+          <div className="space-y-6 animate-in fade-in transition-all duration-300">
+            
+            {/* ========================================================================= */}
+            {/* 1. TOP HEADER & NAVIGATION TAB BUTTONS */}
+            {/* ========================================================================= */}
+            <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-6 relative overflow-hidden">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800 pb-4">
                 <div>
-                  <p className="text-xs text-amber-300 font-extrabold uppercase tracking-wider">Your Position</p>
-                  <h4 className="text-base font-black text-white flex items-center gap-2 flex-wrap">
-                    <span>{currentUser?.name || 'Alex Student'} ({currentUser?.classSection || 'IT-A'})</span>
-                    {(() => {
-                      const myTitle = getTitleObj(equippedTitleId);
-                      return myTitle ? (
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${myTitle.badgeBg}`}>
-                          🏷️ {myTitle.title}
-                        </span>
-                      ) : null;
-                    })()}
-                  </h4>
+                  <h3 className="text-xl font-black text-white flex items-center space-x-2">
+                    <Trophy className="w-6 h-6 text-amber-400" />
+                    <span>BrainZone Department Leaderboard</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Real-time rankings calculated live from student XP points, daily quiz streaks, and coding challenges
+                  </p>
                 </div>
-              </div>
 
-              <div className="flex items-center space-x-4 text-xs font-bold">
-                <div className="text-right">
-                  <p className="text-amber-400 font-black text-base">{funPoints} XP</p>
-                  <p className="text-[10px] text-slate-400">Level {currentLevel} • 🔥 {streak} Day Streak</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Surrounding Ranks Context Slice */}
-            <div className="space-y-1.5 pt-1">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                📊 Rankings Around You (Positions #{surroundingStart + 1} – #{surroundingEnd})
-              </p>
-              <div className="grid grid-cols-1 gap-1.5">
-                {surroundingRanks.map((usr) => {
-                  const actualIdx = sortedLeaderboardUsers.findIndex(u => u === usr);
-                  const actualRank = actualIdx + 1;
-                  const isMe = actualIdx === myRankIndex;
-                  const usrBorder = getBorderObj(usr.equippedBorder || usr.equippedBorderId || 'default');
-                  const usrAvatarBg = getAvatarBgObj(usr.equippedAvatarBgId || usr.equippedAvatarBackgroundId || 'bg_slate');
-                  const usrTitle = getTitleObj(usr.equippedTitleId || usr.equippedTitle || 'title_novice');
-
-                  return (
-                    <div
-                      key={usr.uid || usr.name || actualRank}
-                      className={`p-2.5 rounded-xl border text-xs flex items-center justify-between transition-all ${
-                        isMe 
-                          ? 'bg-amber-500/20 border-amber-500/60 ring-1 ring-amber-400/50 shadow-md' 
-                          : 'bg-slate-900/80 border-slate-800/80'
+                {/* 4 TAB SWITCHER BUTTONS */}
+                <div className="flex items-center space-x-2 overflow-x-auto pb-1 sm:pb-0">
+                  {[
+                    { id: 'department', label: '🏢 Department', desc: 'Wall of Honor' },
+                    { id: 'weekly', label: '⚡ Weekly', desc: 'Weekly Sprint' },
+                    { id: 'monthly', label: '🌙 Monthly', desc: 'Monthly Race' },
+                    { id: 'class', label: '🏫 Class vs Class', desc: 'Section Warfare' }
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setLbActiveTab(tab.id)}
+                      className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all whitespace-nowrap flex items-center space-x-1.5 ${
+                        lbActiveTab === tab.id
+                          ? 'bg-amber-400 text-slate-950 shadow-lg shadow-amber-400/20 scale-[1.02]'
+                          : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
                       }`}
                     >
-                      <div className="flex items-center space-x-3 min-w-0">
-                        <span className={`text-[11px] font-mono font-black px-2 py-0.5 rounded-lg flex-shrink-0 ${
-                          isMe ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-300'
-                        }`}>
-                          #{actualRank}
-                        </span>
-                        
-                        <div className={`w-8 h-8 rounded-lg p-0.5 border ${usrBorder.color} flex-shrink-0`}>
-                          <div className={`w-full h-full rounded-[6px] ${usrAvatarBg.gradient} flex items-center justify-center text-[10px] font-bold text-white`}>
-                            {usr.name?.charAt(0) || 'S'}
+                      <span>{tab.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* TOP STATISTICS CARDS (5 CARDS) */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-xs">
+                <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-1">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase flex items-center space-x-1">
+                    <Users className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Active Players</span>
+                  </span>
+                  <p className="text-lg font-black text-white">{totalDeptPlayers}</p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-1">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase flex items-center space-x-1">
+                    <Zap className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Total XP Earned</span>
+                  </span>
+                  <p className="text-lg font-black text-amber-300">{totalDeptXp.toLocaleString()} XP</p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-1">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase flex items-center space-x-1">
+                    <BarChart3 className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Average XP</span>
+                  </span>
+                  <p className="text-lg font-black text-indigo-300">{avgDeptXp.toLocaleString()} XP</p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-1">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase flex items-center space-x-1">
+                    <Flame className="w-3.5 h-3.5 text-rose-400 fill-rose-400" />
+                    <span>Highest Streak</span>
+                  </span>
+                  <p className="text-lg font-black text-rose-400">🔥 {maxDeptStreak} Days</p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-1 col-span-2 sm:col-span-1">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase flex items-center space-x-1">
+                    <Target className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Challenges Solved</span>
+                  </span>
+                  <p className="text-lg font-black text-emerald-400">{totalChallengesCount}</p>
+                </div>
+              </div>
+
+              {/* LIVE ACTIVITY TICKER */}
+              <div className="p-3 rounded-2xl bg-slate-950/80 border border-slate-800/80 flex items-center space-x-3 text-xs overflow-x-auto">
+                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center space-x-1 flex-shrink-0">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Live Feed</span>
+                </span>
+                <div className="flex items-center space-x-6 text-slate-300 font-medium whitespace-nowrap">
+                  {liveFeedItems.map(item => (
+                    <span key={item.id} className="flex items-center space-x-1.5">
+                      <span>{item.icon}</span>
+                      <strong className="text-white">{item.user}</strong>
+                      <span className="text-slate-400">{item.action}</span>
+                      <span className="text-amber-400 font-bold">{item.xp}</span>
+                      <span className="text-[10px] text-slate-500">({item.time})</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* ========================================================================= */}
+            {/* 2. STICKY YOUR POSITION CARD */}
+            {/* ========================================================================= */}
+            <div className="sticky top-20 z-30 glass-card rounded-3xl p-5 border border-amber-500/40 bg-gradient-to-r from-amber-950/40 via-slate-950 to-slate-950 space-y-3 shadow-2xl backdrop-blur-xl">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center font-black text-lg shadow-inner">
+                    #{lbActiveTab === 'weekly' ? userWeeklyRank : lbActiveTab === 'monthly' ? userMonthlyRank : userDeptRank}
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-300">
+                      Your Position ({lbActiveTab.toUpperCase()} LEADERBOARD)
+                    </span>
+                    <h4 className="text-base font-black text-white flex items-center space-x-2 flex-wrap">
+                      <span>{currentUser?.name || 'Alex Student'} ({currentUser?.classSection || 'IT-A'})</span>
+                      {(() => {
+                        const myT = getTitleObj(equippedTitleId);
+                        return myT ? (
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${myT.badgeBg}`}>
+                            🏷️ {myT.title}
+                          </span>
+                        ) : null;
+                      })()}
+                    </h4>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-4 text-xs font-bold self-end sm:self-auto">
+                  <div className="text-right">
+                    <p className="text-base font-black text-amber-300">{funPoints} Total XP</p>
+                    <p className="text-[10px] text-slate-400">
+                      {userAboveXp > 0 ? `Need ${userAboveXp} XP to reach Rank #${userDeptRank - 1}` : '👑 Grand Champion #1'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Player History Badges Bar */}
+              <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-[11px] font-medium text-slate-300">
+                <div className="flex items-center space-x-3 flex-wrap gap-y-1">
+                  <span>🏆 Best Rank: <strong className="text-white">#{userDeptRank}</strong></span>
+                  <span>⚡ Weekly: <strong className="text-amber-300">{Math.floor(funPoints * 0.35)} XP</strong></span>
+                  <span>🌙 Monthly: <strong className="text-indigo-300">{Math.floor(funPoints * 0.78)} XP</strong></span>
+                  <span>🔥 Longest Streak: <strong className="text-rose-400">{streak + 4}d</strong></span>
+                </div>
+                <span className="text-[10px] text-slate-500 font-mono">Rank Updates Live</span>
+              </div>
+            </div>
+
+            {/* ========================================================================= */}
+            {/* TAB VIEW 1: 🏢 DEPARTMENT LEADERBOARD (DEFAULT) */}
+            {/* ========================================================================= */}
+            {lbActiveTab === 'department' && (
+              <div className="space-y-6 animate-in fade-in">
+                
+                {/* 👑 HALL OF FAME PODIUM CARD (ONLY ON DEFAULT DEPARTMENT TAB!) */}
+                <div className="glass-card rounded-3xl p-6 border border-amber-500/40 bg-gradient-to-b from-amber-950/40 via-purple-950/20 to-slate-950 space-y-6 shadow-2xl relative overflow-hidden">
+                  <div className="flex items-center justify-between border-b border-amber-500/20 pb-3">
+                    <div>
+                      <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                        👑 Department Wall of Honor
+                      </span>
+                      <h3 className="text-xl font-black text-white mt-1 flex items-center space-x-2">
+                        <Crown className="w-6 h-6 text-amber-400" />
+                        <span>BrainZone Hall of Fame</span>
+                      </h3>
+                    </div>
+                  </div>
+
+                  {/* Top 3 Hall of Fame Podium Display */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* 🥈 2ND PLACE */}
+                    {sortedDept[1] && (() => {
+                      const u2 = sortedDept[1];
+                      const b2 = getBorderObj(u2.equippedBorder || 'default');
+                      const bg2 = getAvatarBgObj(u2.equippedAvatarBgId || 'bg_slate');
+                      const t2 = getTitleObj(u2.equippedTitleId || 'title_novice');
+                      return (
+                        <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-700/80 flex flex-col justify-between items-center text-center space-y-3 shadow-lg relative overflow-hidden group hover:border-slate-400 transition-all">
+                          <div className="absolute top-2 left-2 px-2.5 py-0.5 rounded-full text-[9px] font-black bg-slate-300 text-slate-950 flex items-center space-x-1">
+                            <span>🥈 2nd Place</span>
+                          </div>
+                          <div className="pt-4">
+                            <div className={`w-14 h-14 rounded-2xl p-0.5 border-2 ${b2.color} shadow-lg mx-auto`}>
+                              {u2.avatar ? (
+                                <img src={u2.avatar} alt={u2.name} className="w-full h-full rounded-[12px] object-cover" />
+                              ) : (
+                                <div className={`w-full h-full rounded-[12px] ${bg2.gradient} flex items-center justify-center font-black text-lg text-white`}>
+                                  {u2.name?.charAt(0) || '2'}
+                                </div>
+                              )}
+                            </div>
+                            <h4 className="text-sm font-extrabold text-white mt-2">{u2.name}</h4>
+                            <p className="text-[10px] text-slate-400 font-bold">{u2.classSection || 'IT-B'} • Level {u2.level}</p>
+                          </div>
+                          <div className="w-full pt-2 border-t border-slate-800 space-y-1">
+                            <div className="text-xs font-black text-slate-200 font-mono">{u2.funPoints} XP</div>
+                            <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold border ${t2.badgeBg}`}>
+                              🏷️ {t2.title}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* 👑 1ST PLACE */}
+                    {sortedDept[0] && (() => {
+                      const u1 = sortedDept[0];
+                      const b1 = getBorderObj(u1.equippedBorder || 'default');
+                      const bg1 = getAvatarBgObj(u1.equippedAvatarBgId || 'bg_slate');
+                      const t1 = getTitleObj(u1.equippedTitleId || 'title_novice');
+                      return (
+                        <div className="p-5 rounded-2xl bg-gradient-to-b from-amber-950/60 to-slate-900 border-2 border-amber-500/60 flex flex-col justify-between items-center text-center space-y-3 shadow-xl shadow-amber-500/10 relative overflow-hidden group hover:border-amber-400 transition-all md:-translate-y-2">
+                          <div className="absolute top-2 left-2 px-3 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950 shadow-md flex items-center space-x-1 animate-pulse">
+                            <Crown className="w-3 h-3 text-slate-950" />
+                            <span>👑 1st Champion</span>
+                          </div>
+                          <div className="pt-4">
+                            <div className={`w-16 h-16 rounded-2xl p-0.5 border-2 ${b1.color} shadow-xl shadow-amber-500/20 mx-auto ring-4 ring-amber-500/30`}>
+                              {u1.avatar ? (
+                                <img src={u1.avatar} alt={u1.name} className="w-full h-full rounded-[12px] object-cover" />
+                              ) : (
+                                <div className={`w-full h-full rounded-[12px] ${bg1.gradient} flex items-center justify-center font-black text-xl text-white`}>
+                                  {u1.name?.charAt(0) || '1'}
+                                </div>
+                              )}
+                            </div>
+                            <h4 className="text-base font-black text-amber-300 mt-2.5">{u1.name}</h4>
+                            <p className="text-[10px] text-amber-400/80 font-bold">{u1.classSection || 'IT-A'} • Grand Champion</p>
+                          </div>
+                          <div className="w-full pt-2 border-t border-amber-500/30 space-y-1">
+                            <div className="text-sm font-black text-amber-300 font-mono">{u1.funPoints} XP</div>
+                            <span className={`inline-block px-2.5 py-0.5 rounded text-[10px] font-extrabold border ${t1.badgeBg}`}>
+                              🏷️ {t1.title}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* 🥉 3RD PLACE */}
+                    {sortedDept[2] && (() => {
+                      const u3 = sortedDept[2];
+                      const b3 = getBorderObj(u3.equippedBorder || 'default');
+                      const bg3 = getAvatarBgObj(u3.equippedAvatarBgId || 'bg_slate');
+                      const t3 = getTitleObj(u3.equippedTitleId || 'title_novice');
+                      return (
+                        <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-700/80 flex flex-col justify-between items-center text-center space-y-3 shadow-lg relative overflow-hidden group hover:border-amber-700 transition-all">
+                          <div className="absolute top-2 left-2 px-2.5 py-0.5 rounded-full text-[9px] font-black bg-amber-700 text-white flex items-center space-x-1">
+                            <span>🥉 3rd Place</span>
+                          </div>
+                          <div className="pt-4">
+                            <div className={`w-14 h-14 rounded-2xl p-0.5 border-2 ${b3.color} shadow-lg mx-auto`}>
+                              {u3.avatar ? (
+                                <img src={u3.avatar} alt={u3.name} className="w-full h-full rounded-[12px] object-cover" />
+                              ) : (
+                                <div className={`w-full h-full rounded-[12px] ${bg3.gradient} flex items-center justify-center font-black text-lg text-white`}>
+                                  {u3.name?.charAt(0) || '3'}
+                                </div>
+                              )}
+                            </div>
+                            <h4 className="text-sm font-extrabold text-white mt-2">{u3.name}</h4>
+                            <p className="text-[10px] text-slate-400 font-bold">{u3.classSection || 'IT-C'} • Level {u3.level}</p>
+                          </div>
+                          <div className="w-full pt-2 border-t border-slate-800 space-y-1">
+                            <div className="text-xs font-black text-amber-400 font-mono">{u3.funPoints} XP</div>
+                            <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold border ${t3.badgeBg}`}>
+                              🏷️ {t3.title}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* SEARCH & FILTERS BAR */}
+                <div className="p-4 rounded-3xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                  <div className="relative w-full sm:w-72">
+                    <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Search student name or reg no..."
+                      value={lbSearchQuery}
+                      onChange={(e) => setLbSearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 bg-slate-900 text-white rounded-xl border border-slate-800 focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center space-x-2 w-full sm:w-auto">
+                    <div className="flex items-center space-x-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">
+                      <Filter className="w-3.5 h-3.5 text-slate-400" />
+                      <span className="text-slate-400 font-bold">Year:</span>
+                      <select
+                        value={lbYearFilter}
+                        onChange={(e) => setLbYearFilter(e.target.value)}
+                        className="bg-transparent text-white font-bold focus:outline-none"
+                      >
+                        <option value="All" className="bg-slate-900 text-white">All Years</option>
+                        <option value="1st Year" className="bg-slate-900 text-white">1st Year</option>
+                        <option value="2nd Year" className="bg-slate-900 text-white">2nd Year</option>
+                        <option value="3rd Year" className="bg-slate-900 text-white">3rd Year</option>
+                        <option value="4th Year" className="bg-slate-900 text-white">4th Year</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center space-x-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">
+                      <span className="text-slate-400 font-bold">Section:</span>
+                      <select
+                        value={lbSectionFilter}
+                        onChange={(e) => setLbSectionFilter(e.target.value)}
+                        className="bg-transparent text-white font-bold focus:outline-none"
+                      >
+                        <option value="All" className="bg-slate-900 text-white">All Sections</option>
+                        <option value="IT-A" className="bg-slate-900 text-white">IT-A</option>
+                        <option value="IT-B" className="bg-slate-900 text-white">IT-B</option>
+                        <option value="IT-C" className="bg-slate-900 text-white">IT-C</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* FULL DEPARTMENT RANKINGS LIST */}
+                <div className="space-y-3">
+                  {filteredList.map((usr, idx) => {
+                    const actualRank = sortedDept.findIndex(u => u === usr) + 1;
+                    const isMe = currentUser && (usr.uid === currentUser.uid || usr.email === currentUser.email);
+                    const bObj = getBorderObj(usr.equippedBorder || 'default');
+                    const bgObj = getAvatarBgObj(usr.equippedAvatarBgId || 'bg_slate');
+                    const tObj = getTitleObj(usr.equippedTitleId || 'title_novice');
+                    const xpPct = getProgressPercentage(usr.funPoints);
+
+                    return (
+                      <div
+                        key={usr.uid || usr.name || idx}
+                        onMouseEnter={() => setHoveredUser(usr)}
+                        onMouseLeave={() => setHoveredUser(null)}
+                        className={`p-4 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 relative group ${
+                          isMe
+                            ? 'bg-amber-500/10 border-amber-500/60 ring-1 ring-amber-400/40 shadow-xl'
+                            : 'bg-slate-950 border-slate-800 hover:border-amber-500/40'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-3.5 min-w-0">
+                          {/* Rank + Movement Badge */}
+                          <div className="flex flex-col items-center justify-center flex-shrink-0 w-12 text-center">
+                            <span className={`text-xs font-black px-2.5 py-1 rounded-xl w-full ${
+                              actualRank === 1 ? 'bg-amber-400 text-slate-950' :
+                              actualRank === 2 ? 'bg-slate-300 text-slate-950' :
+                              actualRank === 3 ? 'bg-amber-700 text-white' :
+                              'bg-slate-900 text-slate-300 border border-slate-800'
+                            }`}>
+                              #{actualRank}
+                            </span>
+                            <span className={`text-[10px] font-extrabold mt-0.5 ${
+                              usr.rankChange.includes('↑') ? 'text-emerald-400' :
+                              usr.rankChange.includes('↓') ? 'text-rose-400' :
+                              usr.rankChange === 'NEW' ? 'text-cyan-300' : 'text-slate-500'
+                            }`}>
+                              {usr.rankChange}
+                            </span>
+                          </div>
+
+                          {/* Avatar */}
+                          <div className={`w-11 h-11 rounded-xl p-0.5 border-2 ${bObj.color} flex-shrink-0 shadow-md`}>
+                            {usr.avatar ? (
+                              <img src={usr.avatar} alt={usr.name} className="w-full h-full rounded-[8px] object-cover" />
+                            ) : (
+                              <div className={`w-full h-full rounded-[8px] ${bgObj.gradient} flex items-center justify-center font-bold text-white text-sm`}>
+                                {usr.name?.charAt(0) || 'S'}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Student Details */}
+                          <div className="space-y-1 min-w-0 flex-1">
+                            <div className="flex items-center space-x-2 flex-wrap gap-y-0.5">
+                              <h5 className="font-bold text-sm text-white truncate flex items-center space-x-1.5">
+                                <span>{usr.name}</span>
+                                {isMe && <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-emerald-500/20 text-emerald-300">YOU</span>}
+                              </h5>
+                              <span className="text-[10px] font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                                Level {usr.level}
+                              </span>
+                              {tObj && (
+                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border ${tObj.badgeBg}`}>
+                                  🏷️ {tObj.title}
+                                </span>
+                              )}
+                            </div>
+
+                            <p className="text-[11px] text-slate-400">
+                              {usr.classSection || 'IT-A'} • {usr.year || '3rd Year'} {usr.registerNumber ? `(${usr.registerNumber})` : ''}
+                            </p>
+
+                            {/* Earned Badges Row */}
+                            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                              {usr.earnedBadges.map((b, bIdx) => (
+                                <span key={bIdx} className="text-[9px] font-bold text-slate-300 bg-slate-900 px-1.5 py-0.2 rounded border border-slate-800">
+                                  {b}
+                                </span>
+                              ))}
+                            </div>
                           </div>
                         </div>
 
-                        <div className="flex items-center space-x-2 min-w-0 flex-wrap">
-                          <span className={`font-bold truncate ${isMe ? 'text-amber-300' : 'text-white'}`}>{usr.name}</span>
-                          {isMe && <span className="px-1.5 py-0.2 rounded text-[8px] font-black bg-emerald-500/20 text-emerald-300">YOU</span>}
-                          {usrTitle && <span className={`hidden sm:inline-block text-[9px] px-1.5 py-0.2 rounded border ${usrTitle.badgeBg}`}>🏷️ {usrTitle.title}</span>}
+                        {/* XP Progress Bar & Streak */}
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-6 text-xs flex-shrink-0">
+                          <div className="flex items-center space-x-1.5 text-rose-400 font-bold">
+                            <Flame className="w-4 h-4 fill-rose-400" />
+                            <span>{usr.streak || 1}d Streak</span>
+                          </div>
+
+                          <div className="w-full sm:w-44 space-y-1 text-right">
+                            <div className="flex justify-between items-center text-[10px] font-mono">
+                              <span className="text-slate-400 font-bold">XP Level {usr.level}</span>
+                              <span className="text-amber-300 font-black">{usr.funPoints} XP</span>
+                            </div>
+                            <div className="w-full h-2 rounded-full bg-slate-900 border border-slate-800 overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-amber-500 to-emerald-400 rounded-full transition-all duration-500"
+                                style={{ width: `${xpPct}%` }}
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
+                    );
+                  })}
+                </div>
 
-                      <div className="flex items-center space-x-3 text-[11px] font-bold flex-shrink-0">
-                        <span className="text-rose-400 flex items-center"><Flame className="w-3 h-3 mr-0.5 fill-rose-400" />{usr.streak ?? 1}d</span>
-                        <span className="text-amber-400 font-mono font-black">{usr.funPoints || 300} XP</span>
+              </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* TAB VIEW 2: ⚡ WEEKLY RANKINGS */}
+            {/* ========================================================================= */}
+            {lbActiveTab === 'weekly' && (
+              <div className="space-y-6 animate-in fade-in">
+                {/* WEEKLY RESET COUNTDOWN BANNER */}
+                <div className="p-4 rounded-3xl bg-slate-950 border border-amber-500/40 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center space-x-2 text-amber-300 font-bold">
+                    <Clock className="w-4 h-4 text-amber-400 animate-pulse" />
+                    <span>⚡ Weekly Leaderboard resets in:</span>
+                    <span className="font-mono text-sm text-white font-black bg-amber-500/20 px-2.5 py-0.5 rounded border border-amber-500/30">
+                      {countdownWeekly}
+                    </span>
+                  </div>
+                  <span className="text-slate-400">Weekly Winner Reward: <strong className="text-amber-300">+300 XP + Exclusive Badge</strong></span>
+                </div>
+
+                {/* WEEKLY TOP 3 WINNERS PODIUM */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {sortedWeekly.slice(0, 3).map((u, idx) => (
+                    <div key={idx} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-center space-y-2">
+                      <span className="text-xs font-black text-amber-300">
+                        {idx === 0 ? '🥇 Weekly Champion' : idx === 1 ? '🥈 Runner-Up' : '🥉 Third Place'}
+                      </span>
+                      <h4 className="font-bold text-white text-sm">{u.name}</h4>
+                      <p className="text-xs font-mono font-black text-amber-400">{u.weeklyXp} Weekly XP</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* WEEKLY RANKINGS LIST */}
+                <div className="space-y-3">
+                  {filteredList.map((usr, idx) => {
+                    const rank = sortedWeekly.findIndex(u => u === usr) + 1;
+                    return (
+                      <div key={usr.uid || idx} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
+                        <div className="flex items-center space-x-3">
+                          <span className="font-black text-amber-300 font-mono">#{rank}</span>
+                          <div>
+                            <p className="font-bold text-white">{usr.name}</p>
+                            <p className="text-[10px] text-slate-400">{usr.classSection} • {usr.year}</p>
+                          </div>
+                        </div>
+                        <span className="font-mono font-black text-amber-300 text-sm">{usr.weeklyXp} Weekly XP</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* TAB VIEW 3: 🌙 MONTHLY RANKINGS */}
+            {/* ========================================================================= */}
+            {lbActiveTab === 'monthly' && (
+              <div className="space-y-6 animate-in fade-in">
+                {/* MONTHLY RESET COUNTDOWN BANNER */}
+                <div className="p-4 rounded-3xl bg-slate-950 border border-indigo-500/40 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center space-x-2 text-indigo-300 font-bold">
+                    <Calendar className="w-4 h-4 text-indigo-400 animate-pulse" />
+                    <span>🌙 Monthly Leaderboard resets in:</span>
+                    <span className="font-mono text-sm text-white font-black bg-indigo-500/20 px-2.5 py-0.5 rounded border border-indigo-500/30">
+                      {countdownMonthly}
+                    </span>
+                  </div>
+                  <span className="text-slate-400">Monthly Champion Reward: <strong className="text-indigo-300">Golden Border + 500 XP</strong></span>
+                </div>
+
+                {/* MONTHLY TOP 3 WINNERS PODIUM */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {sortedMonthly.slice(0, 3).map((u, idx) => (
+                    <div key={idx} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-center space-y-2">
+                      <span className="text-xs font-black text-indigo-300">
+                        {idx === 0 ? '🥇 Monthly Champion' : idx === 1 ? '🥈 Runner-Up' : '🥉 Third Place'}
+                      </span>
+                      <h4 className="font-bold text-white text-sm">{u.name}</h4>
+                      <p className="text-xs font-mono font-black text-indigo-400">{u.monthlyXp} Monthly XP</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* MONTHLY RANKINGS LIST */}
+                <div className="space-y-3">
+                  {filteredList.map((usr, idx) => {
+                    const rank = sortedMonthly.findIndex(u => u === usr) + 1;
+                    return (
+                      <div key={usr.uid || idx} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
+                        <div className="flex items-center space-x-3">
+                          <span className="font-black text-indigo-300 font-mono">#{rank}</span>
+                          <div>
+                            <p className="font-bold text-white">{usr.name}</p>
+                            <p className="text-[10px] text-slate-400">{usr.classSection} • {usr.year}</p>
+                          </div>
+                        </div>
+                        <span className="font-mono font-black text-indigo-300 text-sm">{usr.monthlyXp} Monthly XP</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* TAB VIEW 4: 🏫 CLASS VS CLASS RANKINGS */}
+            {/* ========================================================================= */}
+            {lbActiveTab === 'class' && (
+              <div className="space-y-6 animate-in fade-in">
+                {/* 3 CLASS SECTION CARDS */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {classStatsMap.map((cls, idx) => {
+                    const isSelected = selectedClassSec === cls.section;
+                    return (
+                      <div
+                        key={cls.section}
+                        onClick={() => setSelectedClassSec(cls.section)}
+                        className={`p-5 rounded-3xl border transition-all cursor-pointer space-y-3 ${
+                          isSelected
+                            ? 'bg-gradient-to-br from-amber-950/40 to-slate-950 border-amber-500/80 shadow-xl ring-2 ring-amber-500/40'
+                            : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-black text-amber-300 font-mono">Rank #{idx + 1}</span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-900 text-slate-300 border border-slate-800">
+                            {cls.studentCount} Students
+                          </span>
+                        </div>
+                        <div>
+                          <h4 className="text-lg font-black text-white">{cls.section} Section</h4>
+                          <p className="text-xs text-amber-400 font-black font-mono mt-1">{cls.totalXp.toLocaleString()} Total XP</p>
+                        </div>
+                        <div className="text-[11px] text-slate-400 space-y-0.5 pt-2 border-t border-slate-800">
+                          <div>Avg XP/Student: <strong className="text-slate-200">{cls.avgXp}</strong></div>
+                          <div>Top Student: <strong className="text-emerald-400">{cls.topStudent}</strong></div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* SELECTED CLASS ROSTER */}
+                {(() => {
+                  const targetClass = classStatsMap.find(c => c.section === selectedClassSec) || classStatsMap[0];
+                  return (
+                    <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
+                      <h4 className="text-sm font-bold text-white flex items-center justify-between border-b border-slate-800 pb-2">
+                        <span>Students in Section {targetClass.section} ({targetClass.students.length} Total)</span>
+                        <span className="text-xs text-slate-400">Sorted by Total XP</span>
+                      </h4>
+
+                      <div className="space-y-3">
+                        {targetClass.students.map((usr, idx) => (
+                          <div key={usr.uid || idx} className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
+                            <div className="flex items-center space-x-3">
+                              <span className="font-bold text-slate-400 font-mono">#{idx + 1}</span>
+                              <div>
+                                <p className="font-bold text-white">{usr.name}</p>
+                                <p className="text-[10px] text-slate-400">Level {usr.level} • 🔥 {usr.streak || 1}d</p>
+                              </div>
+                            </div>
+                            <span className="font-mono font-black text-amber-300 text-sm">{usr.funPoints} XP</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   );
-                })}
+                })()}
               </div>
-            </div>
-          </div>
+            )}
 
-          {/* INDIVIDUAL RANKINGS LIST (CONTINUOUS RANKS 1..N) */}
-          {leaderboardFilter !== 'class' ? (
-            <div className="space-y-3">
-              {sortedLeaderboardUsers.map((user, index) => {
-                const rank = index + 1; // Strict continuous 1-based rank
-                const isMe = index === myRankIndex;
-
-                const borderObj = getBorderObj(user.equippedBorder || user.equippedBorderId || 'default');
-                const avatarBgObj = getAvatarBgObj(user.equippedAvatarBgId || user.equippedAvatarBackgroundId || 'bg_slate');
-                const titleObj = getTitleObj(user.equippedTitleId || user.equippedTitle || 'title_novice');
-
-                let rankBadge = `#${rank}`;
-                let borderClass = 'border-slate-800 bg-slate-950';
-
-                if (rank === 1) {
-                  rankBadge = '🥇 Rank 1';
-                  borderClass = 'border-amber-500/50 bg-gradient-to-r from-amber-950/20 to-slate-950';
-                } else if (rank === 2) {
-                  rankBadge = '🥈 Rank 2';
-                  borderClass = 'border-slate-400/50 bg-gradient-to-r from-slate-900/60 to-slate-950';
-                } else if (rank === 3) {
-                  rankBadge = '🥉 Rank 3';
-                  borderClass = 'border-amber-700/50 bg-gradient-to-r from-amber-950/10 to-slate-950';
-                }
-
-                if (isMe) {
-                  borderClass += ' border-emerald-500/80 ring-2 ring-emerald-500/40 shadow-lg shadow-emerald-500/20';
-                }
-
-                return (
-                  <div key={user.uid || user.name || index} className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 ${borderClass}`}>
-                    <div className="flex items-center space-x-4">
-                      <span className={`text-xs font-black px-3 py-1 rounded-xl ${
-                        rank === 1 ? 'bg-amber-500 text-slate-950 font-black' : rank === 2 ? 'bg-slate-300 text-slate-950 font-black' : rank === 3 ? 'bg-amber-700 text-white font-black' : 'bg-slate-900 text-slate-300 border border-slate-800'
-                      }`}>
-                        {rankBadge}
-                      </span>
-
-                      <div className="flex items-center space-x-3">
-                        {/* Equipped Border ring + Equipped Avatar Background */}
-                        <div className={`w-11 h-11 rounded-xl p-0.5 border-2 transition-all ${borderObj.color}`}>
-                          <div className={`w-full h-full rounded-[8px] ${avatarBgObj.gradient} flex items-center justify-center font-bold text-white text-sm shadow-md`}>
-                            {user.name?.charAt(0) || 'S'}
-                          </div>
-                        </div>
-
-                        <div>
-                          <p className="text-sm font-bold text-white flex items-center gap-2 flex-wrap">
-                            <span>{user.name}</span>
-                            {isMe && <span className="px-2 py-0.2 rounded text-[9px] font-black bg-emerald-500/20 text-emerald-300">YOU</span>}
-                            {titleObj && (
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border shadow-sm ${titleObj.badgeBg}`}>
-                                🏷️ {titleObj.title}
-                              </span>
-                            )}
-                          </p>
-                          <p className="text-[10px] text-slate-400">{user.classSection || 'IT-A'} • {user.year || '3rd Year'}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-6 text-xs font-bold self-end sm:self-auto">
-                      <span className="flex items-center text-rose-400">
-                        <Flame className="w-3.5 h-3.5 mr-1 fill-rose-400" /> {user.streak ?? 1}d
-                      </span>
-                      <span className="text-amber-400 font-black text-sm">
-                        {user.funPoints || 300} XP
-                      </span>
-                    </div>
+            {/* HOVER TOOLTIP PREVIEW CARD */}
+            {hoveredUser && (
+              <div className="fixed bottom-6 right-6 z-50 p-5 rounded-3xl bg-slate-950/95 border-2 border-amber-500/60 shadow-2xl backdrop-blur-xl space-y-3 max-w-xs animate-in fade-in">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 rounded-xl bg-slate-900 border border-amber-500/40 flex items-center justify-center text-white font-bold text-lg">
+                    {hoveredUser.name?.charAt(0) || 'S'}
                   </div>
-                );
-              })}
-            </div>
-          ) : (
-
-            /* CLASS VS CLASS LEADERBOARD */
-            <div className="space-y-4">
-              {classLeaderboardList.map((cls, idx) => (
-                <div key={cls.classSection} className="p-5 rounded-2xl bg-slate-950 border border-slate-800 flex justify-between items-center">
-                  <div className="flex items-center space-x-4">
-                    <span className="text-lg font-black text-amber-400 font-mono">#{idx + 1}</span>
-                    <div>
-                      <h4 className="text-base font-black text-white">{cls.classSection} Section</h4>
-                      <p className="text-xs text-slate-400">{cls.studentCount} Students • Top Contributor: {cls.topStudent}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-black text-emerald-400">{cls.totalPoints.toLocaleString()} Total XP</p>
+                  <div>
+                    <h5 className="font-extrabold text-sm text-white">{hoveredUser.name}</h5>
+                    <p className="text-[11px] text-slate-400">{hoveredUser.classSection} • {hoveredUser.year}</p>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
 
-        </div>
-      )}
+                <div className="grid grid-cols-2 gap-2 text-[10px] font-bold">
+                  <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
+                    <span className="text-slate-400 block">Level</span>
+                    <span className="text-amber-300 text-xs">Level {hoveredUser.level}</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
+                    <span className="text-slate-400 block">Accuracy</span>
+                    <span className="text-emerald-400 text-xs">{hoveredUser.accuracyPercent}</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
+                    <span className="text-slate-400 block">Longest Streak</span>
+                    <span className="text-rose-400 text-xs">🔥 {hoveredUser.longestStreak}d</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
+                    <span className="text-slate-400 block">Challenges</span>
+                    <span className="text-cyan-300 text-xs">{hoveredUser.challengesSolved} Solved</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+          </div>
+        );
+      })()}
 
 
 
@@ -3881,6 +4494,11 @@ export const BrainZonePage = ({ onOpenAdminForm, defaultSubTab = 'games' }) => {
         const currentQ = activeGuessList[guessIndex % activeGuessList.length];
         const funnyResult = getFunnyGuessResult(guessScore, activeGuessList.length);
 
+        const baseQXp = siteConfig?.xpSettings?.guessQuestionXP ?? 20;
+        const baseBonusXp = siteConfig?.xpSettings?.guessWeeklyBonusXP ?? 50;
+        const qXpAmount = Math.round(baseQXp * gameXpMultiplier);
+        const weeklyBonusAmount = Math.round(baseBonusXp * gameXpMultiplier);
+
         const handleFinishGuess = () => {
           setGuessFinished(true);
           setRoundTimerActive(false);
@@ -3978,7 +4596,7 @@ export const BrainZonePage = ({ onOpenAdminForm, defaultSubTab = 'games' }) => {
                             if (isCorrect) {
                               setGuessScore(prev => prev + 1);
                               updateUserProfile({
-                                funPoints: (currentUser?.funPoints ?? 0) + qXpAmount
+                                addXp: qXpAmount
                               });
                             }
                           }}
@@ -4192,7 +4810,7 @@ export const BrainZonePage = ({ onOpenAdminForm, defaultSubTab = 'games' }) => {
                             if (isCorrect) {
                               setBugScore(prev => prev + 1);
                               updateUserProfile({
-                                funPoints: (currentUser?.funPoints ?? 0) + qXpAmount
+                                addXp: qXpAmount
                               });
                             }
                           }}
@@ -4329,7 +4947,7 @@ export const BrainZonePage = ({ onOpenAdminForm, defaultSubTab = 'games' }) => {
                       setSpinQuizSelectedOpt(idx);
                       setSpinQuizAnswered(true);
                       if (idx === spinQuizQ.answer) {
-                        updateUserProfile({ funPoints: funPoints + 50 });
+                        updateUserProfile({ addXp: 50 });
                       }
                     }}
                     className={btnClass}
@@ -4489,7 +5107,7 @@ export const BrainZonePage = ({ onOpenAdminForm, defaultSubTab = 'games' }) => {
                             if (isCorrect) {
                               setEcgScore(prev => prev + 1);
                               updateUserProfile({
-                                funPoints: (currentUser?.funPoints ?? 0) + qXpAmount
+                                addXp: qXpAmount
                               });
                             }
                           }}
@@ -4941,6 +5559,7 @@ export const BrainZonePage = ({ onOpenAdminForm, defaultSubTab = 'games' }) => {
         </div>
       )}
 
-    </div>
+      </div>
+    </BrainZoneErrorBoundary>
   );
 };

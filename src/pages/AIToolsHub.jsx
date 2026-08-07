@@ -33,10 +33,26 @@ export const AIToolsHub = ({ onOpenAdminForm }) => {
     'Website Building'
   ];
 
-  const filteredTools = aiTools.filter(tool => {
-    if (selectedCategory === 'All') return true;
-    return tool.category === selectedCategory;
-  });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'popular' | 'name'
+
+  const filteredTools = (aiTools || [])
+    .filter(tool => {
+      if (selectedCategory !== 'All' && tool.category !== selectedCategory) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const nMatch = (tool.name || '').toLowerCase().includes(q);
+        const dMatch = (tool.description || '').toLowerCase().includes(q);
+        const bMatch = (tool.bestFor || '').toLowerCase().includes(q);
+        if (!nMatch && !dMatch && !bMatch) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
+      if (sortBy === 'popular') return (b.clicks || b.rating || 0) - (a.clicks || a.rating || 0);
+      return new Date(b.addedDate || 0) - new Date(a.addedDate || 0);
+    });
 
   return (
     <div className="space-y-8 pb-12">
@@ -66,6 +82,33 @@ export const AIToolsHub = ({ onOpenAdminForm }) => {
         )}
       </div>
 
+      {/* Search & Sort Controls */}
+      <div className="glass-panel p-4 rounded-3xl border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+        <div className="relative w-full sm:w-72">
+          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search AI tools (ChatGPT, GitHub Copilot...)..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 bg-slate-950 text-white rounded-xl border border-slate-800 focus:outline-none focus:border-amber-500"
+          />
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <span className="text-slate-400 font-bold">Sort by:</span>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="bg-slate-950 text-white font-bold px-3 py-2 rounded-xl border border-slate-800 focus:outline-none"
+          >
+            <option value="newest">Latest Added</option>
+            <option value="popular">Most Popular</option>
+            <option value="name">Alphabetical</option>
+          </select>
+        </div>
+      </div>
+
       {/* Category Chips Bar */}
       <div className="flex items-center space-x-2 overflow-x-auto pb-2 scrollbar-none">
         {categories.map((cat) => (
@@ -83,9 +126,20 @@ export const AIToolsHub = ({ onOpenAdminForm }) => {
         ))}
       </div>
 
-      {/* AI TOOLS GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredTools.map((tool) => {
+      {/* Tools Grid / Empty State */}
+      {filteredTools.length === 0 ? (
+        <div className="glass-panel rounded-3xl p-12 text-center space-y-3 border border-slate-800">
+          <Sparkles className="w-12 h-12 text-slate-600 mx-auto" />
+          <h3 className="text-base font-bold text-white">No AI tools available.</h3>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            {aiTools && aiTools.length === 0 
+              ? "No AI tools have been added to the hub yet. Check back soon!" 
+              : "No tools match your current category or search query."}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredTools.map((tool) => {
           const isFav = favorites?.aiToolIds?.includes(tool.id);
           return (
             <div
@@ -234,7 +288,8 @@ export const AIToolsHub = ({ onOpenAdminForm }) => {
             </div>
           );
         })}
-      </div>
+        </div>
+      )}
 
     </div>
   );

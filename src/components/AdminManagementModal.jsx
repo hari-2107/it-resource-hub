@@ -49,20 +49,62 @@ import {
   Coffee,
   Terminal,
   Play,
-  Code
+  Code,
+  Gamepad2
 } from 'lucide-react';
 import { exportToCSV, exportToWordDoc, exportToPDFReport, generateSingleStudentHTML, generateAllStudentsHTML } from '../utils/exportUtils';
 import { useData } from '../context/DataContext';
 import { getYearFromSemester } from '../data/mockData';
 import { BroadcastOverlay } from './BroadcastOverlay';
 import { UserDirectoryManager } from './UserDirectoryModal';
-import { PageStatusScreen } from './PageStatusScreen';
+import { useAuth } from '../context/AuthContext';
+
+class AdminErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("Admin Page Error Boundary caught an error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 rounded-3xl bg-slate-950 border border-rose-500/30 text-center space-y-4 my-4">
+          <div className="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center mx-auto">
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-base font-extrabold text-white">Something went wrong while loading this page.</h3>
+            <p className="text-xs text-slate-400 max-w-md mx-auto mt-1">
+              An unhandled rendering exception occurred. Click below to refresh the page view safely.
+            </p>
+          </div>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white transition-all shadow-lg shadow-rose-600/30"
+          >
+            Retry Loading Section
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpenAdminForm, onOpenVersionHistory }) => {
+  const { currentUser, isAdmin, isCoAdmin, canManageContent, canManageUsersAndRoles } = useAuth();
   const { 
     suggestions, 
     reports, 
-    allMaterials, 
+    materials, 
     interviewExperiences,
     timetables,
     subjects,
@@ -128,7 +170,6 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
     addOrUpdateBroadcast,
     removeBroadcast,
     toggleBroadcastStatus,
-    materials,
     addOrUpdateMaterial,
     addOrUpdateTimetable,
     getAllJavaActivityForAdmin,
@@ -136,6 +177,10 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
     updatePageControl,
     emergencyLockPage
   } = useData();
+
+  const allMaterials = Array.isArray(materials) ? materials : [];
+  const [javaSearchTerm, setJavaSearchTerm] = useState('');
+  const [javaStrugglingFilter, setJavaStrugglingFilter] = useState(false);
 
   const [activeTab, setActiveTab] = useState(initialTab || 'dashboard');
 
@@ -718,19 +763,21 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
     });
   };
 
-  // Filtered lists
+  // Filtered lists with robust null guards
   const filteredUsers = (registeredUsers || []).filter(u => {
-    const matchesSearch = (u.name || '').toLowerCase().includes(userSearchTerm.toLowerCase()) ||
-                          (u.email || '').toLowerCase().includes(userSearchTerm.toLowerCase()) ||
-                          (u.registerNumber || '').toLowerCase().includes(userSearchTerm.toLowerCase());
+    if (!u) return false;
+    const matchesSearch = (u.name || '').toLowerCase().includes((userSearchTerm || '').toLowerCase()) ||
+                          (u.email || '').toLowerCase().includes((userSearchTerm || '').toLowerCase()) ||
+                          (u.registerNumber || '').toLowerCase().includes((userSearchTerm || '').toLowerCase());
     const matchesRole = userRoleFilter === 'All' ? true : (u.role || 'student') === userRoleFilter.toLowerCase();
     return matchesSearch && matchesRole;
   });
 
   const filteredSubjects = (subjects || []).filter(s => {
-    const matchesSem = s.semester === Number(subjectSemFilter);
-    const matchesSearch = (s.name || '').toLowerCase().includes(subjectSearch.toLowerCase()) ||
-                          (s.code || '').toLowerCase().includes(subjectSearch.toLowerCase());
+    if (!s) return false;
+    const matchesSem = Number(s.semester) === Number(subjectSemFilter);
+    const matchesSearch = (s.name || '').toLowerCase().includes((subjectSearch || '').toLowerCase()) ||
+                          (s.code || '').toLowerCase().includes((subjectSearch || '').toLowerCase());
     return matchesSem && matchesSearch;
   });
 
@@ -1131,6 +1178,7 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
 
           {/* MAIN CONTENT WORKSPACE AREA */}
           <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-900/60 scrollbar-none">
+            <AdminErrorBoundary key={activeTab}>
             
             {/* ================================================================= */}
             {/* TAB 1: 📊 DASHBOARD */}
@@ -1259,6 +1307,125 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
                   </div>
                 </div>
 
+              </div>
+            )}
+
+            {/* ================================================================= */}
+            {/* TAB: 👥 USER DIRECTORY MANAGEMENT */}
+            {/* ================================================================= */}
+            {activeTab === 'user_directory' && (
+              <div className="animate-in fade-in">
+                <UserDirectoryManager isModal={false} />
+              </div>
+            )}
+
+            {/* ================================================================= */}
+            {/* TAB: 📢 SYSTEM OVERLAY BROADCASTS */}
+            {/* ================================================================= */}
+            {activeTab === 'broadcasts' && (
+              <div className="space-y-6 animate-in fade-in">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                  <div>
+                    <h3 className="text-base font-extrabold text-white flex items-center space-x-2">
+                      <Megaphone className="w-5 h-5 text-amber-400" />
+                      <span>System Overlay Broadcasts & Alerts</span>
+                    </h3>
+                    <p className="text-xs text-slate-400">Control active full-screen overlay announcements, festival banners, and alert popups</p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setEditingBroadcast(null);
+                      setBroadcastForm({
+                        id: '',
+                        title: '',
+                        message: '',
+                        bannerImageUrl: '',
+                        linkUrl: '',
+                        linkLabel: 'Register Now 🚀',
+                        isSkippable: true,
+                        autoCloseSeconds: 10,
+                        isFestivalMode: true,
+                        animationType: 'confetti',
+                        isActive: true
+                      });
+                      setBroadcastModalOpen(true);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-xs flex items-center space-x-1.5 shadow-md cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Create New Overlay Broadcast</span>
+                  </button>
+                </div>
+
+                {/* Broadcasts List Cards */}
+                {(broadcasts || []).length === 0 ? (
+                  <div className="p-12 text-center bg-slate-950 rounded-3xl border border-slate-800 space-y-2">
+                    <Megaphone className="w-10 h-10 text-slate-600 mx-auto" />
+                    <p className="text-sm font-bold text-white">No System Broadcasts Active</p>
+                    <p className="text-xs text-slate-400">Create a broadcast to show full-screen emergency or festival announcements.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-4">
+                    {(broadcasts || []).map(b => (
+                      <div 
+                        key={b.id} 
+                        className={`p-5 rounded-3xl bg-slate-950 border transition-all space-y-3 ${
+                          b.isActive ? 'border-amber-500/40 shadow-lg shadow-amber-500/5' : 'border-slate-800 opacity-60'
+                        }`}
+                      >
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                              <h4 className="text-sm font-extrabold text-white">{b.title}</h4>
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                                b.isActive ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-slate-800 text-slate-400 border border-slate-700'
+                              }`}>
+                                {b.isActive ? '🟢 Active & Displaying' : '⚪ Turned OFF / Inactive'}
+                              </span>
+                              {b.isFestivalMode && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                  ✨ Festival Mode
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-300 leading-relaxed">{b.message}</p>
+                            <p className="text-[10px] text-slate-500">Created by: {b.createdBy || 'Admin'} • Auto-close: {b.autoCloseSeconds ? `${b.autoCloseSeconds}s` : 'Manual Dismiss'}</p>
+                          </div>
+
+                          {/* Controls */}
+                          <div className="flex items-center space-x-2 self-end sm:self-center flex-shrink-0">
+                            {/* Toggle ON/OFF Switch */}
+                            <button
+                              onClick={() => {
+                                updateBroadcast(b.id, { isActive: !b.isActive });
+                                logAdminActivity(`Toggled broadcast '${b.title}' to ${!b.isActive ? 'Active' : 'Off'}`, 'Broadcast');
+                              }}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                                b.isActive 
+                                  ? 'bg-rose-600/20 text-rose-300 hover:bg-rose-600 hover:text-white border border-rose-500/40' 
+                                  : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-md'
+                              }`}
+                            >
+                              {b.isActive ? 'Turn OFF' : 'Turn ON'}
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                deleteBroadcast(b.id);
+                                logAdminActivity(`Deleted broadcast '${b.title}'`, 'Broadcast');
+                              }}
+                              className="p-1.5 rounded-xl text-rose-400 hover:bg-rose-500/10 border border-slate-800 transition-colors cursor-pointer"
+                              title="Delete Broadcast"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -3509,6 +3676,7 @@ export const AdminManagementModal = ({ initialTab = 'dashboard', onClose, onOpen
               </div>
             )}
 
+            </AdminErrorBoundary>
           </div>
         </div>
 

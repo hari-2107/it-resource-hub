@@ -23,6 +23,44 @@ import {
   Crown
 } from 'lucide-react';
 
+class NoticesErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("NoticesErrorBoundary caught an error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="glass-panel p-8 rounded-3xl border border-rose-500/40 text-center space-y-4 max-w-lg mx-auto my-12 animate-in zoom-in">
+          <div className="w-14 h-14 rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center mx-auto text-2xl font-black">
+            📢
+          </div>
+          <h3 className="text-xl font-black text-white">Something went wrong while loading Notices.</h3>
+          <p className="text-xs text-slate-300 leading-relaxed">
+            {this.state.error?.message || "An unexpected error occurred while displaying announcements."}
+          </p>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-rose-600 to-amber-600 text-white text-xs font-black shadow-lg hover:scale-105 transition-all"
+          >
+            🔄 Refresh / Retry
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const downloadFileFromUrl = (fileUrl, fileName) => {
   if (!fileUrl) return;
   try {
@@ -101,15 +139,15 @@ export const AnnouncementsPage = ({ onOpenAdminForm, onOpenSpecialAnnouncementMo
     }
   }, []);
 
-  // Sorting: Pinned / Special first -> High -> Medium -> Low, then by newest Date
+  const currentDateStr = new Date().toISOString().split('T')[0];
   const priorityWeight = { 'Special': 4, 'High': 3, 'Medium': 2, 'Low': 1 };
 
-  const sortedAnnouncements = [...announcements].sort((a, b) => {
+  const sortedAnnouncements = [...(announcements || [])].sort((a, b) => {
     if (a.isPinned && !b.isPinned) return -1;
     if (!a.isPinned && b.isPinned) return 1;
 
-    const pA = priorityWeight[a.priority] || 1;
-    const pB = priorityWeight[b.priority] || 1;
+    const pA = priorityWeight[a?.priority] || 1;
+    const pB = priorityWeight[b?.priority] || 1;
     if (pB !== pA) {
       return pB - pA;
     }
@@ -117,6 +155,9 @@ export const AnnouncementsPage = ({ onOpenAdminForm, onOpenSpecialAnnouncementMo
   });
 
   const filteredAnnouncements = sortedAnnouncements.filter(ann => {
+    if (!isAdmin && ann.expiryDate && currentDateStr > ann.expiryDate) {
+      return false; // Auto-expire for regular users
+    }
     if (filterCategory === 'All') return true;
     return ann.category === filterCategory;
   });
@@ -130,7 +171,8 @@ export const AnnouncementsPage = ({ onOpenAdminForm, onOpenSpecialAnnouncementMo
   };
 
   return (
-    <div className="space-y-8 pb-12">
+    <NoticesErrorBoundary>
+      <div className="space-y-8 pb-12">
       
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -439,6 +481,7 @@ export const AnnouncementsPage = ({ onOpenAdminForm, onOpenSpecialAnnouncementMo
         )}
       </div>
 
-    </div>
+      </div>
+    </NoticesErrorBoundary>
   );
 };

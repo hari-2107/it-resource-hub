@@ -954,6 +954,14 @@ export const DEMO_USERS = {
     classSection: 'IT-A',
     funPoints: 0,
     streak: 1,
+    currentStreak: 1,
+    longestStreak: 1,
+    lastActiveDate: '',
+    lastChallengeCompleted: '',
+    totalChallengesCompleted: 0,
+    streakHistory: [],
+    totalDaysActive: 0,
+    lastStreakReset: null,
     equippedBorder: 'default',
     equippedTitleId: 'title_novice',
     equippedAvatarBgId: 'bg_slate',
@@ -1244,9 +1252,20 @@ export const INITIAL_EVENTS = [
     prizeDetails: '🏆 $3,000 Cash Prize + Direct Incubation Support',
     registrationLink: 'https://sih.gov.in',
     startDate: '2026-08-01',
-    endDate: '2026-08-03',
+    endDate: '2026-08-08',
     registrationDeadline: '2026-07-30',
-    createdAt: '2026-07-20'
+    eventStatus: 'ongoing',
+    autoStatusEnabled: true,
+    registrationCount: 142,
+    createdAt: '2026-07-20',
+    updatedAt: '2026-08-01',
+    createdBy: 'IT Dept Admin',
+    lastEditedBy: 'IT Dept Admin',
+    winnerAnnouncement: '',
+    winningTeam: '',
+    certificateLink: '',
+    resultPdfUrl: '',
+    recordingUrl: ''
   },
   {
     id: 'evt-2',
@@ -1258,10 +1277,21 @@ export const INITIAL_EVENTS = [
     description: 'Hands-on intensive bootcamp on containerizing microservices with Docker & deploying serverless architectures on AWS Lambda.',
     prizeDetails: '📜 Certificate of Completion + AWS Credits',
     registrationLink: 'https://example.com/aws-workshop',
-    startDate: '2026-07-28',
-    endDate: '2026-07-29',
-    registrationDeadline: '2026-07-27',
-    createdAt: '2026-07-21'
+    startDate: '2026-08-15',
+    endDate: '2026-08-18',
+    registrationDeadline: '2026-08-12',
+    eventStatus: 'upcoming',
+    autoStatusEnabled: true,
+    registrationCount: 98,
+    createdAt: '2026-07-21',
+    updatedAt: '2026-07-21',
+    createdBy: 'AWS Student Club',
+    lastEditedBy: 'AWS Student Club',
+    winnerAnnouncement: '',
+    winningTeam: '',
+    certificateLink: '',
+    resultPdfUrl: '',
+    recordingUrl: ''
   },
   {
     id: 'evt-3',
@@ -1276,7 +1306,18 @@ export const INITIAL_EVENTS = [
     startDate: '2026-06-10',
     endDate: '2026-06-10',
     registrationDeadline: '2026-06-08',
-    createdAt: '2026-06-01'
+    eventStatus: 'archive',
+    autoStatusEnabled: true,
+    registrationCount: 215,
+    createdAt: '2026-06-01',
+    updatedAt: '2026-06-11',
+    createdBy: 'CodeChef Chapter',
+    lastEditedBy: 'IT Dept Admin',
+    winnerAnnouncement: '🎉 Team "AlgoWizards" secured 1st Rank with 100% test case pass rate!',
+    winningTeam: 'Team AlgoWizards (Priya S. & Rahul M.)',
+    certificateLink: 'https://example.com/certificates/codesprint-2026.pdf',
+    resultPdfUrl: 'https://example.com/results/codesprint-2026-final-standings.pdf',
+    recordingUrl: 'https://youtube.com'
   }
 ];
 
@@ -1384,6 +1425,39 @@ export const INITIAL_LEADERBOARD_USERS = [
   { id: 'usr-6', uid: 'u6', name: 'Vikas Kumar', classSection: 'IT-C', funPoints: 890, streak: 5, equippedBorder: 'default', equippedTitleId: 'title_novice', equippedAvatarBgId: 'bg_slate', unlockedBorderIds: ['default'], unlockedTitleIds: ['title_novice'], unlockedAvatarBgIds: ['bg_slate'], role: 'student' },
   { id: 'usr-7', uid: 'u7', name: 'Ananya Reddy', classSection: 'IT-A', funPoints: 810, streak: 4, equippedBorder: 'default', equippedTitleId: 'title_novice', equippedAvatarBgId: 'bg_slate', unlockedBorderIds: ['default'], unlockedTitleIds: ['title_novice'], unlockedAvatarBgIds: ['bg_slate'], role: 'student' },
   { id: 'usr-8', uid: 'u8', name: 'Gokul Krishna', classSection: 'IT-B', funPoints: 750, streak: 3, equippedBorder: 'default', equippedTitleId: 'title_novice', equippedAvatarBgId: 'bg_slate', unlockedBorderIds: ['default'], unlockedTitleIds: ['title_novice'], unlockedAvatarBgIds: ['bg_slate'], role: 'student' }
+];
+
+export const INITIAL_JAVA_ACADEMY = [
+  {
+    id: 'java-1',
+    title: 'Java Fundamentals & OOPs Masterclass',
+    level: 'Beginner',
+    description: 'Master Core Java, Abstraction, Encapsulation, Polymorphism, Inheritance, Exception Handling, and Memory Management.',
+    instructor: 'Prof. R. Vance & Tech Guild',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=800&q=80',
+    youtubePlaylistUrl: 'https://youtube.com/playlist?list=freecodecamp-java',
+    pdfUrl: 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf',
+    githubUrl: 'https://github.com/topics/java',
+    practiceUrl: 'https://leetcode.com/tag/java/',
+    duration: '12 Hours • 8 Modules',
+    hasCertificate: true,
+    isFeatured: true
+  },
+  {
+    id: 'java-2',
+    title: 'Java Collections Framework & Multithreading',
+    level: 'Intermediate',
+    description: 'In-depth guide to List, Set, Map, Queue, Streams API, Lambda Expressions, Concurrency, and ExecutorService.',
+    instructor: 'IT Department Faculty',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80',
+    youtubePlaylistUrl: 'https://youtube.com/playlist?list=java-collections',
+    pdfUrl: 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf',
+    githubUrl: 'https://github.com/topics/java-collections',
+    practiceUrl: 'https://www.hackerrank.com/domains/java',
+    duration: '16 Hours • 10 Modules',
+    hasCertificate: true,
+    isFeatured: true
+  }
 ];
 
 export const INITIAL_JAVA_LEVELS = [
@@ -1877,4 +1951,113 @@ export const INITIAL_PAGE_CONTROLS = {
   aichat: { id: 'aichat', name: 'AI Chat Assistant', status: 'live', title: '', message: '', displayMode: 'full_lock', roleTarget: 'everyone', disabledFeatures: [], visible: true },
   resumebuilder: { id: 'resumebuilder', name: 'Resume Builder', status: 'live', title: '', message: '', displayMode: 'full_lock', roleTarget: 'everyone', disabledFeatures: [], visible: true },
   marks: { id: 'marks', name: 'Self Marks Tracker', status: 'live', title: '', message: '', displayMode: 'full_lock', roleTarget: 'everyone', disabledFeatures: [], visible: true }
+};
+
+// =========================================================================
+// BRAINZONE CUMULATIVE XP & LEVEL PROGRESSION SYSTEM v5.0 (SINGLE SOURCE OF TRUTH)
+// =========================================================================
+export const LEVEL_SYSTEM = [
+  { level: 1, xpRequired: 0, nextXpRequired: 100, title: 'Beginner', reward: 'Novice Avatar Border & Starter Badge' },
+  { level: 2, xpRequired: 100, nextXpRequired: 250, title: 'Explorer', reward: 'Explorer Title & Cyber Neon Border' },
+  { level: 3, xpRequired: 250, nextXpRequired: 500, title: 'Learner', reward: 'Learner Badge & +5% Bonus XP Boost' },
+  { level: 4, xpRequired: 500, nextXpRequired: 1000, title: 'Problem Solver', reward: 'Problem Solver Title & Neon Glow Avatar' },
+  { level: 5, xpRequired: 1000, nextXpRequired: 1750, title: 'Code Architect', reward: 'Code Architect Badge & Emerald Theme' },
+  { level: 6, xpRequired: 1750, nextXpRequired: 2750, title: 'Tech Wizard', reward: 'Tech Wizard Title & Sparkle Effect' },
+  { level: 7, xpRequired: 2750, nextXpRequired: 4000, title: 'AI Explorer', reward: 'AI Explorer Badge & Cyberpunk Border' },
+  { level: 8, xpRequired: 4000, nextXpRequired: 5500, title: 'Full Stack Hero', reward: 'Full Stack Hero Title & Golden Aura' },
+  { level: 9, xpRequired: 5500, nextXpRequired: 7500, title: 'Cloud Champion', reward: 'Cloud Champion Badge & Lightning Frame' },
+  { level: 10, xpRequired: 7500, nextXpRequired: 10000, title: 'Cyber Legend', reward: 'Cyber Legend Avatar & Golden Legend Border' },
+  { level: 11, xpRequired: 10000, nextXpRequired: 13000, title: 'DevOps Master', reward: 'DevOps Master Title & Hologram Border' },
+  { level: 12, xpRequired: 13000, nextXpRequired: 17000, title: 'Innovation Guru', reward: 'Innovation Guru Badge & Diamond Glow' },
+  { level: 13, xpRequired: 17000, nextXpRequired: 22000, title: 'Elite Engineer', reward: 'Elite Engineer Title & Quantum Particle Aura' },
+  { level: 14, xpRequired: 22000, nextXpRequired: 28000, title: 'Tech Titan', reward: 'Tech Titan Avatar & Flame Legend Border' },
+  { level: 15, xpRequired: 28000, nextXpRequired: 35000, title: 'IT Grandmaster', reward: 'IT Grandmaster Title & Department Crown' },
+  { level: 16, xpRequired: 35000, nextXpRequired: 43000, title: 'Department Legend', reward: 'Department Legend Badge & Cosmic Shield' },
+  { level: 17, xpRequired: 43000, nextXpRequired: 52000, title: 'Hall of Fame', reward: 'Hall of Fame Badge & Golden Name Color' },
+  { level: 18, xpRequired: 52000, nextXpRequired: 62000, title: 'BrainZone Elite', reward: 'BrainZone Elite Title & Royal Platinum Frame' },
+  { level: 19, xpRequired: 62000, nextXpRequired: 75000, title: 'Ultimate Genius', reward: 'Ultimate Genius Title & Rainbow Animated Border' },
+  { level: 20, xpRequired: 75000, nextXpRequired: 100000, title: 'IT Resource Hub Champion', reward: 'IT Resource Hub Champion Crown & Golden Hall Banner' }
+];
+
+export const getLevelFromXP = (totalXP = 0) => {
+  const xp = Math.max(0, Number(totalXP) || 0);
+
+  let levelIdx = 0;
+  for (let i = LEVEL_SYSTEM.length - 1; i >= 0; i--) {
+    if (xp >= LEVEL_SYSTEM[i].xpRequired) {
+      levelIdx = i;
+      break;
+    }
+  }
+
+  const currentLevelObj = LEVEL_SYSTEM[levelIdx];
+  const isMaxLevel = currentLevelObj.level >= 20;
+  const nextLevelObj = !isMaxLevel ? LEVEL_SYSTEM[levelIdx + 1] : null;
+
+  const currentLevel = currentLevelObj.level;
+  const currentLevelTitle = currentLevelObj.title;
+  const currentLevelStartXP = currentLevelObj.xpRequired;
+  const nextLevelXP = nextLevelObj ? nextLevelObj.xpRequired : currentLevelObj.nextXpRequired;
+
+  const xpIntoCurrentLevel = Math.max(0, xp - currentLevelStartXP);
+  const xpNeededForNextLevel = Math.max(1, nextLevelXP - currentLevelStartXP);
+
+  const progressPercent = isMaxLevel 
+    ? 100 
+    : Math.min(100, Math.max(0, Math.round((xpIntoCurrentLevel / xpNeededForNextLevel) * 100)));
+
+  const nextLevelReward = nextLevelObj ? nextLevelObj.reward : '🏆 Maximum Level Achieved';
+
+  return {
+    totalXP: xp,
+    currentLevel,
+    currentLevelTitle,
+    currentLevelStartXP,
+    nextLevelXP,
+    xpIntoCurrentLevel,
+    xpNeededForNextLevel,
+    progressPercent,
+    nextLevelReward,
+    isMaxLevel
+  };
+};
+
+export const getCurrentLevel = (totalXP = 0) => getLevelFromXP(totalXP).currentLevel;
+
+export const getCurrentLevelTitle = (levelOrXP = 1) => {
+  if (typeof levelOrXP === 'number' && levelOrXP > 20) {
+    return getLevelFromXP(levelOrXP).currentLevelTitle;
+  }
+  const lvlObj = LEVEL_SYSTEM.find(l => l.level === Number(levelOrXP));
+  return lvlObj ? lvlObj.title : 'Beginner';
+};
+
+export const getCurrentLevelXP = (totalXP = 0) => getLevelFromXP(totalXP).xpIntoCurrentLevel;
+
+export const getNextLevelXP = (levelOrXP = 1) => {
+  if (typeof levelOrXP === 'number' && levelOrXP > 20) {
+    return getLevelFromXP(levelOrXP).nextLevelXP;
+  }
+  const lvlObj = LEVEL_SYSTEM.find(l => l.level === Number(levelOrXP)) || LEVEL_SYSTEM[0];
+  const nextObj = LEVEL_SYSTEM.find(l => l.level === Number(levelOrXP) + 1);
+  return nextObj ? nextObj.xpRequired : lvlObj.nextXpRequired;
+};
+
+export const getXPRequiredForNextLevel = (levelOrXP = 1) => {
+  if (typeof levelOrXP === 'number' && levelOrXP > 20) {
+    return getLevelFromXP(levelOrXP).xpNeededForNextLevel;
+  }
+  const lvlObj = LEVEL_SYSTEM.find(l => l.level === Number(levelOrXP)) || LEVEL_SYSTEM[0];
+  const nextObj = LEVEL_SYSTEM.find(l => l.level === Number(levelOrXP) + 1);
+  return nextObj ? (nextObj.xpRequired - lvlObj.xpRequired) : (lvlObj.nextXpRequired - lvlObj.xpRequired);
+};
+
+export const getProgressPercentage = (totalXP = 0) => getLevelFromXP(totalXP).progressPercent;
+
+export const getNextLevelReward = (levelOrXP = 1) => {
+  if (typeof levelOrXP === 'number' && levelOrXP > 20) {
+    return getLevelFromXP(levelOrXP).nextLevelReward;
+  }
+  const nextObj = LEVEL_SYSTEM.find(l => l.level === Number(levelOrXP) + 1);
+  return nextObj ? nextObj.reward : '🏆 Maximum Level Achieved';
 };

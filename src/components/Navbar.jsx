@@ -221,7 +221,7 @@ export const Navbar = ({ activeTab, setActiveTab, onOpenAdminForm, onOpenAdminMa
           <nav className="hidden md:flex items-center space-x-1 bg-slate-900/60 p-1.5 rounded-2xl border border-slate-800 flex-shrink-0">
             {navLinks.map((link) => {
               const Icon = link.icon;
-              const isActive = activeTab === link.id;
+              const isActive = activeTab === link.id || (link.id === 'announcements' && (activeTab === 'notices' || activeTab === 'notice'));
               return (
                 <button
                   key={link.id}
@@ -532,7 +532,7 @@ export const Navbar = ({ activeTab, setActiveTab, onOpenAdminForm, onOpenAdminMa
           <div className="space-y-1">
             {navLinks.map((link) => {
               const Icon = link.icon;
-              const isActive = activeTab === link.id;
+              const isActive = activeTab === link.id || (link.id === 'announcements' && (activeTab === 'notices' || activeTab === 'notice'));
               return (
                 <button
                   key={link.id}

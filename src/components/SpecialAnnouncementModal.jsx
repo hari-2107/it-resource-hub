@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Sparkles, ShieldAlert, Clock, ExternalLink, Play, Check, AlertCircle, Image as ImageIcon } from 'lucide-react';
+import { X, Sparkles, ShieldAlert, Clock, ExternalLink, Play, Check, AlertCircle, Image as ImageIcon, Loader2, CheckCircle2 } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { BroadcastOverlay } from './BroadcastOverlay';
@@ -24,6 +24,8 @@ export const SpecialAnnouncementModal = ({ onClose }) => {
 
   const [previewOverlay, setPreviewOverlay] = useState(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [toastMessage, setToastMessage] = useState(null);
 
   const handleImageFileUpload = (e) => {
     const file = e.target.files[0];
@@ -40,44 +42,66 @@ export const SpecialAnnouncementModal = ({ onClose }) => {
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.title.trim() || !form.message.trim()) return;
+    console.log("Publish Special Announcement clicked", form);
 
-    const broadcastData = {
-      title: form.title,
-      message: form.message,
-      bannerImageUrl: form.bannerImageUrl,
-      linkUrl: form.linkUrl,
-      linkLabel: form.linkLabel || 'Register Now 🚀',
-      isSkippable: form.isSkippable,
-      autoCloseSeconds: form.timingMode === 'timer' ? (parseInt(form.autoCloseSeconds) || 5) : 0,
-      isFestivalMode: form.themeMode === 'festival',
-      themeMode: form.themeMode,
-      animationType: form.animationType,
-      isActive: form.isActive,
-      createdBy: currentUser?.name || 'IT Dept Admin'
-    };
+    if (!form.title?.trim() || !form.message?.trim()) {
+      setToastMessage({ type: 'error', text: '❌ Title and Announcement Message are required.' });
+      return;
+    }
 
-    // Save as broadcast overlay announcement
-    addBroadcast(broadcastData);
+    setIsSaving(true);
+    setToastMessage(null);
 
-    // Also post to Announcements feed as Special Announcement
-    addOrUpdateAnnouncement({
-      title: form.title,
-      description: form.message,
-      category: 'Special Announcement',
-      priority: form.themeMode === 'urgent' ? 'High' : 'Special',
-      isPinned: true,
-      author: currentUser?.name || 'HOD / IT Dept Admin',
-      attachmentUrl: form.bannerImageUrl,
-      attachmentType: form.bannerImageUrl ? 'image' : ''
-    });
+    try {
+      const broadcastData = {
+        title: form.title.trim(),
+        message: form.message.trim(),
+        bannerImageUrl: form.bannerImageUrl,
+        linkUrl: form.linkUrl,
+        linkLabel: form.linkLabel || 'Register Now 🚀',
+        isSkippable: form.isSkippable,
+        autoCloseSeconds: form.timingMode === 'timer' ? (parseInt(form.autoCloseSeconds) || 5) : 0,
+        isFestivalMode: form.themeMode === 'festival',
+        themeMode: form.themeMode,
+        animationType: form.animationType,
+        isActive: form.isActive,
+        type: 'special',
+        createdBy: currentUser?.name || 'IT Dept Admin'
+      };
 
-    setIsSubmitted(true);
-    setTimeout(() => {
-      onClose();
-    }, 1800);
+      // Save as broadcast overlay
+      addBroadcast(broadcastData);
+
+      // Save to Announcements feed with type = 'special'
+      const savedAnn = addOrUpdateAnnouncement({
+        title: form.title.trim(),
+        description: form.message.trim(),
+        category: 'Special Announcement',
+        type: 'special',
+        priority: form.themeMode === 'urgent' ? 'High' : 'Special',
+        isPinned: true,
+        author: currentUser?.name || 'HOD / IT Dept Admin',
+        createdBy: currentUser?.name || 'HOD / IT Dept Admin',
+        attachmentUrl: form.bannerImageUrl,
+        attachmentType: form.bannerImageUrl ? 'image' : ''
+      });
+
+      console.log("Special Announcement published successfully:", savedAnn);
+      setToastMessage({ type: 'success', text: '✨ Special Announcement published successfully!' });
+      setIsSubmitted(true);
+
+      setTimeout(() => {
+        onClose();
+      }, 1200);
+
+    } catch (err) {
+      console.error("Publish Special Announcement error:", err);
+      setToastMessage({ type: 'error', text: `❌ ${err.message || 'Failed to publish special announcement.'}` });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleTestPreview = () => {
@@ -409,12 +433,25 @@ export const SpecialAnnouncementModal = ({ onClose }) => {
               </div>
             </div>
 
+            {/* Toast Message Banner */}
+            {toastMessage && (
+              <div className={`p-3 rounded-2xl text-xs font-bold flex items-center space-x-2 animate-in fade-in ${
+                toastMessage.type === 'success' 
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' 
+                  : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+              }`}>
+                {toastMessage.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" /> : <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />}
+                <span>{toastMessage.text}</span>
+              </div>
+            )}
+
             {/* Test Preview & Submit Buttons */}
             <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
               <button
                 type="button"
                 onClick={handleTestPreview}
-                className="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-amber-300 flex items-center space-x-1.5 border border-slate-700"
+                disabled={isSaving}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-amber-300 flex items-center space-x-1.5 border border-slate-700 disabled:opacity-50"
               >
                 <Play className="w-4 h-4 text-amber-400" />
                 <span>Test Live Overlay Preview</span>
@@ -424,16 +461,27 @@ export const SpecialAnnouncementModal = ({ onClose }) => {
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 text-slate-400 hover:text-white font-bold"
+                  disabled={isSaving}
+                  className="px-4 py-2 text-slate-400 hover:text-white font-bold disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-xl font-bold bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 hover:from-amber-400 hover:to-purple-500 text-white shadow-lg shadow-amber-500/25 flex items-center space-x-2"
+                  disabled={isSaving}
+                  className="px-6 py-2.5 rounded-xl font-bold bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 hover:from-amber-400 hover:to-purple-500 text-white shadow-lg shadow-amber-500/25 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Sparkles className="w-4 h-4" />
-                  <span>Publish Special Announcement</span>
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      <span>Publishing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      <span>Publish Special Announcement</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>
