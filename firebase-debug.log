@@ -1,11 +1,11 @@
-[debug] [2026-08-07T10:51:43.317Z] ----------------------------------------------------------------------
-[debug] [2026-08-07T10:51:43.326Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\WIN 11\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js init hosting
-[debug] [2026-08-07T10:51:43.327Z] CLI Version:   15.26.0
-[debug] [2026-08-07T10:51:43.328Z] Platform:      win32
-[debug] [2026-08-07T10:51:43.328Z] Node Version:  v24.18.0
-[debug] [2026-08-07T10:51:43.329Z] Detected Agent: unknown
-[debug] [2026-08-07T10:51:43.329Z] Time:          Fri Aug 07 2026 16:21:43 GMT+0530 (India Standard Time)
-[debug] [2026-08-07T10:51:43.329Z] ----------------------------------------------------------------------
+[debug] [2026-08-07T11:37:22.074Z] ----------------------------------------------------------------------
+[debug] [2026-08-07T11:37:22.084Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\WIN 11\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js init hosting
+[debug] [2026-08-07T11:37:22.085Z] CLI Version:   15.26.0
+[debug] [2026-08-07T11:37:22.085Z] Platform:      win32
+[debug] [2026-08-07T11:37:22.086Z] Node Version:  v24.18.0
+[debug] [2026-08-07T11:37:22.086Z] Detected Agent: unknown
+[debug] [2026-08-07T11:37:22.086Z] Time:          Fri Aug 07 2026 17:07:22 GMT+0530 (India Standard Time)
+[debug] [2026-08-07T11:37:22.086Z] ----------------------------------------------------------------------
 [debug] 
 [info] 
      ######## #### ########  ######## ########     ###     ######  ########
@@ -22,3 +22,59 @@ Before we get started, keep in mind:
 
   * You are initializing within an existing Firebase project directory
 
+[info] 
+=== Project Setup
+[info] 
+[info] First, let's associate this project directory with a Firebase project.
+[info] You can create multiple project aliases by running firebase use --add, 
+[info] 
+[info] i  If you want to create a project in a Google Cloud organization or folder, please use "firebase projects:create" instead, and return to this command when you've created the project. 
+[debug] [2026-08-07T11:37:35.125Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-08-07T11:37:35.125Z] > authorizing via signed-in user (sangaiah2007@gmail.com)
+[debug] [2026-08-07T11:37:36.855Z] Checked if tokens are valid: true, expires at: 1786105419315
+[debug] [2026-08-07T11:37:36.856Z] Checked if tokens are valid: true, expires at: 1786105419315
+[debug] [2026-08-07T11:37:36.858Z] >>> [apiv2][query] POST https://firebase.googleapis.com/v1/projects:checkProjectId [none]
+[debug] [2026-08-07T11:37:36.858Z] >>> [apiv2][body] POST https://firebase.googleapis.com/v1/projects:checkProjectId {"proposedId":"it-resource-hub-ari-2026"}
+[debug] [2026-08-07T11:37:37.652Z] <<< [apiv2][status] POST https://firebase.googleapis.com/v1/projects:checkProjectId 200
+[debug] [2026-08-07T11:37:37.652Z] <<< [apiv2][body] POST https://firebase.googleapis.com/v1/projects:checkProjectId {"projectIdStatus":"PROJECT_ID_UNAVAILABLE","suggestedProjectId":"it-resource-hub-ari-2026-b36da"}
+[debug] [2026-08-07T11:37:45.017Z] Checked if tokens are valid: true, expires at: 1786105419315
+[debug] [2026-08-07T11:37:45.017Z] Checked if tokens are valid: true, expires at: 1786105419315
+[debug] [2026-08-07T11:37:45.018Z] >>> [apiv2][query] POST https://firebase.googleapis.com/v1/projects:checkProjectId [none]
+[debug] [2026-08-07T11:37:45.018Z] >>> [apiv2][body] POST https://firebase.googleapis.com/v1/projects:checkProjectId {"proposedId":"it-resource-hub-ari"}
+[debug] [2026-08-07T11:37:45.543Z] <<< [apiv2][status] POST https://firebase.googleapis.com/v1/projects:checkProjectId 200
+[debug] [2026-08-07T11:37:45.543Z] <<< [apiv2][body] POST https://firebase.googleapis.com/v1/projects:checkProjectId {"projectIdStatus":"PROJECT_ID_AVAILABLE","suggestedProjectId":"it-resource-hub-ari"}
+[debug] [2026-08-07T11:37:49.333Z] Checked if tokens are valid: true, expires at: 1786105419315
+[debug] [2026-08-07T11:37:49.333Z] Checked if tokens are valid: true, expires at: 1786105419315
+[debug] [2026-08-07T11:37:49.333Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects [none]
+[debug] [2026-08-07T11:37:49.333Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects {"projectId":"it-resource-hub-ari","name":"it-resource-hub-ari"}
+[debug] [2026-08-07T11:37:50.957Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects 200
+[debug] [2026-08-07T11:37:50.957Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects {"name":"operations/create_project.global.6893121502332042376"}
+[debug] [2026-08-07T11:37:50.959Z] Checked if tokens are valid: true, expires at: 1786105419315
+[debug] [2026-08-07T11:37:50.959Z] Checked if tokens are valid: true, expires at: 1786105419315
+[debug] [2026-08-07T11:37:50.959Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/operations/create_project.global.6893121502332042376 [none]
+[debug] [2026-08-07T11:37:52.270Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/operations/create_project.global.6893121502332042376 200
+[debug] [2026-08-07T11:37:52.270Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/operations/create_project.global.6893121502332042376 {"name":"operations/create_project.global.6893121502332042376"}
+[debug] [2026-08-07T11:37:52.783Z] [Project Creation Poller] Retrying task index 0
+[debug] [2026-08-07T11:37:52.784Z] Checked if tokens are valid: true, expires at: 1786105419315
+[debug] [2026-08-07T11:37:52.784Z] Checked if tokens are valid: true, expires at: 1786105419315
+[debug] [2026-08-07T11:37:52.784Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/operations/create_project.global.6893121502332042376 [none]
+[debug] [2026-08-07T11:37:53.129Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/operations/create_project.global.6893121502332042376 200
+[debug] [2026-08-07T11:37:53.129Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/operations/create_project.global.6893121502332042376 {"name":"operations/create_project.global.6893121502332042376"}
+[debug] [2026-08-07T11:37:54.132Z] [Project Creation Poller] Retrying task index 0
+[debug] [2026-08-07T11:37:54.133Z] Checked if tokens are valid: true, expires at: 1786105419315
+[debug] [2026-08-07T11:37:54.133Z] Checked if tokens are valid: true, expires at: 1786105419315
+[debug] [2026-08-07T11:37:54.133Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/operations/create_project.global.6893121502332042376 [none]
+[debug] [2026-08-07T11:37:54.471Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/operations/create_project.global.6893121502332042376 200
+[debug] [2026-08-07T11:37:54.471Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/operations/create_project.global.6893121502332042376 {"name":"operations/create_project.global.6893121502332042376","metadata":{"@type":"type.googleapis.com/google.cloudresourcemanager.v1.ProjectCreationStatus","gettable":true,"ready":true},"done":true,"response":{"@type":"type.googleapis.com/google.cloudresourcemanager.v1.Project","projectNumber":"623525935798","projectId":"it-resource-hub-ari","lifecycleState":"ACTIVE","name":"it-resource-hub-ari","createTime":"2026-08-07T11:37:53.782Z"}}
+[debug] [2026-08-07T11:37:54.472Z] Checked if tokens are valid: true, expires at: 1786105419315
+[debug] [2026-08-07T11:37:54.472Z] Checked if tokens are valid: true, expires at: 1786105419315
+[debug] [2026-08-07T11:37:54.473Z] >>> [apiv2][query] POST https://firebase.googleapis.com/v1beta1/projects/it-resource-hub-ari:addFirebase [none]
+[debug] [2026-08-07T11:37:56.108Z] <<< [apiv2][status] POST https://firebase.googleapis.com/v1beta1/projects/it-resource-hub-ari:addFirebase 403
+[debug] [2026-08-07T11:37:56.109Z] <<< [apiv2][body] POST https://firebase.googleapis.com/v1beta1/projects/it-resource-hub-ari:addFirebase {"error":{"code":403,"message":"The caller does not have permission","status":"PERMISSION_DENIED"}}
+[debug] [2026-08-07T11:37:56.109Z] Request to https://firebase.googleapis.com/v1beta1/projects/it-resource-hub-ari:addFirebase had HTTP Error: 403, The caller does not have permission
+[debug] [2026-08-07T11:37:56.365Z] FirebaseError: Request to https://firebase.googleapis.com/v1beta1/projects/it-resource-hub-ari:addFirebase had HTTP Error: 403, The caller does not have permission
+    at responseToError (C:\Users\WIN 11\AppData\Roaming\npm\node_modules\firebase-tools\lib\responseToError.js:53:12)
+    at RetryOperation._fn (C:\Users\WIN 11\AppData\Roaming\npm\node_modules\firebase-tools\lib\apiv2.js:415:77)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+[error] 
+[error] Error: Failed to add Firebase to Google Cloud Platform project. See firebase-debug.log for more info.
